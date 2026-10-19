@@ -1,6 +1,6 @@
 # Pakalale
 
-## both anything, create .env file for our backend connection
+## Before you do anything,ensure you create .env file for our backend connection
 
 ## Run Locally
 ## method 1

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import ImageWithFallback from "@/components/ImageWithFallback";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -137,7 +138,7 @@ export default function ImageViewerModal({
             playsInline
           />
         ) : (
-          <img
+          <ImageWithFallback
             src={images[currentIndex]}
             alt={alt}
             className="max-h-[85vh] max-w-full object-contain select-none"

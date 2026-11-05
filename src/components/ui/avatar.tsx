@@ -4,6 +4,7 @@ import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
+import { userAvatarPlaceholder } from "@/lib/placeholders"
 
 function Avatar({
   className,
@@ -26,6 +27,10 @@ function Avatar({
 }
 
 function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+  const src = typeof props.src === "string" && props.src.trim()
+    ? props.src
+    : userAvatarPlaceholder(props.alt)
+
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
@@ -34,6 +39,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
         className
       )}
       {...props}
+      src={src}
     />
   )
 }

@@ -6,6 +6,7 @@ import { Heart, MessageSquare, Share, ShoppingBag, MapPin, Clock, CheckCircle, P
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import ContactModal from "./ContactModal";
@@ -222,7 +223,7 @@ export default function FeedPost({
                 {isVideoUrl(post.images[0]) ? (
                   <video ref={videoRef} src={post.images[0]} className="w-full max-h-80 object-cover" controls playsInline preload="metadata" />
                 ) : (
-                  <img src={post.images[0]} alt="Post image" className="w-full object-cover max-h-80" loading="lazy" />
+                  <ImageWithFallback src={post.images[0]} alt="Post image" className="w-full object-cover max-h-80" loading="lazy" />
                 )}
               </div>
             ) : (
@@ -236,7 +237,7 @@ export default function FeedPost({
                     {isVideoUrl(img) ? (
                       <video src={img} className="w-full h-full object-cover" muted preload="metadata" />
                     ) : (
-                      <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      <ImageWithFallback src={img} alt="Post image" className="w-full h-full object-cover" loading="lazy" />
                     )}
                     {i === 1 && post.images!.length > 2 && (
                       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -254,10 +255,10 @@ export default function FeedPost({
       {/* Stats */}
       {(post.likes > 0 || allComments.length > 0 || post.shares > 0) && (
         <div className="px-4 py-1 border-t border-border">
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-3 text-[11px] font-medium text-brand">
             {post.likes > 0 && (
               <span className="flex items-center gap-1">
-                <Heart className="h-3 w-3 text-blue-400" /> {post.likes}
+                <Heart className="h-3 w-3 text-brand" /> {post.likes}
               </span>
             )}
             {allComments.length > 0 && <span>{allComments.length} comments</span>}
@@ -273,8 +274,10 @@ export default function FeedPost({
             variant="ghost"
             size="sm"
             className={cn(
-              "h-7 text-[10px] sm:text-[11px] transition-all px-1.5 sm:px-2",
-              isLiked ? "text-rose-400 hover:text-rose-500" : "text-muted-foreground"
+              "h-7 text-[10px] sm:text-[11px] font-medium transition-all px-1.5 sm:px-2",
+              isLiked
+                ? "text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
+                : "text-brand hover:bg-brand-soft hover:text-brand"
             )}
             onClick={handleLike}
           >
@@ -290,7 +293,7 @@ export default function FeedPost({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-[10px] sm:text-[11px] text-muted-foreground px-1.5 sm:px-2"
+            className="h-7 text-[10px] sm:text-[11px] font-medium text-brand hover:bg-brand-soft hover:text-brand px-1.5 sm:px-2"
             onClick={() => setShowComments(!showComments)}
           >
             <MessageSquare className="h-3.5 w-3.5 mr-0.5" />
@@ -299,7 +302,7 @@ export default function FeedPost({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-[10px] sm:text-[11px] text-muted-foreground px-1.5 sm:px-2"
+            className="h-7 text-[10px] sm:text-[11px] font-medium text-brand hover:bg-brand-soft hover:text-brand px-1.5 sm:px-2"
             onClick={() => onShare(post.id)}
           >
             <Share className="h-3.5 w-3.5 mr-0.5" />
@@ -310,7 +313,7 @@ export default function FeedPost({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-[10px] sm:text-[11px] text-muted-foreground px-1.5 sm:px-2"
+              className="h-7 text-[10px] sm:text-[11px] font-medium text-brand hover:bg-brand-soft hover:text-brand px-1.5 sm:px-2"
               onClick={() => { setContactMounted(true); setShowContactModal(true); }}
             >
               <Phone className="h-3.5 w-3.5 mr-0.5" />

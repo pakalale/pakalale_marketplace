@@ -7,6 +7,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { productPlaceholder } from "@/lib/placeholders";
 import type { ProductData } from "@/hooks/useApi";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
@@ -85,8 +87,9 @@ export default function ProductDetailModal({
               {isVideoUrl(images[imageIndex]) ? (
                 <video src={images[imageIndex]} className="w-full h-full object-cover" controls preload="metadata" />
               ) : (
-                <img
+                <ImageWithFallback
                   src={images[imageIndex]}
+                  fallbackSrc={productPlaceholder(product.category, product.id)}
                   alt={product.name}
                   className="w-full h-full object-cover"
                   loading="lazy"
@@ -123,9 +126,12 @@ export default function ProductDetailModal({
               )}
             </>
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ShoppingBag className="h-16 w-16 text-muted-foreground/30" />
-            </div>
+            <ImageWithFallback
+              src={undefined}
+              fallbackSrc={productPlaceholder(product.category, product.id)}
+              alt={product.name}
+              className="h-full w-full object-cover"
+            />
           )}
 
           {/* Discount badge */}

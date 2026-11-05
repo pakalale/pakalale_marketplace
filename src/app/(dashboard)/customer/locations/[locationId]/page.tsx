@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { MapPin, Store, Star, Search, Users, Loader2, Package, ShoppingBag, ChevronRight, Eye, ArrowLeft, Filter, TrendingUp, Sparkles, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,9 @@ import ProductDetailModal from "@/components/ProductDetailModal";
 import DealModal from "@/components/DealModal";
 import DealSuccessPopup from "@/components/DealSuccessPopup";
 import ImageViewerModal from "@/components/ImageViewerModal";
+import ProductPreviewStrip from "@/components/ProductPreview";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { DEFAULT_SHOP_COVER, productPlaceholder } from "@/lib/placeholders";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -35,6 +38,8 @@ export default function LocationDetailPage() {
   const { locationId } = useParams<{ locationId: string }>();
   const searchParams = useSearchParams();
   const initialShopId = searchParams.get("shopId");
+  const initialProductId = searchParams.get("productId");
+  const openedInitialProduct = useRef(false);
   const router = useRouter();
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,6 +102,24 @@ export default function LocationDetailPage() {
     }
   }, [initialShopId, allShops, selectedShop]);
 
+  // Deep link from a product preview: open the shop and the exact product.
+  useEffect(() => {
+    if (!initialProductId || openedInitialProduct.current || allShops.length === 0) return;
+    for (const shop of allShops) {
+      const product = (shop.previewProducts || []).find((p) => p.id === initialProductId);
+      if (!product) continue;
+      openedInitialProduct.current = true;
+      setSelectedShop(shop.id);
+      window.history.replaceState(
+        { shopId: shop.id, productId: product.id },
+        "",
+        `?shopId=${shop.id}&productId=${product.id}`
+      );
+      setSelectedProduct(product);
+      return;
+    }
+  }, [initialProductId, allShops]);
+
   // Track shop view
   useEffect(() => {
     if (selectedShop) {
@@ -145,6 +168,19 @@ export default function LocationDetailPage() {
   const productCategories = Array.from(new Set(shopProducts.map((p) => p.category).filter(Boolean)));
 
   const handleProductClick = (product: ProductData) => { setSelectedProduct(product); };
+
+  // Open a product previewed on the location header (shop derived from product).
+  const handleLocationPreview = (product: ProductData) => {
+    const shopId = typeof product.shopId === "string" ? product.shopId : product.shopId?.id;
+    if (!shopId) return;
+    setSelectedShop(shopId);
+    window.history.pushState(
+      { shopId, productId: product.id },
+      "",
+      `?shopId=${shopId}&productId=${product.id}`
+    );
+    setSelectedProduct(product);
+  };
 
   const handleMakeDealFromProduct = (product: ProductData) => {
     setSelectedProduct(null);
@@ -210,6 +246,7 @@ export default function LocationDetailPage() {
             {/* Location Header — no time, no contact */}
             {location && !selectedShop && (
               <Card className="bg-card border-border overflow-hidden">
+                <div className="h-1.5 bg-gradient-to-r from-brand via-brand to-primary" />
                 <CardContent className="p-4 sm:p-5">
                   <h1 className="text-xl font-bold mb-2">{location.name}</h1>
                   <p className="text-sm text-muted-foreground mb-3">{location.description}</p>
@@ -221,9 +258,24 @@ export default function LocationDetailPage() {
                   <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />{location.rating || "—"}</div>
                     <div className="flex items-center gap-1"><Store className="h-3 w-3" />{allShops.length} shops</div>
+                    <div className="flex items-center gap-1"><Package className="h-3 w-3" />{location.productCount ?? 0} products</div>
                     <div className="flex items-center gap-1"><Eye className="h-3 w-3" />{(location as LocationData & { totalViews?: number }).totalViews ? `${(location as LocationData & { totalViews?: number }).totalViews} views` : "New"}</div>
                     <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />{onlineUserIds.size} active</div>
                   </div>
+
+                  {(location.previewProducts?.length || 0) > 0 && (
+                    <div className="mt-4 border-t border-brand/10 pt-3">
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                        Popular products here
+                      </p>
+                      <ProductPreviewStrip
+                        products={location.previewProducts || []}
+                        max={9}
+                        showPrice
+                        onSelect={handleLocationPreview}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -233,7 +285,7 @@ export default function LocationDetailPage() {
               <div className="space-y-3">
                 {/* Shop header */}
                 {currentShop && (
-                  <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-3 p-3 bg-brand-soft/60 border border-brand/10 rounded-lg">
                     <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={currentShop.profileImage} alt={currentShop.name} />
                       <AvatarFallback className="bg-primary/10 text-brand text-sm">
@@ -271,7 +323,7 @@ export default function LocationDetailPage() {
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-colors shrink-0 ${
                         productFilter === key
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
+                          : "bg-brand-soft text-brand hover:bg-brand-muted/60"
                       }`}
                     >
                       <Icon className="h-3 w-3" />
@@ -297,7 +349,7 @@ export default function LocationDetailPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                       <div key={i} className="bg-card border border-border rounded-lg p-3 space-y-2">
-                        <Skeleton className="h-24 w-full rounded-lg" />
+                        <Skeleton className="aspect-[4/3] w-full rounded-lg" />
                         <Skeleton className="h-3 w-3/4" />
                         <div className="flex justify-between"><Skeleton className="h-3 w-16" /><Skeleton className="h-2 w-12" /></div>
                       </div>
@@ -317,21 +369,21 @@ export default function LocationDetailPage() {
                           <div className="mb-2 relative">
                             {product.images && product.images.length > 0 ? (
                               product.images.length === 1 ? (
-                                <div className="h-24 w-full bg-muted rounded-lg overflow-hidden cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, 0); }}>
+                                <div className="aspect-[4/3] w-full bg-muted rounded-lg overflow-hidden cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, 0); }}>
                                   {isVideoUrl(product.images[0]) ? (
                                     <video src={product.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                                   ) : (
-                                    <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                                    <ImageWithFallback src={product.images[0]} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                                   )}
                                 </div>
                               ) : (
-                                <div className="h-24 grid grid-cols-2 gap-0.5 rounded-lg overflow-hidden">
+                                <div className="aspect-[4/3] grid grid-cols-2 gap-0.5 rounded-lg overflow-hidden">
                                   {product.images.slice(0, 2).map((img, i) => (
-                                    <div key={i} className="relative bg-muted cursor-pointer aspect-square h-full" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, i); }}>
+                                    <div key={i} className="relative h-full w-full min-w-0 overflow-hidden bg-muted cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, i); }}>
                                       {isVideoUrl(img) ? (
                                         <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                                       ) : (
-                                        <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                        <ImageWithFallback src={img} fallbackSrc={productPlaceholder(product.category, `${product.id}-${i}`)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                                       )}
                                       {i === 1 && product.images!.length > 2 && (
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -343,8 +395,8 @@ export default function LocationDetailPage() {
                                 </div>
                               )
                             ) : (
-                              <div className="h-24 w-full bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                                <ShoppingBag className="h-6 w-6 text-muted-foreground" />
+                              <div className="aspect-[4/3] w-full bg-muted rounded-lg overflow-hidden">
+                                <ImageWithFallback src={undefined} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                             )}
                             {product.discount && product.discount > 0 && (
@@ -398,11 +450,11 @@ export default function LocationDetailPage() {
                 {/* Shops Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {filtered.map((shop) => (
-                    <Card key={shop.id} className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer overflow-hidden"
+                    <Card key={shop.id} className="bg-card border-border hover:border-brand/30 transition-colors cursor-pointer overflow-hidden"
                       onClick={() => selectShop(shop.id)}>
                       {shop.coverImage && (
                         <div className="h-20 w-full overflow-hidden">
-                          <img src={shop.coverImage} alt="" className="w-full h-full object-cover" />
+                           <ImageWithFallback src={shop.coverImage} fallbackSrc={DEFAULT_SHOP_COVER} alt={`${shop.name} cover`} className="w-full h-full object-cover" />
                         </div>
                       )}
                       <CardContent className="p-4">
@@ -426,16 +478,34 @@ export default function LocationDetailPage() {
                                 </span>
                               ) : <span>No ratings</span>}
                               {shop.totalViews ? <span>{shop.totalViews} views</span> : null}
+                              <span>{shop.productCount || 0} products</span>
                             </div>
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{shop.description}</p>
+
+                        <ProductPreviewStrip
+                          products={shop.previewProducts || []}
+                          max={3}
+                          showPrice
+                          className="mb-3"
+                          onSelect={(product) => {
+                            setSelectedShop(shop.id);
+                            window.history.pushState(
+                              { shopId: shop.id, productId: product.id },
+                              "",
+                              `?shopId=${shop.id}&productId=${product.id}`
+                            );
+                            setSelectedProduct(product);
+                          }}
+                        />
+
                         <div className="flex flex-wrap gap-1 mb-3">
                           {(shop.specialties || []).slice(0, 3).map((s) => (
-                            <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
+                            <Badge key={s} variant="outline" className="text-[10px] border-brand/20 text-brand">{s}</Badge>
                           ))}
                         </div>
-                        <Button size="sm" variant="outline" className="w-full h-7 text-[11px]"
+                        <Button size="sm" variant="outline" className="w-full h-7 text-[11px] border-brand/30 text-brand hover:bg-brand-soft"
                           onClick={(e) => { e.stopPropagation(); selectShop(shop.id); }}>
                           <Package className="h-3 w-3 mr-1" />Browse Products
                         </Button>

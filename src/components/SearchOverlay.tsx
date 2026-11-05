@@ -300,14 +300,14 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 )}
                 {trending.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-brand" /> Trending</h3>
+                    <h3 className="text-xs font-semibold text-brand mb-2 flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-brand" /> Trending</h3>
                     <div className="space-y-0.5">
                       {trending.slice(0, 4).map((t, i) => (
                         <button key={i} onClick={() => setQuery(t.query)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-muted/50 transition-colors text-left">
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-brand-soft transition-colors text-left">
                           <TrendingUp className="h-3.5 w-3.5 text-brand shrink-0" />
                           <span className="flex-1 font-medium truncate">{t.query}</span>
-                          <span className="text-[10px] text-muted-foreground">{t.count}x</span>
+                          <span className="text-[10px] font-medium text-brand/70">{t.count}x</span>
                         </button>
                       ))}
                     </div>

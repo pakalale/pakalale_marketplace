@@ -2,6 +2,12 @@
 
 This guide walks you through deploying Pakalale to AWS EC2 with full WebSocket support.
 
+## Deploying the Next.js app to Vercel
+
+Vercel can build and host the Next.js pages and API routes. Import the repository with its root directory set to the project root and use `npm run build` as the build command. Configure the app's environment variables in the Vercel project settings for each deployment environment; do not commit `.env` files.
+
+The app's `server.ts` starts a custom HTTP server with Socket.IO and is used by the local and EC2 `start` scripts. Vercel's Next.js deployment does not launch that process, so real-time chat and online-presence events need a separate realtime service or a host that runs the custom Node server. Use the EC2 instructions below when the bundled Socket.IO server is required.
+
 ## Prerequisites
 
 - AWS account (free tier eligible)

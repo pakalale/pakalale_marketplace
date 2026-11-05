@@ -108,10 +108,6 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
           <div className="flex-1 max-w-md"><AnimatedSearch onClick={() => setSearchOpen(true)} /></div>
         )}
 
-        <Button variant="ghost" size="icon" onClick={() => router.push("/customer/settings")} className="shrink-0">
-          <Settings className="h-5 w-5" />
-        </Button>
-
         {/* Mobile menu */}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger render={<Button variant="ghost" size="icon" className="sm:hidden shrink-0" />}>
@@ -150,6 +146,11 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
             )}
           </Link>
         ))}
+        <span className="mx-1 h-4 w-px bg-border" />
+        <Link href="/customer/settings" prefetch={true}
+          className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors", activeTab === "settings" ? "bg-primary/10 text-brand" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+          Settings
+        </Link>
       </div>
     </header>
 

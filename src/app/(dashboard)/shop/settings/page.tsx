@@ -31,6 +31,8 @@ import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 import VerificationSection from "@/components/VerificationSection";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
 
 const ALL_SPECIALTIES = [
   "Electronics",
@@ -211,13 +213,7 @@ export default function ShopSettingsPage() {
               <CardContent className="p-0">
                 {/* Cover Image */}
                 <div className="relative h-32 bg-gradient-to-r from-primary/20 to-amber-golden/20">
-                  {shopForm.coverImage && (
-                    <img
-                      src={shopForm.coverImage}
-                      alt="Cover"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+                  <ImageWithFallback src={shopForm.coverImage} fallbackSrc={DEFAULT_SHOP_COVER} alt="Shop cover" className="w-full h-full object-cover" />
                   {uploading && (
                     <div className="absolute bottom-0 left-0 right-0">
                       <UploadProgressBar uploading={uploading} progress={uploadProgress} showLabel={false} />
@@ -240,17 +236,7 @@ export default function ShopSettingsPage() {
                 {/* Profile Photo */}
                 <div className="px-4 -mt-10 relative">
                   <div className="relative w-20 h-20 rounded-full border-4 border-background overflow-hidden bg-muted">
-                    {shopForm.profileImage ? (
-                      <img
-                        src={shopForm.profileImage}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Store className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                    )}
+                    <ImageWithFallback src={shopForm.profileImage} fallbackSrc={DEFAULT_SHOP_COVER} alt="Shop profile" className="w-full h-full object-cover" />
                     <button
                       onClick={() => {
                         fileInputRef.current?.click();

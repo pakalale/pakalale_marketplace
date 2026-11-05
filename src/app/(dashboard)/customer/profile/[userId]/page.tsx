@@ -13,9 +13,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ImageViewerModal from "@/components/ImageViewerModal";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import { useAuthStore } from "@/store/authStore";
 import { createChat } from "@/hooks/useApi";
 import { formatTimeAgo } from "@/lib/formatTime";
+import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -46,6 +48,8 @@ interface UserShop {
   id: string;
   name: string;
   description?: string;
+  profileImage?: string;
+  coverImage?: string;
   specialties: string[];
   rating?: number;
   totalReviews: number;
@@ -256,10 +260,11 @@ export default function ProfilePage() {
             className="bg-card border-border cursor-pointer hover:border-primary/20 transition-colors"
             onClick={() => router.push(`/customer/locations/${shop.locationId || "soweto"}?shopId=${shop.id}`)}
           >
+            <ImageWithFallback src={shop.coverImage} fallbackSrc={DEFAULT_SHOP_COVER} alt={`${shop.name} cover`} className="h-24 w-full object-cover" />
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                  <Store className="h-6 w-6 text-primary-foreground" />
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                  <ImageWithFallback src={shop.profileImage} fallbackSrc={DEFAULT_SHOP_COVER} alt={shop.name} className="h-full w-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -334,7 +339,7 @@ export default function ProfilePage() {
                             {isVideoUrl(post.images[0]) ? (
                               <video src={post.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                             ) : (
-                              <img src={post.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
+                               <ImageWithFallback src={post.images[0]} alt="Profile post" className="w-full h-full object-cover" loading="lazy" />
                             )}
                           </div>
                         ) : (
@@ -348,7 +353,7 @@ export default function ProfilePage() {
                                 {isVideoUrl(img) ? (
                                   <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                                 ) : (
-                                  <img src={img} alt="" className="w-full h-full object-cover" />
+                                   <ImageWithFallback src={img} alt="Profile post" className="w-full h-full object-cover" />
                                 )}
                                 {i === 1 && post.images!.length > 2 && (
                                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
 import { useAuthStore } from "@/store/authStore";
 import { formatTimeAgo } from "@/lib/formatTime";
 
@@ -273,20 +275,18 @@ export default function AdminShopsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Cover */}
-            {selectedShop.coverImage && (
-              <div className="h-32 w-full overflow-hidden rounded-t-xl relative">
-                <img src={selectedShop.coverImage} alt="" className="w-full h-full object-cover" />
-                <button onClick={() => setSelectedShop(null)} className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
-                  <X className="h-4 w-4 text-white" />
-                </button>
+            <div className="h-32 w-full overflow-hidden rounded-t-xl relative">
+              <ImageWithFallback src={selectedShop.coverImage} fallbackSrc={DEFAULT_SHOP_COVER} alt={`${selectedShop.name} cover`} className="w-full h-full object-cover" />
+              <button onClick={() => setSelectedShop(null)} className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
+                <X className="h-4 w-4 text-white" />
+              </button>
               </div>
-            )}
 
             <div className="p-4 space-y-4">
               {/* Shop Info */}
               <div className="flex items-center gap-3">
                 <Avatar className="h-14 w-14">
-                  <AvatarImage src={selectedShop.profileImage} alt={selectedShop.name} />
+                  <AvatarImage src={selectedShop.profileImage || DEFAULT_SHOP_COVER} alt={selectedShop.name} />
                   <AvatarFallback className="bg-primary/10 text-brand">{selectedShop.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>

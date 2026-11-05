@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   allowedDevOrigins: ['paging-undermost-ultra.ngrok-free.dev'],
   images: {
     remotePatterns: [

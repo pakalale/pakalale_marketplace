@@ -12,6 +12,8 @@ import { useProducts, updateProduct, deleteProduct, type ProductData } from "@/h
 import AddProductModal from "@/components/modals/AddProductModal";
 import EditProductModal from "@/components/modals/EditProductModal";
 import ImageViewerModal from "@/components/ImageViewerModal";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import { productPlaceholder } from "@/lib/placeholders";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -133,7 +135,7 @@ export default function ProductsPage() {
                           {isVideoUrl(product.images[0]) ? (
                             <video src={product.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                           ) : (
-                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                            <ImageWithFallback src={product.images[0]} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                           )}
                         </div>
                       ) : (
@@ -143,7 +145,7 @@ export default function ProductsPage() {
                               {isVideoUrl(img) ? (
                                 <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                               ) : (
-                                <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                <ImageWithFallback src={img} fallbackSrc={productPlaceholder(product.category, `${product.id}-${i}`)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
                               )}
                               {i === 1 && product.images!.length > 2 && (
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -155,8 +157,8 @@ export default function ProductsPage() {
                         </div>
                       )
                     ) : (
-                      <div className="w-full h-32 rounded-lg bg-muted/50 flex items-center justify-center mb-2">
-                        <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                      <div className="w-full h-32 rounded-lg bg-muted/50 overflow-hidden mb-2">
+                        <ImageWithFallback src={undefined} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" />
                       </div>
                     )}
                   </div>

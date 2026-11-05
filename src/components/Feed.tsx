@@ -306,7 +306,7 @@ export default function Feed({ authorId }: FeedProps) {
   const postTemplates = [
     { id: "promotion", label: "Promotion", icon: Zap, color: "text-rose-400 bg-rose-400/10 border-rose-400/20" },
     { id: "new-arrival", label: "New Stock", icon: Package, color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-    { id: "featured", label: "Featured", icon: Megaphone, color: "text-primary bg-primary/10 border-primary/20" },
+    { id: "featured", label: "Featured", icon: Megaphone, color: "text-brand bg-primary/10 border-primary/20" },
     { id: "custom", label: "Custom", icon: Sparkles, color: "text-muted-foreground bg-muted border-border" },
   ];
 
@@ -327,7 +327,7 @@ export default function Feed({ authorId }: FeedProps) {
       {/* Pull-to-refresh indicator */}
       {(pullDistance > 0 || isRefreshing) && (
         <div className="flex justify-center py-2" style={{ height: isRefreshing ? 40 : pullDistance * 0.6 }}>
-          <Loader2 className={cn("h-5 w-5 text-primary", isRefreshing && "animate-spin")} />
+          <Loader2 className={cn("h-5 w-5 text-brand", isRefreshing && "animate-spin")} />
         </div>
       )}
 
@@ -396,7 +396,7 @@ export default function Feed({ authorId }: FeedProps) {
               )}
               {/* Location tag */}
               {postLocation && (
-                <div className="flex items-center gap-1.5 text-[10px] text-primary bg-primary/5 rounded-lg px-2 py-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-brand bg-primary/5 rounded-lg px-2 py-1">
                   <MapPin className="h-3 w-3" />{postLocation}
                   <button onClick={() => setPostLocation("")}><X className="h-2.5 w-2.5" /></button>
                 </div>
@@ -405,7 +405,7 @@ export default function Feed({ authorId }: FeedProps) {
               {taggedShops.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {taggedShops.map((shop) => (
-                    <span key={shop.id} className="flex items-center gap-1 text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                    <span key={shop.id} className="flex items-center gap-1 text-[10px] bg-primary/10 text-brand rounded-full px-2 py-0.5">
                       @{shop.name}
                       <button onClick={() => setTaggedShops((prev) => prev.filter((s) => s.id !== shop.id))}><X className="h-2.5 w-2.5" /></button>
                     </span>
@@ -521,13 +521,13 @@ export default function Feed({ authorId }: FeedProps) {
 
             {/* Location tag */}
             {postLocation && (
-              <div className="flex items-center gap-1.5 text-xs text-primary bg-primary/5 rounded-lg px-2 py-1.5"><MapPin className="h-3 w-3" />{postLocation}<button onClick={() => setPostLocation("")}><X className="h-3 w-3" /></button></div>
+              <div className="flex items-center gap-1.5 text-xs text-brand bg-primary/5 rounded-lg px-2 py-1.5"><MapPin className="h-3 w-3" />{postLocation}<button onClick={() => setPostLocation("")}><X className="h-3 w-3" /></button></div>
             )}
 
             {/* Tagged shops */}
             {taggedShops.length > 0 && (
               <div className="flex flex-wrap gap-1">{taggedShops.map((shop) => (
-                <span key={shop.id} className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-1">@{shop.name}<button onClick={() => setTaggedShops((prev) => prev.filter((s) => s.id !== shop.id))}><X className="h-3 w-3" /></button></span>
+                <span key={shop.id} className="flex items-center gap-1 text-xs bg-primary/10 text-brand rounded-full px-2 py-1">@{shop.name}<button onClick={() => setTaggedShops((prev) => prev.filter((s) => s.id !== shop.id))}><X className="h-3 w-3" /></button></span>
               ))}</div>
             )}
 
@@ -570,7 +570,7 @@ export default function Feed({ authorId }: FeedProps) {
             <div className="max-h-48 overflow-y-auto space-y-1">
               {filteredShops.map((shop) => (
                 <button key={shop.id} onClick={() => { setTaggedShops((prev) => [...prev, shop]); setTagSearch(""); }} className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-muted text-left">
-                  <div className="h-7 w-7 bg-primary/10 rounded flex items-center justify-center shrink-0"><Tag className="h-3.5 w-3.5 text-primary" /></div>
+                  <div className="h-7 w-7 bg-primary/10 rounded flex items-center justify-center shrink-0"><Tag className="h-3.5 w-3.5 text-brand" /></div>
                   <div><p className="text-xs font-medium">{shop.name}</p><p className="text-[10px] text-muted-foreground">{shop.specialties?.[0] || ""}</p></div>
                 </button>
               ))}

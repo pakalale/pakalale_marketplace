@@ -4,6 +4,8 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import SuppressExtensionErrors from "@/components/SuppressExtensionErrors";
 import ContextMenuBlocker from "@/components/ContextMenuBlocker";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { themeInitScript } from "@/lib/theme";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,34 +30,45 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" translate="no" className={`${inter.variable} dark h-full`} suppressHydrationWarning>
+    <html
+      lang="en"
+      translate="no"
+      className={`${inter.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Applies the saved theme before first paint (light is the default). */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-full bg-background text-foreground antialiased">
-        <SuppressExtensionErrors />
-        <ContextMenuBlocker />
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: "oklch(0.185 0.01 260)",
-              color: "oklch(0.985 0 0)",
-              border: "1px solid oklch(0.28 0.01 260)",
-            },
-            success: {
-              iconTheme: {
-                primary: "#E09F3E",
-                secondary: "#f1f5f9",
+        <ThemeProvider>
+          <SuppressExtensionErrors />
+          <ContextMenuBlocker />
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: "var(--popover)",
+                color: "var(--popover-foreground)",
+                border: "1px solid var(--border)",
               },
-            },
-            error: {
-              iconTheme: {
-                primary: "#9E2A2B",
-                secondary: "#f1f5f9",
+              success: {
+                iconTheme: {
+                  primary: "var(--primary)",
+                  secondary: "var(--primary-foreground)",
+                },
               },
-            },
-          }}
-        />
+              error: {
+                iconTheme: {
+                  primary: "var(--destructive)",
+                  secondary: "var(--popover)",
+                },
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   );

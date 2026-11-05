@@ -1,11 +1,12 @@
 "use client";
 
-import { User, Bell, Shield, Moon, LogOut, HelpCircle } from "lucide-react";
+import { User, Bell, Shield, LogOut, HelpCircle } from "lucide-react";
 import { useModalBack } from "@/hooks/useModalBack";
 import { useAuthStore } from "@/store/authStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggleRow } from "@/components/theme/ThemeToggle";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
           {sections.map((section) => (
             <div key={section.title} className="mb-4">
               <div className="flex items-center gap-2 mb-2 px-1">
-                <section.icon className="h-4 w-4 text-primary" />
+                <section.icon className="h-4 w-4 text-brand" />
                 <h4 className="text-sm font-medium">{section.title}</h4>
               </div>
               <div className="space-y-0.5">
@@ -79,10 +80,7 @@ export default function SettingsModal({ isOpen, onClose, onLogout }: SettingsMod
               <HelpCircle className="h-4 w-4 text-muted-foreground" />
               Help & Support
             </Button>
-            <Button variant="ghost" className="w-full justify-start gap-3">
-              <Moon className="h-4 w-4 text-muted-foreground" />
-              Dark Mode
-            </Button>
+            <ThemeToggleRow />
             <Separator className="my-2" />
             <Button
               variant="ghost"

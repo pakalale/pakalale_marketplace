@@ -30,7 +30,7 @@ export default function OrdersPage() {
       <ShopNav />
       <main className="p-3 sm:p-4 space-y-4 max-w-5xl mx-auto">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-primary" />Orders</h1>
+          <h1 className="text-lg font-bold flex items-center gap-2"><ShoppingBag className="h-5 w-5 text-brand" />Orders</h1>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-2 py-1 bg-muted border border-border rounded-md text-xs">
@@ -46,7 +46,7 @@ export default function OrdersPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : (
           <Card className="bg-card border-border">

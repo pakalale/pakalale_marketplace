@@ -135,7 +135,7 @@ export default function DealHistoryPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <History className="h-5 w-5 text-primary" />
+              <History className="h-5 w-5 text-brand" />
               Deal History
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -151,7 +151,7 @@ export default function DealHistoryPage() {
         <div className="grid grid-cols-3 gap-2">
           <Card className="bg-card border-border">
             <CardContent className="p-3 text-center">
-              <p className="text-lg font-bold text-primary">{totalDeals}</p>
+              <p className="text-lg font-bold text-brand">{totalDeals}</p>
               <p className="text-[10px] text-muted-foreground">Total Deals</p>
             </CardContent>
           </Card>
@@ -231,7 +231,7 @@ export default function DealHistoryPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -307,7 +307,7 @@ export default function DealHistoryPage() {
                                 ? "text-emerald-500"
                                 : status === "cancelled"
                                   ? "text-destructive line-through"
-                                  : "text-primary"
+                                  : "text-brand"
                             }`}
                           >
                             K{price.toLocaleString()}

@@ -184,7 +184,7 @@ export default function SignupPage() {
           <div className="space-y-3">
             <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer" onClick={() => handleTypeSelect("customer")}>
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl"><ShoppingBag className="h-6 w-6 text-primary" /></div>
+                <div className="p-3 bg-primary/10 rounded-xl"><ShoppingBag className="h-6 w-6 text-brand" /></div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm">Customer</h3>
                   <p className="text-xs text-muted-foreground">Browse shops, find deals, connect with sellers</p>
@@ -195,7 +195,7 @@ export default function SignupPage() {
 
             <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer" onClick={() => handleTypeSelect("shop_owner")}>
               <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl"><Building2 className="h-6 w-6 text-primary" /></div>
+                <div className="p-3 bg-primary/10 rounded-xl"><Building2 className="h-6 w-6 text-brand" /></div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm">Shop Owner</h3>
                   <p className="text-xs text-muted-foreground">Sell products, manage orders, grow your business</p>
@@ -207,7 +207,7 @@ export default function SignupPage() {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:text-primary/80 font-medium">Sign in</Link>
+            <Link href="/login" className="text-brand hover:text-brand/80 font-medium">Sign in</Link>
           </p>
         </div>
       </div>
@@ -381,7 +381,7 @@ export default function SignupPage() {
 
         <p className="text-center text-sm text-muted-foreground mt-4">
           Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:text-primary/80 font-medium">Sign in</Link>
+          <Link href="/login" className="text-brand hover:text-brand/80 font-medium">Sign in</Link>
         </p>
       </div>
     </div>

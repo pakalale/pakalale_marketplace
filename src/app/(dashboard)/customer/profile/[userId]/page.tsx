@@ -259,7 +259,7 @@ export default function ProfilePage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                  <Store className="h-6 w-6 text-white" />
+                  <Store className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -285,7 +285,7 @@ export default function ProfilePage() {
         {/* Posts — same layout as feed */}
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-            <Package className="h-4 w-4 text-primary" />
+            <Package className="h-4 w-4 text-brand" />
             Posts ({posts.length})
           </h3>
           {posts.length === 0 ? (
@@ -310,7 +310,7 @@ export default function ProfilePage() {
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium text-sm truncate">{post.product.name}</h4>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-lg font-bold text-primary">K{post.product.price.toLocaleString()}</span>
+                              <span className="text-lg font-bold text-brand">K{post.product.price.toLocaleString()}</span>
                               {post.product.originalPrice && (
                                 <span className="text-xs text-muted-foreground line-through">K{post.product.originalPrice.toLocaleString()}</span>
                               )}

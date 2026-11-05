@@ -30,6 +30,7 @@ import { useShop, updateShop } from "@/hooks/useApi";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 import VerificationSection from "@/components/VerificationSection";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const ALL_SPECIALTIES = [
   "Electronics",
@@ -190,7 +191,7 @@ export default function ShopSettingsPage() {
       <main className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
+            <Settings className="h-5 w-5 text-brand" />
             Shop Settings
           </h2>
           <Button variant="destructive" size="sm" onClick={handleLogout}>
@@ -201,7 +202,7 @@ export default function ShopSettingsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : (
           <>
@@ -325,7 +326,7 @@ export default function ShopSettingsPage() {
                   </div>
                   <button
                     onClick={() => setShowSpecialtyPicker(!showSpecialtyPicker)}
-                    className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80"
+                    className="flex items-center gap-1.5 text-xs text-brand hover:text-brand/80"
                   >
                     <Tag className="h-3 w-3" />
                     {shopForm.specialties.length === 0
@@ -413,7 +414,7 @@ export default function ShopSettingsPage() {
                 {/* Notifications */}
                 <div className="flex items-center justify-between py-2">
                   <div className="flex items-center gap-2">
-                    <Bell className="h-4 w-4 text-primary" />
+                    <Bell className="h-4 w-4 text-brand" />
                     <div>
                       <span className="text-sm font-medium">Push Notifications</span>
                       <p className="text-[10px] text-muted-foreground">Get notified about new deals and messages</p>
@@ -484,6 +485,19 @@ export default function ShopSettingsPage() {
                   )}
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
+              </CardContent>
+            </Card>
+
+            {/* Appearance */}
+            <Card className="bg-card border-border">
+              <CardContent className="p-4 space-y-3">
+                <div>
+                  <span className="text-sm font-medium">Appearance</span>
+                  <p className="text-[10px] text-muted-foreground">
+                    The light theme is applied everywhere by default. Switch back to the dark theme any time.
+                  </p>
+                </div>
+                <ThemeToggle />
               </CardContent>
             </Card>
 

@@ -288,7 +288,7 @@ export default function MessageBubble({
           {showSwipeReply && (
             <div
               className={cn(
-                "absolute top-1/2 -translate-y-1/2 flex items-center gap-1 text-primary",
+                "absolute top-1/2 -translate-y-1/2 flex items-center gap-1 text-brand",
                 isOwn ? "right-full mr-2" : "left-full ml-2"
               )}
             >

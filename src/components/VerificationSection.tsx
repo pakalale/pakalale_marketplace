@@ -113,7 +113,7 @@ export default function VerificationSection({ shopData, refetch }: Props) {
       <CardContent className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
+            <Shield className="h-5 w-5 text-brand" />
             <div>
               <h3 className="text-sm font-semibold">Shop Verification</h3>
               <p className="text-[10px] text-muted-foreground">
@@ -167,7 +167,8 @@ export default function VerificationSection({ shopData, refetch }: Props) {
         {/* Document Uploads */}
         <div className="space-y-3">
           {DOC_TYPES.map(({ key, label, description }) => {
-            const url = docs[key as keyof VerificationDocs];
+            const storedUrl = docs[key as keyof VerificationDocs];
+            const url = Array.isArray(storedUrl) ? storedUrl[0] : storedUrl;
             const isUploading = uploading === key;
 
             return (
@@ -176,7 +177,7 @@ export default function VerificationSection({ shopData, refetch }: Props) {
                 className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
               >
                 <div className="h-9 w-9 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
-                  <FileText className="h-4 w-4 text-primary" />
+                  <FileText className="h-4 w-4 text-brand" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium">{label}</p>

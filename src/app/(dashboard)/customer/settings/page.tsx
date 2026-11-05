@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -110,7 +111,19 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="px-4 py-4 max-w-2xl mx-auto">
+      <div className="px-4 py-4 max-w-2xl mx-auto space-y-4">
+        <Card className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <span className="text-sm font-medium">Appearance</span>
+              <p className="text-[10px] text-muted-foreground">
+                The light theme is applied everywhere by default. Switch back to the dark theme any time.
+              </p>
+            </div>
+            <ThemeToggle />
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="profile">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="profile" className="text-xs"><User className="h-3.5 w-3.5 mr-1" />Profile</TabsTrigger>
@@ -208,16 +221,16 @@ export default function SettingsPage() {
                   <Label className="text-xs">Interests</Label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {interestedCategories.map((cat) => (
-                      <span key={cat} className="flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full px-2 py-1">
+                      <span key={cat} className="flex items-center gap-1 text-xs bg-primary/10 text-brand rounded-full px-2 py-1">
                         {cat}
                         <button onClick={() => setInterestedCategories((prev) => prev.filter((c) => c !== cat))} className="ml-0.5">
-                          <span className="text-primary/60 hover:text-primary">x</span>
+                          <span className="text-brand/60 hover:text-brand">x</span>
                         </button>
                       </span>
                     ))}
                     {interestedCategories.length === 0 && <span className="text-xs text-muted-foreground">No interests selected</span>}
                   </div>
-                  <button onClick={() => setShowCategories(!showCategories)} className="text-xs text-primary hover:text-primary/80">
+                  <button onClick={() => setShowCategories(!showCategories)} className="text-xs text-brand hover:text-brand/80">
                     {showCategories ? "Hide options" : "+ Add interests"}
                   </button>
                   {showCategories && (
@@ -340,7 +353,7 @@ export default function SettingsPage() {
                 </div>
                 {locationSharing && currentLocation && (
                   <div className="p-3 bg-muted/50 rounded-lg flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" />
+                    <MapPin className="h-4 w-4 text-brand" />
                     <span className="text-xs text-muted-foreground">{currentLocation}</span>
                   </div>
                 )}

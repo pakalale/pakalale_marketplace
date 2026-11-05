@@ -141,7 +141,7 @@ export default function ChatListSimple({
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Filter className="h-3 w-3" />
             <span>Showing unread chats only</span>
-            <button onClick={() => setShowUnreadOnly(false)} className="text-primary hover:underline ml-1">Clear</button>
+            <button onClick={() => setShowUnreadOnly(false)} className="text-brand hover:underline ml-1">Clear</button>
           </div>
         )}
       </div>
@@ -210,7 +210,7 @@ export default function ChatListSimple({
                         >
                           <Avatar className="h-11 w-11">
                             <AvatarImage src={other?.avatar} alt={other?.name} />
-                            <AvatarFallback className={cn("text-xs", hasUnread ? "bg-primary/10 text-primary font-bold" : "bg-muted")}>
+                            <AvatarFallback className={cn("text-xs", hasUnread ? "bg-primary/10 text-brand font-bold" : "bg-muted")}>
                               {other?.name?.charAt(0) || "?"}
                             </AvatarFallback>
                           </Avatar>
@@ -228,14 +228,14 @@ export default function ChatListSimple({
                           <h3 className={cn("text-sm truncate", hasUnread ? "font-bold" : "font-semibold")}>
                             {other?.name || "Unknown"}
                           </h3>
-                          <span className={cn("text-[10px] shrink-0 ml-2", hasUnread ? "text-primary font-semibold" : "text-muted-foreground")}>
+                          <span className={cn("text-[10px] shrink-0 ml-2", hasUnread ? "text-brand font-semibold" : "text-muted-foreground")}>
                             {chat.lastMessageTime ? formatTimeShort(chat.lastMessageTime) : ""}
                           </span>
                         </div>
 
                         {chat.type === "deal" && chat.dealInfo && (
                           <div className="flex items-center gap-1.5 mb-1">
-                            <Badge variant="secondary" className="text-[9px] h-4 bg-primary/10 text-primary">
+                            <Badge variant="secondary" className="text-[9px] h-4 bg-primary/10 text-brand">
                               {chat.dealInfo.productName}
                             </Badge>
                             {(() => {

@@ -32,7 +32,7 @@ export default function ShopNav() {
               className={cn(
                 "p-2 rounded-lg transition-colors",
                 pathname === link.to
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 text-brand"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >

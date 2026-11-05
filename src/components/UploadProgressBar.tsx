@@ -27,13 +27,13 @@ export default function UploadProgressBar({
       {showLabel && (
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-1.5">
-            {uploading && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+            {uploading && <Loader2 className="h-3 w-3 animate-spin text-brand" />}
             <span className="text-[10px] text-muted-foreground">
               {error ? "Upload failed" : label || `Uploading... ${Math.round(progress)}%`}
             </span>
           </div>
           {uploading && (
-            <span className="text-[10px] font-medium text-primary">{Math.round(progress)}%</span>
+            <span className="text-[10px] font-medium text-brand">{Math.round(progress)}%</span>
           )}
         </div>
       )}

@@ -69,10 +69,10 @@ export default function SpecialtyPicker({ value, onChange }: SpecialtyPickerProp
           {value.map((specialty) => (
             <span
               key={specialty}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-[11px] font-medium rounded-full"
+              className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-brand text-[11px] font-medium rounded-full"
             >
               {specialty}
-              <button type="button" onClick={() => removeSpecialty(specialty)} className="hover:text-primary/70">
+              <button type="button" onClick={() => removeSpecialty(specialty)} className="hover:text-brand/70">
                 <X className="h-3 w-3" />
               </button>
             </span>

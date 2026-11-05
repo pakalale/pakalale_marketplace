@@ -347,7 +347,7 @@ export default function MessageInput({
 
         {uploading && (
           <div className="absolute bottom-full left-0 right-0 mb-1 px-3">
-            <div className="flex items-center gap-2 bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-lg">
+            <div className="flex items-center gap-2 bg-primary/10 text-brand text-[10px] px-2 py-1 rounded-lg">
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Uploading media...</span>
             </div>

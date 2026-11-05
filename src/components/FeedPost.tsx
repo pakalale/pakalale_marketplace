@@ -155,7 +155,7 @@ export default function FeedPost({
                 {post.author?.name || "Unknown"}
               </h3>
               {post.author?.role === "shop_owner" && (
-                <Badge variant="secondary" className="text-[10px] h-5 bg-primary/10 text-primary">Shop</Badge>
+                <Badge variant="secondary" className="text-[10px] h-5 bg-primary/10 text-brand">Shop</Badge>
               )}
               {post.author?.isShopVerified && (
                 <VerifiedBadge size="sm" />
@@ -197,7 +197,7 @@ export default function FeedPost({
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-sm truncate">{post.product.name}</h4>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-bold text-primary">K{post.product.price.toLocaleString()}</span>
+                  <span className="text-lg font-bold text-brand">K{post.product.price.toLocaleString()}</span>
                   {post.product.originalPrice && (
                     <span className="text-xs text-muted-foreground line-through">K{post.product.originalPrice.toLocaleString()}</span>
                   )}
@@ -362,7 +362,7 @@ export default function FeedPost({
             {allComments.map((comment, i) => (
               <div key={i} className="flex items-start gap-2 animate-slide-in">
                 <Avatar className="h-7 w-7 shrink-0">
-                  <AvatarFallback className="bg-primary text-white text-[10px]">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
                     {comment.authorName?.[0] || "U"}
                   </AvatarFallback>
                 </Avatar>

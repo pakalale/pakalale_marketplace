@@ -16,7 +16,7 @@ export default function WelcomeSection() {
   const stats = [
     { icon: Store, value: shopsLoading ? "..." : `${shopCount}`, label: "Shops", color: "text-teal-500", bg: "bg-teal-500/10" },
     { icon: MapPin, value: locLoading ? "..." : `${locationCount}`, label: "Locations", color: "text-amber-400", bg: "bg-amber-400/10" },
-    { icon: Users, value: "—", label: "Users", color: "text-primary", bg: "bg-primary/10" },
+    { icon: Users, value: "—", label: "Users", color: "text-brand", bg: "bg-primary/10" },
     { icon: TrendingUp, value: "—", label: "Active", color: "text-rose-400", bg: "bg-rose-400/10" },
   ];
 

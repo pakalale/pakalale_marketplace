@@ -55,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Shield className="h-8 w-8 animate-pulse text-primary mx-auto mb-3" />
+          <Shield className="h-8 w-8 animate-pulse text-brand mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading admin panel...</p>
         </div>
       </div>
@@ -95,7 +95,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive(item.href)
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 text-brand"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
@@ -107,7 +107,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="p-3 border-t border-border">
           <div className="flex items-center gap-2 px-3 py-2 mb-2">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-brand">
               {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="lg:hidden sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
           <div className="flex items-center justify-between px-4 h-14">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
+              <Shield className="h-5 w-5 text-brand" />
               <span className="text-sm font-bold">Admin</span>
             </div>
             <div className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-72 p-0">
             <SheetTitle className="px-4 py-4 border-b border-border text-left flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
+              <Shield className="h-4 w-4 text-brand" />
               Admin Panel
             </SheetTitle>
             <nav className="p-4 space-y-1">
@@ -162,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isActive(item.href)
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary/10 text-brand"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >

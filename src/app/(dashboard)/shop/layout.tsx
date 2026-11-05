@@ -20,7 +20,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
   if (!hasCheckedSession) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -32,7 +32,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
     router.replace(user.role === "customer" ? "/customer" : "/login");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }

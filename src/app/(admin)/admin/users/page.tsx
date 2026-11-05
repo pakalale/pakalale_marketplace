@@ -93,7 +93,7 @@ export default function AdminUsersPage() {
 
   const roleConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
     admin: { label: "Admin", color: "text-red-500 bg-red-500/10", icon: Shield },
-    shop_owner: { label: "Shop Owner", color: "text-primary bg-primary/10", icon: Store },
+    shop_owner: { label: "Shop Owner", color: "text-brand bg-primary/10", icon: Store },
     customer: { label: "Customer", color: "text-blue-500 bg-blue-500/10", icon: UserCheck },
   };
 
@@ -101,7 +101,7 @@ export default function AdminUsersPage() {
     <div className="p-4 sm:p-6 space-y-4 max-w-6xl mx-auto">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
+          <Users className="h-5 w-5 text-brand" />
           User Management
         </h1>
         <p className="text-xs text-muted-foreground">{total} users total</p>
@@ -143,7 +143,7 @@ export default function AdminUsersPage() {
       {/* User List */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-6 w-6 animate-spin text-brand" />
         </div>
       ) : users.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">

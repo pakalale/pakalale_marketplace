@@ -25,11 +25,11 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-background">
       <ShopNav />
       <main className="p-3 sm:p-4 space-y-4 max-w-5xl mx-auto">
-        <h1 className="text-lg font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" />Analytics</h1>
+        <h1 className="text-lg font-bold flex items-center gap-2"><BarChart3 className="h-5 w-5 text-brand" />Analytics</h1>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : (
           <>
@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
               <Card className="bg-card border-border">
                 <CardContent className="p-0">
                   <div className="p-3 border-b border-border">
-                    <h3 className="text-sm font-semibold flex items-center gap-2"><Package className="h-4 w-4 text-primary" />Top Products</h3>
+                    <h3 className="text-sm font-semibold flex items-center gap-2"><Package className="h-4 w-4 text-brand" />Top Products</h3>
                   </div>
                   <div className="divide-y divide-border">
                     {topProducts.map((p) => (
@@ -79,7 +79,7 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Card className="bg-card border-border">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" />Revenue Trend</h3>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-brand" />Revenue Trend</h3>
                   <div className="h-48 bg-muted/50 rounded-lg flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">Revenue chart coming soon</p>
                   </div>
@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
               </Card>
               <Card className="bg-card border-border">
                 <CardContent className="p-4">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><PieChart className="h-4 w-4 text-primary" />Sales by Category</h3>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><PieChart className="h-4 w-4 text-brand" />Sales by Category</h3>
                   <div className="h-48 bg-muted/50 rounded-lg flex items-center justify-center">
                     <p className="text-xs text-muted-foreground">Category chart coming soon</p>
                   </div>

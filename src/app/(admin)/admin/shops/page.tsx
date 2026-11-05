@@ -123,7 +123,7 @@ export default function AdminShopsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <Store className="h-5 w-5 text-primary" />
+            <Store className="h-5 w-5 text-brand" />
             Shop Verification
           </h1>
           <p className="text-xs text-muted-foreground">{total} shops {statusFilter ? `with status "${statusFilter}"` : "total"}</p>
@@ -166,7 +166,7 @@ export default function AdminShopsPage() {
       {/* Shop List */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-6 w-6 animate-spin text-brand" />
         </div>
       ) : shops.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
@@ -188,7 +188,7 @@ export default function AdminShopsPage() {
                   <div className="flex items-start gap-3">
                     <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={shop.profileImage} alt={shop.name} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      <AvatarFallback className="bg-primary/10 text-brand text-sm">
                         {shop.name?.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
@@ -287,7 +287,7 @@ export default function AdminShopsPage() {
               <div className="flex items-center gap-3">
                 <Avatar className="h-14 w-14">
                   <AvatarImage src={selectedShop.profileImage} alt={selectedShop.name} />
-                  <AvatarFallback className="bg-primary/10 text-primary">{selectedShop.name?.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-brand">{selectedShop.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <h2 className="font-bold">{selectedShop.name}</h2>
@@ -430,7 +430,7 @@ function DocLink({ label, url, onView }: { label: string; url: string; onView: (
       {isImage ? (
         <button
           onClick={() => onView(url)}
-          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+          className="text-[10px] text-brand hover:underline flex items-center gap-0.5"
         >
           <Eye className="h-3 w-3" /> View
         </button>
@@ -439,7 +439,7 @@ function DocLink({ label, url, onView }: { label: string; url: string; onView: (
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+          className="text-[10px] text-brand hover:underline flex items-center gap-0.5"
         >
           <ExternalLink className="h-3 w-3" /> Open
         </a>

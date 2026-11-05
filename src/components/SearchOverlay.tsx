@@ -101,7 +101,7 @@ function Highlight({ text, tokens }: { text: string; tokens: string[] }) {
     <>
       {parts.map((part, i) =>
         regex.test(part) ? (
-          <mark key={i} className="bg-primary/20 text-primary font-medium rounded px-0.5">{part}</mark>
+          <mark key={i} className="bg-primary/20 text-brand font-medium rounded px-0.5">{part}</mark>
         ) : (
           <span key={i}>{part}</span>
         )
@@ -300,12 +300,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 )}
                 {trending.length > 0 && (
                   <div>
-                    <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-primary" /> Trending</h3>
+                    <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><TrendingUp className="h-3 w-3 text-brand" /> Trending</h3>
                     <div className="space-y-0.5">
                       {trending.slice(0, 4).map((t, i) => (
                         <button key={i} onClick={() => setQuery(t.query)}
                           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-muted/50 transition-colors text-left">
-                          <TrendingUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <TrendingUp className="h-3.5 w-3.5 text-brand shrink-0" />
                           <span className="flex-1 font-medium truncate">{t.query}</span>
                           <span className="text-[10px] text-muted-foreground">{t.count}x</span>
                         </button>
@@ -314,11 +314,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   </div>
                 )}
                 <div>
-                  <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><Tag className="h-3 w-3 text-primary" /> Popular</h3>
+                  <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><Tag className="h-3 w-3 text-brand" /> Popular</h3>
                   <div className="flex flex-wrap gap-1.5">
                     {["Phones", "Shoes", "Fashion", "Electronics", "Groceries", "Health", "Gaming", "Furniture"].map((cat) => (
                       <button key={cat} onClick={() => setQuery(cat)}
-                        className="px-2.5 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-primary rounded-lg text-xs font-medium transition-colors">{cat}</button>
+                        className="px-2.5 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-brand rounded-lg text-xs font-medium transition-colors">{cat}</button>
                     ))}
                   </div>
                 </div>
@@ -358,7 +358,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 {/* Products */}
                 {(activeTab === "all" || activeTab === "products") && relevantProducts.length > 0 && (
                   <div>
-                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3 w-3 text-primary" /> Products</h3>}
+                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3 w-3 text-brand" /> Products</h3>}
                     <div className="space-y-1.5">
                       {relevantProducts.slice(0, 5).map((product) => {
                         const shopOwnerId = getShopOwnerId(product.shopId);
@@ -391,7 +391,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                   <span className="text-[10px] text-muted-foreground capitalize">{product.category}</span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-sm font-bold text-primary">K{product.price.toLocaleString()}</span>
+                                  <span className="text-sm font-bold text-brand">K{product.price.toLocaleString()}</span>
                                   {product.originalPrice && <span className="text-[10px] text-muted-foreground line-through">K{product.originalPrice.toLocaleString()}</span>}
                                   {product.discount && product.discount > 0 && <Badge className="text-[8px] h-3.5 px-1 bg-rose-500/10 text-rose-400 border-0">-{product.discount}%</Badge>}
                                 </div>
@@ -416,7 +416,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                                   <Phone className="h-3 w-3" /> Contact
                                 </button>
                                 <button onClick={(e) => { e.stopPropagation(); setDealModal({ open: true, product, shopOwnerId }); }}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-primary hover:bg-primary/5 transition-colors">
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-brand hover:bg-primary/5 transition-colors">
                                   <ShoppingBag className="h-3 w-3" /> Make Deal
                                 </button>
                               </div>
@@ -431,14 +431,14 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 {/* Shops */}
                 {(activeTab === "all" || activeTab === "shops") && (results?.shops?.length || 0) > 0 && (
                   <div>
-                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><Store className="h-3 w-3 text-primary" /> Shops</h3>}
+                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><Store className="h-3 w-3 text-brand" /> Shops</h3>}
                     <div className="space-y-1.5">
                       {results!.shops.slice(0, 3).map((shop) => (
                         <button key={shop.id}
                           onClick={() => { onClose(); router.push(`/customer/locations/${shop.locationId || "soweto"}?shopId=${shop.id}`); }}
                           className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors text-left bg-card border border-border">
                           <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                            <Store className="h-5 w-5 text-white" />
+                            <Store className="h-5 w-5 text-primary-foreground" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1">
@@ -468,7 +468,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 {/* Posts */}
                 {(activeTab === "all" || activeTab === "posts") && (results?.posts?.length || 0) > 0 && (
                   <div>
-                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><MessageSquare className="h-3 w-3 text-primary" /> Posts</h3>}
+                    {activeTab === "all" && <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><MessageSquare className="h-3 w-3 text-brand" /> Posts</h3>}
                     <div className="space-y-1.5">
                       {results!.posts.slice(0, 3).map((post) => (
                         <button key={post.id} className="w-full bg-card border border-border rounded-lg p-3 text-left hover:bg-muted/30 transition-colors"
@@ -479,7 +479,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                             }
                           }}>
                           <div className="flex items-center gap-2 mb-1.5">
-                            <div className="h-7 w-7 bg-gradient-to-br from-primary to-amber-golden rounded-full flex items-center justify-center text-[10px] text-white font-bold shrink-0">
+                            <div className="h-7 w-7 bg-gradient-to-br from-primary to-amber-golden rounded-full flex items-center justify-center text-[10px] text-primary-foreground font-bold shrink-0">
                               {post.author?.name?.[0] || "?"}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -494,7 +494,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                             <div className="mt-2 flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
                               <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                               <span className="text-xs font-medium">{post.product.name}</span>
-                              <span className="text-xs font-bold text-primary">K{post.product.price.toLocaleString()}</span>
+                              <span className="text-xs font-bold text-brand">K{post.product.price.toLocaleString()}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">

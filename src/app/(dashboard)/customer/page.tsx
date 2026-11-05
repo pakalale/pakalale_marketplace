@@ -84,12 +84,12 @@ export default function CustomerDashboard() {
         <div>
           <div className="flex items-center justify-between mb-2.5">
             <h3 className="text-sm font-semibold flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 text-primary" />
+              <TrendingUp className="h-4 w-4 text-brand" />
               Trending Shops
             </h3>
             <button
               onClick={() => router.push("/customer/locations")}
-              className="text-[11px] text-primary flex items-center gap-0.5 hover:underline"
+              className="text-[11px] text-brand flex items-center gap-0.5 hover:underline"
             >
               See all <ChevronRight className="h-3 w-3" />
             </button>
@@ -133,7 +133,7 @@ export default function CustomerDashboard() {
                         <img src={shop.profileImage} alt={shop.name} className="h-9 w-9 rounded-lg object-cover shrink-0" />
                       ) : (
                         <div className="h-9 w-9 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                          <Store className="h-4 w-4 text-white" />
+                          <Store className="h-4 w-4 text-primary-foreground" />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
@@ -169,12 +169,12 @@ export default function CustomerDashboard() {
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-primary" />
+                <MapPin className="h-4 w-4 text-brand" />
                 Markets
               </h3>
               <button
                 onClick={() => router.push("/customer/locations")}
-                className="text-[11px] text-primary flex items-center gap-0.5 hover:underline"
+                className="text-[11px] text-brand flex items-center gap-0.5 hover:underline"
               >
                 See all <ChevronRight className="h-3 w-3" />
               </button>
@@ -188,7 +188,7 @@ export default function CustomerDashboard() {
                   <button
                     key={loc.id}
                     onClick={() => router.push(`/customer/locations/${loc.slug || loc.id}`)}
-                    className="shrink-0 px-3 py-2 bg-muted/50 hover:bg-primary/10 hover:text-primary rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+                    className="shrink-0 px-3 py-2 bg-muted/50 hover:bg-primary/10 hover:text-brand rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
                   >
                     <MapPin className="h-3 w-3" />
                     {loc.name}
@@ -203,7 +203,7 @@ export default function CustomerDashboard() {
         {/* ── Community Feed ── */}
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-primary" />
+            <TrendingUp className="h-4 w-4 text-brand" />
             Community Feed
           </h3>
           <Feed />

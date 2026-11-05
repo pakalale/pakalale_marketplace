@@ -47,7 +47,7 @@ export default function VirtualShopPage() {
 
         {shopLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : shop ? (
           <>
@@ -105,7 +105,7 @@ export default function VirtualShopPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold">Products ({products.length})</h2>
-                <Button size="sm" variant="ghost" className="text-primary" onClick={() => router.push("/shop/products")}>Manage</Button>
+                <Button size="sm" variant="ghost" className="text-brand" onClick={() => router.push("/shop/products")}>Manage</Button>
               </div>
 
               <div className="flex gap-2 mb-3">
@@ -120,7 +120,7 @@ export default function VirtualShopPage() {
 
               {productsLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <Loader2 className="h-5 w-5 animate-spin text-brand" />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">

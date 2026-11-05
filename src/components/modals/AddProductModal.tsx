@@ -208,7 +208,7 @@ export default function AddProductModal({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-full h-12 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center gap-2 transition-colors text-muted-foreground hover:text-primary"
+                className="w-full h-12 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center gap-2 transition-colors text-muted-foreground hover:text-brand"
               >
                 {uploading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />

@@ -150,7 +150,7 @@ export default function ProductDetailModal({
 
           {/* Price */}
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-primary">K{product.price.toLocaleString()}</span>
+            <span className="text-2xl font-bold text-brand">K{product.price.toLocaleString()}</span>
             {product.originalPrice && (
               <span className="text-sm text-muted-foreground line-through">
                 K{product.originalPrice.toLocaleString()}

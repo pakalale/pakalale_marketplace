@@ -56,7 +56,7 @@ export default function ContactModal({
   useModalBack(isOpen, onClose);
 
   const infoItems = [
-    contact.shopName && { icon: Store, label: "Shop", value: contact.shopName, color: "text-primary" },
+    contact.shopName && { icon: Store, label: "Shop", value: contact.shopName, color: "text-brand" },
     contact.location && { icon: MapPin, label: "Location", value: contact.location, color: "text-teal-500" },
     contact.phone && { icon: Phone, label: "Phone", value: contact.phone, color: "text-amber-400" },
     contact.email && { icon: Mail, label: "Email", value: contact.email, color: "text-rose-400" },

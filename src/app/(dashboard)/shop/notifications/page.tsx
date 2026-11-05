@@ -35,7 +35,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const colorMap: Record<string, string> = {
-  deal: "text-primary bg-primary/10",
+  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
@@ -98,7 +98,7 @@ export default function ShopNotificationsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
+              <Bell className="h-5 w-5 text-brand" />
               Notifications
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -141,7 +141,7 @@ export default function ShopNotificationsPage() {
             onClick={() => router.push("/shop/deals")}
           >
             <CardContent className="p-3 text-center">
-              <ShoppingBag className="h-5 w-5 text-primary mx-auto mb-1" />
+              <ShoppingBag className="h-5 w-5 text-brand mx-auto mb-1" />
               <p className="text-lg font-bold">{dealCount}</p>
               <p className="text-[10px] text-muted-foreground">Deal Alerts</p>
             </CardContent>
@@ -151,7 +151,7 @@ export default function ShopNotificationsPage() {
         {/* Notification list */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : notifications.length === 0 ? (
           <div className="text-center py-12 space-y-4">

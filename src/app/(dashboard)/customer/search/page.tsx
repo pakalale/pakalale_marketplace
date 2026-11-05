@@ -274,7 +274,7 @@ function SearchResultsContent() {
                     <button
                       key={i}
                       onClick={() => handleQuickSearch(h.query)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-primary rounded-lg text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-brand rounded-lg text-xs font-medium transition-colors"
                     >
                       <Clock className="h-3 w-3" />
                       {h.query}
@@ -288,7 +288,7 @@ function SearchResultsContent() {
             {trending.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <TrendingUp className="h-4 w-4 text-brand" />
                   Trending Searches
                 </h3>
                 <div className="space-y-1">
@@ -298,7 +298,7 @@ function SearchResultsContent() {
                       onClick={() => handleQuickSearch(t.query)}
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm hover:bg-muted/50 transition-colors text-left"
                     >
-                      <TrendingUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <TrendingUp className="h-3.5 w-3.5 text-brand shrink-0" />
                       <span className="flex-1 font-medium">{t.query}</span>
                       <span className="text-[10px] text-muted-foreground">{t.count}x</span>
                     </button>
@@ -310,7 +310,7 @@ function SearchResultsContent() {
             {/* Quick Categories */}
             <div>
               <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                <Tag className="h-4 w-4 text-primary" />
+                <Tag className="h-4 w-4 text-brand" />
                 Quick Categories
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -318,7 +318,7 @@ function SearchResultsContent() {
                   <button
                     key={cat}
                     onClick={() => handleQuickSearch(cat)}
-                    className="px-3 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-primary rounded-lg text-xs font-medium transition-colors"
+                    className="px-3 py-1.5 bg-muted/50 hover:bg-primary/10 hover:text-brand rounded-lg text-xs font-medium transition-colors"
                   >
                     {cat}
                   </button>
@@ -371,7 +371,7 @@ function SearchResultsContent() {
               <div>
                 {activeTab === "all" && (
                   <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    <ShoppingBag className="h-4 w-4 text-brand" />
                     Products
                   </h3>
                 )}
@@ -411,7 +411,7 @@ function SearchResultsContent() {
                             </div>
 
                             <div className="flex items-center gap-2 mt-1.5">
-                              <span className="text-sm font-bold text-primary">K{product.price.toLocaleString()}</span>
+                              <span className="text-sm font-bold text-brand">K{product.price.toLocaleString()}</span>
                               {product.originalPrice && (
                                 <span className="text-[10px] text-muted-foreground line-through">
                                   K{product.originalPrice.toLocaleString()}
@@ -439,7 +439,7 @@ function SearchResultsContent() {
                               <Phone className="h-3 w-3" /> Contact
                             </button>
                             <button onClick={(e) => { e.stopPropagation(); setDealModal({ open: true, product }); }}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-primary hover:bg-primary/5 transition-colors">
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-brand hover:bg-primary/5 transition-colors">
                               <ShoppingBag className="h-3 w-3" /> Make Deal
                             </button>
                           </div>
@@ -456,7 +456,7 @@ function SearchResultsContent() {
               <div>
                 {activeTab === "all" && (
                   <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                    <Store className="h-4 w-4 text-primary" />
+                    <Store className="h-4 w-4 text-brand" />
                     Shops
                   </h3>
                 )}
@@ -470,7 +470,7 @@ function SearchResultsContent() {
                       <CardContent className="p-3">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                            <Store className="h-5 w-5 text-white" />
+                            <Store className="h-5 w-5 text-primary-foreground" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
@@ -508,7 +508,7 @@ function SearchResultsContent() {
               <div>
                 {activeTab === "all" && (
                   <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-                    <MapPin className="h-4 w-4 text-primary" />
+                    <MapPin className="h-4 w-4 text-brand" />
                     Locations
                   </h3>
                 )}
@@ -521,7 +521,7 @@ function SearchResultsContent() {
                     >
                       <CardContent className="p-3">
                         <div className="flex items-center gap-2 mb-1">
-                          <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <MapPin className="h-3.5 w-3.5 text-brand shrink-0" />
                           <h4 className="font-medium text-xs truncate">{loc.name}</h4>
                         </div>
                         <p className="text-[10px] text-muted-foreground">{loc.shopCount} shops</p>
@@ -571,7 +571,7 @@ function SearchResultsContent() {
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
+                  <MessageSquare className="h-4 w-4 text-brand" />
                   <div>
                     <p className="text-xs font-medium">Not finding what you need?</p>
                     <p className="text-[10px] text-muted-foreground">Create a request so shops can find it for you</p>
@@ -718,7 +718,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
       </div>
     }>
       <SearchResultsContent />

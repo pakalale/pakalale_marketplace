@@ -112,7 +112,7 @@ export default function ProductsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : products.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">

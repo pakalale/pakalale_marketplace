@@ -42,7 +42,7 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+          <Loader2 className="h-8 w-8 animate-spin text-brand mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -68,7 +68,7 @@ export default function DashboardLayout({
     router.replace("/shop/feed");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -77,7 +77,7 @@ export default function DashboardLayout({
     router.replace("/customer");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }

@@ -68,7 +68,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
       </div>
     );
   }
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-semibold">Recent Users</h3>
               <button
                 onClick={() => router.push("/admin/users")}
-                className="text-[11px] text-primary hover:underline"
+                className="text-[11px] text-brand hover:underline"
               >
                 View all
               </button>
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
                     variant="secondary"
                     className={`text-[9px] shrink-0 ${
                       u.role === "admin" ? "bg-red-500/10 text-red-500" :
-                      u.role === "shop_owner" ? "bg-primary/10 text-primary" :
+                      u.role === "shop_owner" ? "bg-primary/10 text-brand" :
                       ""
                     }`}
                   >
@@ -177,7 +177,7 @@ export default function AdminDashboard() {
               <h3 className="text-sm font-semibold">Recent Shops</h3>
               <button
                 onClick={() => router.push("/admin/shops")}
-                className="text-[11px] text-primary hover:underline"
+                className="text-[11px] text-brand hover:underline"
               >
                 View all
               </button>

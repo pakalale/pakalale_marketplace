@@ -82,8 +82,8 @@ export default function LocationsPage() {
                 <CardContent className="p-0">
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold group-hover:text-primary transition-colors">{location.name}</h3>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                      <h3 className="font-semibold group-hover:text-brand transition-colors">{location.name}</h3>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-brand transition-colors shrink-0" />
                     </div>
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{location.description}</p>
 

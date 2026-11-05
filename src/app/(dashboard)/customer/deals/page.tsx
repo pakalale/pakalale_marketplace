@@ -62,7 +62,7 @@ export default function DealsListPage() {
         <div className="flex items-center justify-between px-4 h-14">
           <div className="w-16" />
           <div className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-primary" />
+            <ShoppingBag className="h-4 w-4 text-brand" />
             <h1 className="text-sm font-bold">My Deals</h1>
           </div>
           <Badge variant="secondary" className="text-[10px]">{dealChats.length}</Badge>
@@ -130,7 +130,7 @@ export default function DealsListPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="h-8 w-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg flex items-center justify-center shrink-0">
-                          <ShoppingBag className="h-4 w-4 text-primary" />
+                          <ShoppingBag className="h-4 w-4 text-brand" />
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold text-sm truncate">{other?.name || "Shop"}</h3>
@@ -153,7 +153,7 @@ export default function DealsListPage() {
                       {deal.dealInfo?.finalPrice && deal.dealInfo.finalPrice !== deal.dealInfo.initialPrice && (
                         <div className="text-xs">
                           <span className="text-muted-foreground">Final: </span>
-                          <span className="font-bold text-primary">K{deal.dealInfo.finalPrice.toLocaleString()}</span>
+                          <span className="font-bold text-brand">K{deal.dealInfo.finalPrice.toLocaleString()}</span>
                         </div>
                       )}
                     </div>

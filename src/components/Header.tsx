@@ -122,7 +122,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
             <nav className="p-4 space-y-1">
               {navItems.map((item) => (
                 <button key={item.id} onClick={() => { router.push(item.href); setOpen(false); }}
-                  className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", activeTab === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+                  className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", activeTab === item.id ? "bg-primary/10 text-brand" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
                   <item.icon className="h-5 w-5" />
                   <span className="flex-1 text-left">{item.label}</span>
                   {item.count && item.count > 0 && <Badge className="bg-pink-500 text-white h-5 min-w-[20px] text-[10px] border-0 font-bold rounded-full">{item.count > 9 ? "9+" : item.count}</Badge>}
@@ -142,7 +142,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
       <div className="hidden sm:flex items-center justify-center gap-1 px-4 pb-2">
         {navItems.map((item) => (
           <Link key={item.id} href={item.href} prefetch={true}
-            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative", activeTab === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative", activeTab === item.id ? "bg-primary/10 text-brand" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
             <item.icon className="h-4 w-4" />
             <span>{item.label}</span>
             {item.count && item.count > 0 && (

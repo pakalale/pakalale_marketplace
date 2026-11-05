@@ -481,7 +481,7 @@ export default function ShopChatPage() {
               <div className="relative shrink-0">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={activeChat?.otherParticipant?.avatar} alt={otherName} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-brand text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
                 </Avatar>
                 {activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id) && (
                   <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full" />
@@ -521,7 +521,7 @@ export default function ShopChatPage() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
-                    <ShoppingBag className="h-3.5 w-3.5 text-primary" />
+                    <ShoppingBag className="h-3.5 w-3.5 text-brand" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold truncate">
@@ -541,7 +541,7 @@ export default function ShopChatPage() {
                             <span className="text-[10px] text-muted-foreground">
                               →
                             </span>
-                            <span className="text-[10px] text-primary font-bold">
+                            <span className="text-[10px] text-brand font-bold">
                               K
                               {activeChat.dealInfo.counterPrice.toLocaleString()}
                             </span>
@@ -577,9 +577,9 @@ export default function ShopChatPage() {
                     <div className="mt-2 space-y-2">
                       {offerPrice && (
                         <div className="flex items-center gap-1.5">
-                          <Tag className="h-3 w-3 text-primary" />
+                          <Tag className="h-3 w-3 text-brand" />
                           <span className="text-[10px] text-muted-foreground">Customer&apos;s offer:</span>
-                          <span className="text-[10px] font-bold text-primary">K{offerPrice.toLocaleString()}</span>
+                          <span className="text-[10px] font-bold text-brand">K{offerPrice.toLocaleString()}</span>
                         </div>
                       )}
                       <div className="flex gap-2">
@@ -606,11 +606,11 @@ export default function ShopChatPage() {
                     <div className="mt-2 space-y-2">
                       {lastOfferPrice && (
                         <div className="flex items-center gap-1.5">
-                          <Tag className="h-3 w-3 text-primary" />
+                          <Tag className="h-3 w-3 text-brand" />
                           <span className="text-[10px] text-muted-foreground">
                             {isMyOffer ? "Your counter:" : "Customer&apos;s counter:"}
                           </span>
-                          <span className="text-[10px] font-bold text-primary">K{lastOfferPrice.toLocaleString()}</span>
+                          <span className="text-[10px] font-bold text-brand">K{lastOfferPrice.toLocaleString()}</span>
                         </div>
                       )}
                       <div className="flex gap-1.5">
@@ -703,7 +703,7 @@ export default function ShopChatPage() {
                   className="flex items-center gap-2 my-4"
                 >
                   <div className="flex-1 h-px bg-primary/30" />
-                  <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold text-brand bg-primary/10 px-2 py-0.5 rounded-full">
                     Unread messages
                   </span>
                   <div className="flex-1 h-px bg-primary/30" />

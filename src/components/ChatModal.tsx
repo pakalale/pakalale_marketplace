@@ -120,7 +120,7 @@ export default function ChatModal({
                       </div>
                       <div className="min-w-0">
                         <h4 className="text-xs font-medium truncate">{message.product.name}</h4>
-                        <p className="text-sm font-semibold text-primary">K{message.product.price}</p>
+                        <p className="text-sm font-semibold text-brand">K{message.product.price}</p>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">{message.content}</p>
@@ -129,8 +129,8 @@ export default function ChatModal({
                 {message.type === "deal" && (
                   <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
                     <div className="flex items-center gap-1.5 mb-1.5">
-                      <ShoppingBag className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-xs font-medium text-primary">Deal Offer</span>
+                      <ShoppingBag className="h-3.5 w-3.5 text-brand" />
+                      <span className="text-xs font-medium text-brand">Deal Offer</span>
                     </div>
                     <p className="text-xs text-foreground">{message.content}</p>
                     <Button size="sm" className="mt-2 h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90">

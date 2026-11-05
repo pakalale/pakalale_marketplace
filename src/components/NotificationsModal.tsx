@@ -30,7 +30,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const colorMap: Record<string, string> = {
-  deal: "text-primary bg-primary/10",
+  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
   review: "text-rose-400 bg-rose-400/10",
   location: "text-amber-400 bg-amber-400/10",
@@ -58,7 +58,7 @@ export default function NotificationsModal({ isOpen, onClose, userId }: Notifica
       <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
+            <Bell className="h-5 w-5 text-brand" />
             Notifications
           </DialogTitle>
         </DialogHeader>
@@ -66,7 +66,7 @@ export default function NotificationsModal({ isOpen, onClose, userId }: Notifica
         <div className="overflow-y-auto flex-1 -mx-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <Loader2 className="h-6 w-6 animate-spin text-brand" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -110,7 +110,7 @@ export default function NotificationsModal({ isOpen, onClose, userId }: Notifica
         </div>
 
         <div className="pt-2 border-t border-border shrink-0">
-          <Button variant="ghost" className="w-full text-primary hover:text-primary/80" onClick={handleMarkAllRead}>
+          <Button variant="ghost" className="w-full text-brand hover:text-brand/80" onClick={handleMarkAllRead}>
             Mark all as read
           </Button>
         </div>

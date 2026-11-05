@@ -60,7 +60,7 @@ export default function DealModal({
         {/* Header */}
         <div className="flex items-center gap-2 p-3 border-b border-border shrink-0">
           <div className="p-1.5 bg-primary/10 rounded-lg">
-            <ShoppingBag className="h-4 w-4 text-primary" />
+            <ShoppingBag className="h-4 w-4 text-brand" />
           </div>
           <DialogTitle className="text-sm font-bold">Make a Deal</DialogTitle>
         </div>
@@ -154,7 +154,7 @@ export default function DealModal({
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Total</span>
-                <span className="font-bold text-primary text-sm">K{totalPrice.toLocaleString()}</span>
+                <span className="font-bold text-brand text-sm">K{totalPrice.toLocaleString()}</span>
               </div>
               {savings > 0 && (
                 <div className="flex items-center justify-between text-xs">

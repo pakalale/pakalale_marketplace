@@ -236,7 +236,7 @@ export default function LocationDetailPage() {
                   <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                     <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={currentShop.profileImage} alt={currentShop.name} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      <AvatarFallback className="bg-primary/10 text-brand text-sm">
                         {currentShop.name?.charAt(0) || "?"}
                       </AvatarFallback>
                     </Avatar>
@@ -288,7 +288,7 @@ export default function LocationDetailPage() {
 
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                    <Package className="h-4 w-4 text-primary" />
+                    <Package className="h-4 w-4 text-brand" />
                     Products ({productsLoading ? "..." : filteredProducts.length})
                   </h3>
                 </div>
@@ -356,7 +356,7 @@ export default function LocationDetailPage() {
                           <h4 className="font-medium text-xs truncate mb-0.5">{product.name}</h4>
                           <p className="text-[10px] text-muted-foreground truncate mb-1.5">{product.description}</p>
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-bold text-primary">K{product.price.toLocaleString()}</span>
+                            <span className="text-sm font-bold text-brand">K{product.price.toLocaleString()}</span>
                             {product.originalPrice && (
                               <span className="text-[10px] text-muted-foreground line-through">K{product.originalPrice.toLocaleString()}</span>
                             )}
@@ -409,7 +409,7 @@ export default function LocationDetailPage() {
                         <div className="flex items-center gap-3 mb-3">
                           <Avatar className="h-12 w-12 shrink-0">
                             <AvatarImage src={shop.profileImage} alt={shop.name} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                            <AvatarFallback className="bg-primary/10 text-brand text-sm">
                               {shop.name?.charAt(0) || "?"}
                             </AvatarFallback>
                           </Avatar>

@@ -128,7 +128,7 @@ export default function SalesPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
+              <DollarSign className="h-5 w-5 text-brand" />
               Sales
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -144,7 +144,7 @@ export default function SalesPage() {
         {/* Stat Cards */}
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : (
           <>

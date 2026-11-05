@@ -142,7 +142,7 @@ export default function ShopDealsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">
-              <ShoppingBag className="h-5 w-5 text-primary" />
+              <ShoppingBag className="h-5 w-5 text-brand" />
               Deals
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -194,7 +194,7 @@ export default function ShopDealsPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
@@ -224,7 +224,7 @@ export default function ShopDealsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="h-8 w-8 bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg flex items-center justify-center shrink-0">
-                          <ShoppingBag className="h-4 w-4 text-primary" />
+                          <ShoppingBag className="h-4 w-4 text-brand" />
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold text-sm truncate">
@@ -261,7 +261,7 @@ export default function ShopDealsPage() {
                           <span className="text-muted-foreground">
                             Current:{" "}
                           </span>
-                          <span className="font-bold text-primary">
+                          <span className="font-bold text-brand">
                             K{deal.dealInfo.counterPrice.toLocaleString()}
                           </span>
                         </div>

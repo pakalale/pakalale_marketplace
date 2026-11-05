@@ -40,9 +40,9 @@ export default function OverviewPage() {
         <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 border-primary/20">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary shrink-0" />
+              <User className="h-5 w-5 text-brand shrink-0" />
               <h2 className="text-lg font-bold">Welcome back, {user?.firstName}!</h2>
-              <Store className="h-5 w-5 text-primary shrink-0" />
+              <Store className="h-5 w-5 text-brand shrink-0" />
             </div>
             <p className="text-sm text-muted-foreground mt-1">Your shop dashboard</p>
           </CardContent>
@@ -51,7 +51,7 @@ export default function OverviewPage() {
         {/* Stats */}
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
           </div>
         ) : (
           <>
@@ -79,7 +79,7 @@ export default function OverviewPage() {
                 <CardContent className="p-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="text-center">
-                      <p className="text-lg font-bold text-primary">{stats.conversionRate || 0}%</p>
+                      <p className="text-lg font-bold text-brand">{stats.conversionRate || 0}%</p>
                       <p className="text-[10px] text-muted-foreground">Conversion</p>
                     </div>
                     <div className="text-center">
@@ -100,7 +100,7 @@ export default function OverviewPage() {
               <CardContent className="p-0">
                 <div className="p-3 sm:p-4 border-b border-border">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    <ShoppingBag className="h-4 w-4 text-brand" />
                     Recent Orders
                   </h3>
                 </div>

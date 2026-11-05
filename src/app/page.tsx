@@ -77,8 +77,8 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-amber-golden/5" />
         <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="text-center max-w-3xl mx-auto">
-            <Badge variant="secondary" className="mb-4 sm:mb-6 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">🇿🇲 Built for Zambia&apos;s markets</Badge>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 sm:mb-6">Your Local <span className="text-primary">Trading</span> <br />Platform</h1>
+            <Badge variant="secondary" className="mb-4 sm:mb-6 bg-primary/10 text-brand border-primary/20 hover:bg-primary/20">🇿🇲 Built for Zambia&apos;s markets</Badge>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 sm:mb-6">Your Local <span className="text-brand">Trading</span> <br />Platform</h1>
             <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-xl mx-auto">Connect with local shops across Lusaka&apos;s major trading areas. Find products, compare prices, and support your community.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button size="lg" onClick={() => router.push("/signup")} className="bg-primary text-primary-foreground hover:bg-primary/90 text-base px-8">Get Started Free <ArrowRight className="h-4 w-4 ml-2" /></Button>
@@ -90,7 +90,7 @@ export default function LandingPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }} className="mt-12 sm:mt-16 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 max-w-2xl mx-auto">
             {stats.map((stat, i) => (
               <motion.div key={stat.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 + i * 0.1 }} className="text-center">
-                <p className="text-2xl sm:text-3xl font-bold text-primary">{stat.value}</p>
+                <p className="text-2xl sm:text-3xl font-bold text-brand">{stat.value}</p>
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1">{stat.label}</p>
               </motion.div>
             ))}
@@ -127,7 +127,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
             {whyUs.map((item, i) => (
               <motion.div key={item.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="text-center sm:text-left">
-                <div className="bg-primary/10 p-3 rounded-xl w-fit mb-4 mx-auto sm:mx-0"><item.icon className="h-6 w-6 text-primary" /></div>
+                <div className="bg-primary/10 p-3 rounded-xl w-fit mb-4 mx-auto sm:mx-0"><item.icon className="h-6 w-6 text-brand" /></div>
                 <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
               </motion.div>
@@ -145,7 +145,7 @@ export default function LandingPage() {
           </motion.div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-brand" /></div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               {locations.map((location, i) => (
@@ -153,7 +153,7 @@ export default function LandingPage() {
                   <Card className="bg-card border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-300 cursor-pointer" onClick={() => router.push("/signup")}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <div className="bg-primary/10 p-2 rounded-lg shrink-0"><MapPin className="h-4 w-4 text-primary" /></div>
+                        <div className="bg-primary/10 p-2 rounded-lg shrink-0"><MapPin className="h-4 w-4 text-brand" /></div>
                         <span className="text-sm font-medium truncate">{location.name}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

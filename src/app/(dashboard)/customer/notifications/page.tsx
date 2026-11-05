@@ -20,7 +20,7 @@ const iconMap: Record<string, React.ElementType> = {
   system: Info,
 };
 const colorMap: Record<string, string> = {
-  deal: "text-primary bg-primary/10",
+  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
@@ -96,7 +96,7 @@ export default function NotificationsPage() {
           </Card>
           <Card className="bg-gradient-to-br from-primary/10 to-amber-500/10 border-primary/20 cursor-pointer" onClick={() => router.push("/customer/deals")}>
             <CardContent className="p-3 text-center">
-              <ShoppingBag className="h-5 w-5 text-primary mx-auto mb-1" />
+              <ShoppingBag className="h-5 w-5 text-brand mx-auto mb-1" />
               <p className="text-lg font-bold">{dealCount}</p>
               <p className="text-[10px] text-muted-foreground">Deals</p>
             </CardContent>

@@ -209,7 +209,7 @@ export default function ShopProfilePage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 bg-gradient-to-br from-teal-500 to-primary rounded-lg flex items-center justify-center shrink-0">
-                  <Store className="h-6 w-6 text-white" />
+                  <Store className="h-6 w-6 text-primary-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -226,7 +226,7 @@ export default function ShopProfilePage() {
         )}
 
         <div>
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5"><Package className="h-4 w-4 text-primary" /> Posts ({posts.length})</h3>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5"><Package className="h-4 w-4 text-brand" /> Posts ({posts.length})</h3>
           {posts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground"><Package className="h-8 w-8 mx-auto mb-2 opacity-50" /><p className="text-sm">No posts yet</p></div>
           ) : (

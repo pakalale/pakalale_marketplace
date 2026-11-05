@@ -55,7 +55,7 @@ export default function DealSuccessPopup({
           </div>
           <h3 className="text-lg font-bold mb-1">Deal Created!</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Your deal for <span className="font-medium text-foreground">{quantity}x {productName}</span> at <span className="font-bold text-primary">K{totalPrice.toLocaleString()}</span> has been sent to the shop.
+            Your deal for <span className="font-medium text-foreground">{quantity}x {productName}</span> at <span className="font-bold text-brand">K{totalPrice.toLocaleString()}</span> has been sent to the shop.
           </p>
 
           <div className="flex flex-col gap-2">

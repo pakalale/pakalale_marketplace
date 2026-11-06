@@ -37,6 +37,18 @@ interface ShopOwnerForm {
   specialties: string;
 }
 
+// Keep someone who signed up mid-checkout on their way to placing the order.
+function destinationAfterSignup(role: string) {
+  if (role === "admin") return "/admin";
+  if (role === "shop_owner") return "/shop/feed";
+  const redirect = sessionStorage.getItem("redirectAfterLogin");
+  if (redirect === "/checkout") {
+    sessionStorage.removeItem("redirectAfterLogin");
+    return redirect;
+  }
+  return "/customer";
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const { login, isAuthenticated, user } = useAuthStore();
@@ -51,7 +63,7 @@ export default function SignupPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push(user.role === "admin" ? "/admin" : user.role === "shop_owner" ? "/shop/feed" : "/customer");
+      router.push(destinationAfterSignup(user.role));
     }
   }, [isAuthenticated, user, router]);
 
@@ -105,9 +117,8 @@ export default function SignupPage() {
       });
       const loginData = await loginRes.json();
       if (loginRes.ok && loginData.user) {
+        // The signed-in redirect effect above takes it from here.
         login(loginData.user);
-        // Role-based redirect
-        router.push(loginData.user.role === "admin" ? "/admin" : loginData.user.role === "shop_owner" ? "/shop/feed" : "/customer");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -156,9 +167,8 @@ export default function SignupPage() {
       });
       const loginData = await loginRes.json();
       if (loginRes.ok && loginData.user) {
+        // The signed-in redirect effect above takes it from here.
         login(loginData.user);
-        // Role-based redirect (shop_owner goes to shop, customer to customer)
-        router.push(loginData.user.role === "admin" ? "/admin" : loginData.user.role === "shop_owner" ? "/shop/feed" : "/customer");
       }
     } catch {
       setError("Network error. Please try again.");

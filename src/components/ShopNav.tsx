@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Settings, Store, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shopNavItems } from "@/components/ShopBottomNav";
 
 export default function ShopNav() {
   const pathname = usePathname();
 
-  // Settings and Notifications in top bar (bottom nav handles the rest)
+  // Settings and Notifications in top bar. The main sections show here on
+  // desktop, where the bottom nav is hidden.
   const topLinks = [
     { to: "/shop/notifications", label: "Notifications", icon: Bell },
     { to: "/shop/settings", label: "Settings", icon: Settings },
@@ -16,13 +18,31 @@ export default function ShopNav() {
 
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
-      <div className="flex items-center justify-between px-4 h-14">
+      <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
         <div className="flex items-center gap-2 min-w-0">
           <div className="bg-primary p-1.5 rounded-lg shrink-0">
             <Store className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="text-lg font-bold truncate">Pakalale Shop</span>
         </div>
+
+        <nav className="hidden sm:flex flex-1 items-center justify-center gap-1">
+          {shopNavItems.map((item) => (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                pathname.startsWith(item.href)
+                  ? "bg-primary/10 text-brand"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
         <div className="flex items-center gap-1 shrink-0">
           {topLinks.map((link) => (

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL = 30_000;
 
-const navItems = [
+export const shopNavItems = [
   { id: "home", label: "Home", icon: Home, href: "/shop/feed" },
   { id: "products", label: "Products", icon: Package, href: "/shop/products" },
   { id: "deals", label: "Deals", icon: ShoppingBag, href: "/shop/deals" },
@@ -93,7 +93,7 @@ export default function ShopBottomNav() {
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden">
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
-        {navItems.map((item) => {
+        {shopNavItems.map((item) => {
           const isActive = activeId === item.id;
           const badgeCount = item.id === "chat" ? chatUnread : item.id === "deals" ? dealCount : 0;
           return (

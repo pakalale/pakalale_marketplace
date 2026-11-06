@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, ChevronUp } from "lucide-react";
+import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, ChevronUp, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import FeedPost from "./FeedPost";
 import { useAuthStore } from "@/store/authStore";
@@ -26,6 +26,7 @@ interface FeedProps {
 export default function Feed({ authorId }: FeedProps) {
   const { user } = useAuthStore();
   const router = useRouter();
+  const isGuest = !user;
   const [newPostContent, setNewPostContent] = useState("");
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -124,17 +125,25 @@ export default function Feed({ authorId }: FeedProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // ── Public visitors can read the feed, but interacting needs an account ──
+  const requireAuth = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
+    }
+    router.push("/login");
+  }, [router]);
+
   // ── Like ──
   const handleLike = useCallback((postId: string) => {
-    if (!user?.id) return;
+    if (!user?.id) { requireAuth(); return; }
     toggleLike(postId, user.id);
-  }, [user?.id, toggleLike]);
+  }, [user?.id, toggleLike, requireAuth]);
 
   // ── Comment ──
   const handleComment = useCallback((postId: string, authorName: string, content: string) => {
-    if (!user?.id) return;
+    if (!user?.id) { requireAuth(); return; }
     addComment(postId, user.id, authorName, content);
-  }, [user?.id, addComment]);
+  }, [user?.id, addComment, requireAuth]);
 
   const handleShare = (postId: string) => {
     const url = typeof window !== "undefined" ? `${window.location.origin}/post/${postId}` : "";
@@ -232,7 +241,7 @@ export default function Feed({ authorId }: FeedProps) {
 
   // ── Deal ──
   const handleMakeDeal = async (productName: string, shopOwnerId: string, dealData?: { quantity: number; suggestedPrice: number; message: string; productId?: string }) => {
-    if (!user?.id) return;
+    if (!user?.id) { requireAuth(); return; }
     const chatBase = user.role === "shop_owner" ? "/shop/chat" : "/customer/chat";
     try {
       const dealInfo: Record<string, unknown> = { productName, quantity: dealData?.quantity, initialPrice: dealData?.suggestedPrice, status: "pending" };
@@ -248,7 +257,7 @@ export default function Feed({ authorId }: FeedProps) {
   };
 
   const handleContactShop = async (shopOwnerId: string) => {
-    if (!user?.id) return;
+    if (!user?.id) { requireAuth(); return; }
     const chatBase = user.role === "shop_owner" ? "/shop/chat" : "/customer/chat";
     try {
       const chatsRes = await fetch(`/api/chat?userId=${user.id}`);
@@ -331,7 +340,30 @@ export default function Feed({ authorId }: FeedProps) {
         </div>
       )}
 
-      {/* Create Post */}
+      {/* Create Post / guest prompt */}
+      {isGuest ? (
+        <Card className="border-brand/15 bg-gradient-to-r from-brand/5 via-card to-primary/10">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/10 text-brand">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">Join the conversation</p>
+                  <p className="text-xs text-muted-foreground">
+                    Sign in to like, comment, and share posts from local shops.
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" size="sm" onClick={requireAuth}>Sign in</Button>
+                <Button size="sm" onClick={() => router.push("/signup")}>Create account</Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
       <Card className="bg-card border-border">
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -416,6 +448,7 @@ export default function Feed({ authorId }: FeedProps) {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Filters */}
       <div className="flex gap-1 bg-muted/50 rounded-lg p-1">

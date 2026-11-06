@@ -29,6 +29,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // The session cookie is httpOnly, so only the server can clear it.
+        fetch("/api/auth/logout", { method: "POST", keepalive: true }).catch(() => {});
         set({ user: null, isAuthenticated: false, isLoading: false, hasCheckedSession: true });
       },
 
@@ -52,6 +54,21 @@ export const useAuthStore = create<AuthState>()(
         }
 
         try {
+          // A saved browser login only counts if the server session agrees. This also
+          // signs out logins saved before session cookies existed, once.
+          const sessionRes = await fetch("/api/auth/me");
+          if (sessionRes.status === 401) {
+            set({ user: null, isAuthenticated: false, isLoading: false, hasCheckedSession: true });
+            return false;
+          }
+          if (sessionRes.ok) {
+            const { user: sessionUser } = await sessionRes.json();
+            if (sessionUser?.id !== state.user.id) {
+              set({ user: null, isAuthenticated: false, isLoading: false, hasCheckedSession: true });
+              return false;
+            }
+          }
+
           const res = await fetch(`/api/user/profile?userId=${state.user.id}`);
           if (!res.ok) {
             // User no longer exists (e.g., DB was re-seeded) — clear stale session

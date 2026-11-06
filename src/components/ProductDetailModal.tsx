@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { productDiscount } from "@/lib/product";
 import type { ProductData } from "@/hooks/useApi";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
@@ -26,7 +27,13 @@ interface ProductDetailModalProps {
   onClose: () => void;
   product: ProductData;
   shopName?: string;
-  onMakeDeal: (product: ProductData) => void;
+  /** Legacy deal action. Used when no custom primary action is supplied. */
+  onMakeDeal?: (product: ProductData) => void;
+  /** Public storefront action, e.g. Add to Cart. */
+  primaryActionLabel?: string;
+  onPrimaryAction?: (product: ProductData) => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: (product: ProductData) => void;
 }
 
 export default function ProductDetailModal({
@@ -35,6 +42,10 @@ export default function ProductDetailModal({
   product,
   shopName,
   onMakeDeal,
+  primaryActionLabel,
+  onPrimaryAction,
+  secondaryActionLabel,
+  onSecondaryAction,
 }: ProductDetailModalProps) {
   useModalBack(isOpen, onClose);
 
@@ -65,7 +76,7 @@ export default function ProductDetailModal({
     if (hasImages) setImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  const discount = product.discount || (product.originalPrice ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0);
+  const discount = productDiscount(product);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -191,16 +202,26 @@ export default function ProductDetailModal({
           )}
         </div>
 
-        {/* Make Deal button — fixed at bottom */}
-        <div className="p-4 border-t border-border shrink-0">
+        {/* Primary action — fixed at bottom */}
+        <div className="p-4 border-t border-border shrink-0 space-y-2">
           <Button
             className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-semibold"
-            onClick={() => onMakeDeal(product)}
+            onClick={() => (onPrimaryAction ? onPrimaryAction(product) : onMakeDeal?.(product))}
             disabled={product.stock <= 0}
           >
             <ShoppingBag className="h-4 w-4 mr-2" />
-            {product.stock > 0 ? "Make a Deal" : "Out of Stock"}
+            {product.stock > 0 ? primaryActionLabel || "Make a Deal" : "Out of Stock"}
           </Button>
+          {secondaryActionLabel && onSecondaryAction && (
+            <Button
+              variant="outline"
+              className="w-full h-10 text-sm"
+              onClick={() => onSecondaryAction(product)}
+              disabled={product.stock <= 0}
+            >
+              {secondaryActionLabel}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

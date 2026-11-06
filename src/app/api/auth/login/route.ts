@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectToDatabase } from "@/lib/mongodb";
+import { setSessionCookie } from "@/lib/session";
 import User from "@/models/User";
 
 export async function POST(request: NextRequest) {
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       user: {
         id: user._id.toString(),
         email: user.email,
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
         updatedAt: user.updatedAt?.toISOString?.() || "",
       },
     });
+    setSessionCookie(request, response, user._id.toString());
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

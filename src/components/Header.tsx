@@ -86,6 +86,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
 
   const navItems = [
     { id: "home", label: "Home", icon: Home, href: "/customer" },
+    { id: "store", label: "Store", icon: Store, href: "/" },
     { id: "locations", label: "Shops", icon: MapPin, href: "/customer/locations" },
     { id: "deals", label: "Deals", icon: ShoppingBag, href: "/customer/deals", count: dealCount },
     { id: "chat", label: "Chat", icon: MessageSquare, href: "/customer/chat", count: chatUnreadCount },
@@ -96,7 +97,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
     <>
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-4 h-14">
+      <div className="flex items-center gap-3 px-4 h-14 max-w-5xl mx-auto">
         <div className="flex items-center gap-2 shrink-0">
           <div className="bg-primary p-1.5 rounded-lg"><Store className="h-4 w-4 text-primary-foreground" /></div>
           <span className="text-lg font-bold hidden sm:inline">Pakalale</span>
@@ -105,7 +106,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
         {title ? (
           <h1 className="text-sm font-bold flex-1 text-center">{title}</h1>
         ) : (
-          <div className="flex-1 max-w-md"><AnimatedSearch onClick={() => setSearchOpen(true)} /></div>
+          <div className="flex-1 min-w-0 flex justify-center"><div className="w-full max-w-md"><AnimatedSearch onClick={() => setSearchOpen(true)} /></div></div>
         )}
 
         <Button variant="ghost" size="icon" onClick={() => router.push("/customer/settings")} className="shrink-0">
@@ -125,7 +126,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
                   className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors", activeTab === item.id ? "bg-primary/10 text-brand" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
                   <item.icon className="h-5 w-5" />
                   <span className="flex-1 text-left">{item.label}</span>
-                  {item.count && item.count > 0 && <Badge className="bg-pink-500 text-white h-5 min-w-[20px] text-[10px] border-0 font-bold rounded-full">{item.count > 9 ? "9+" : item.count}</Badge>}
+                  {!!item.count && <Badge className="bg-pink-500 text-white h-5 min-w-[20px] text-[10px] border-0 font-bold rounded-full">{item.count > 9 ? "9+" : item.count}</Badge>}
                 </button>
               ))}
               <div className="border-t border-border my-3" />
@@ -145,7 +146,7 @@ export default function Header({ activeTab = "home", onTabChange, userId, title 
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative", activeTab === item.id ? "bg-primary/10 text-brand" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
             <item.icon className="h-4 w-4" />
             <span>{item.label}</span>
-            {item.count && item.count > 0 && (
+            {!!item.count && (
               <span className="ml-1 bg-pink-500 text-white text-[9px] rounded-full h-3.5 min-w-[14px] flex items-center justify-center px-0.5 font-bold">{item.count > 9 ? "9+" : item.count}</span>
             )}
           </Link>

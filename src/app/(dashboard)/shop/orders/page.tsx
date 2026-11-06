@@ -21,7 +21,7 @@ const statusColors: Record<string, string> = {
 export default function OrdersPage() {
   const { user } = useAuthStore();
   const [statusFilter, setStatusFilter] = useState("all");
-  const { data, loading } = useOrders({ shopId: user?.id || undefined, status: statusFilter });
+  const { data, loading, error } = useOrders({ shopId: user?.id || undefined, status: statusFilter });
 
   const orders = data?.orders || [];
 
@@ -52,7 +52,7 @@ export default function OrdersPage() {
           <Card className="bg-card border-border">
             <CardContent className="p-0 divide-y divide-border">
               {orders.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground text-sm">No orders found</div>
+                <div className="p-6 text-center text-muted-foreground text-sm">{error ? "We could not load your orders. Please try again." : "No orders found"}</div>
               ) : (
                 orders.map((order) => {
                   const customerName = typeof order.customerId === "object" && "firstName" in order.customerId
@@ -70,6 +70,7 @@ export default function OrdersPage() {
                         <div className="min-w-0">
                           <h4 className="text-sm font-medium truncate">{customerName}</h4>
                           <p className="text-xs text-muted-foreground truncate">{productNames}</p>
+                          {order.notes && <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">{order.notes}</p>}
                           <p className="text-[10px] text-muted-foreground mt-0.5">{formatTimeAgo(order.createdAt)}</p>
                         </div>
                         <div className="text-right shrink-0">

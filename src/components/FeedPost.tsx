@@ -104,7 +104,13 @@ export default function FeedPost({
   };
 
   const handlePostComment = () => {
-    if (!newComment.trim() || !currentUserName) return;
+    if (!newComment.trim()) return;
+    // Guests can type; the parent handles the sign-in prompt.
+    if (!currentUserId) {
+      onComment(post.id, "", newComment.trim());
+      return;
+    }
+    if (!currentUserName) return;
     onComment(post.id, currentUserName, newComment.trim());
     setNewComment("");
   };

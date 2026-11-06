@@ -143,17 +143,55 @@ function useFetch<T>(url: string | null, deps: unknown[] = []) {
 }
 
 // ── Products ──
-export function useProducts(params?: { shopId?: string; search?: string; category?: string; available?: boolean }) {
+export function useProducts(params?: {
+  shopId?: string;
+  search?: string;
+  category?: string | string[];
+  available?: boolean;
+  hasImage?: boolean;
+  onSale?: boolean;
+  locationId?: string;
+  sort?: string;
+  order?: "asc" | "desc";
+  page?: number;
+  limit?: number;
+}) {
   const searchParams = new URLSearchParams();
   if (params?.shopId) searchParams.set("shopId", params.shopId);
   if (params?.search) searchParams.set("search", params.search);
-  if (params?.category && params.category !== "all") searchParams.set("category", params.category);
+  [params?.category ?? []].flat().forEach((category) => {
+    if (category && category !== "all") searchParams.append("category", category);
+  });
   if (params?.available) searchParams.set("available", "true");
+  if (params?.hasImage) searchParams.set("hasImage", "true");
+  if (params?.onSale) searchParams.set("onSale", "true");
+  if (params?.locationId && params.locationId !== "all") searchParams.set("locationId", params.locationId);
+  if (params?.sort) searchParams.set("sort", params.sort);
+  if (params?.order) searchParams.set("order", params.order);
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.limit) searchParams.set("limit", String(params.limit));
 
   const qs = searchParams.toString();
   const url = `/api/products${qs ? `?${qs}` : ""}`;
 
-  return useFetch<{ products: ProductData[]; total: number; totalPages: number }>(url, [params?.shopId, params?.search, params?.category, params?.available]);
+  return useFetch<{
+    products: ProductData[];
+    total: number;
+    page?: number;
+    totalPages: number;
+    categories?: string[];
+  }>(url, [
+    params?.shopId,
+    params?.search,
+    params?.available,
+    params?.hasImage,
+    params?.onSale,
+    params?.locationId,
+    params?.sort,
+    params?.order,
+    params?.page,
+    params?.limit,
+  ]);
 }
 
 export interface ProductData {

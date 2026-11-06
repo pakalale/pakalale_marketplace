@@ -5,6 +5,8 @@ import { Chat, Message } from "@/models/Message";
 import Product from "@/models/Product";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
 
+export const maxDuration = 30;
+
 function toStr(val: unknown): string {
   if (!val) return "";
   if (typeof val === "string") return val;
@@ -287,22 +289,57 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cannot create chat between same account types" }, { status: 400 });
     }
 
-    // Prevent duplicate active chats between same participants of the same type
+    // One conversation per pair. Previously this only matched the requested
+    // type, so messaging a shop after a deal (or opening a second deal) added
+    // another entry to the chat list for the same two people.
     const existingChat = await Chat.findOne({
       participants: { $all: body.participants, $size: 2 },
       isActive: true,
-      type: body.type || "general",
-    }).lean();
+    })
+      .sort({ lastMessageTime: -1 })
+      .lean();
+
     if (existingChat) {
+      let chat = existingChat;
+
+      // Reuse the conversation, but refresh the deal details when the caller
+      // starts a new deal (different product, or the previous deal finished).
+      if (body.dealInfo) {
+        const incomingProductId = toStr(body.dealInfo.productId);
+        const existingProductId = toStr(existingChat.dealInfo?.productId);
+        const sameProduct =
+          incomingProductId.length > 0 && incomingProductId === existingProductId;
+        const sameOffer =
+          sameProduct &&
+          Number(existingChat.dealInfo?.initialPrice) === Number(body.dealInfo.initialPrice) &&
+          Number(existingChat.dealInfo?.quantity || 1) === Number(body.dealInfo.quantity || 1);
+        const dealFinished =
+          !!existingChat.dealInfo &&
+          (existingChat.dealInfo.status === "completed" ||
+            existingChat.dealInfo.status === "cancelled");
+
+        if (!existingChat.dealInfo || !sameOffer || dealFinished) {
+          const updated = await Chat.findByIdAndUpdate(
+            existingChat._id,
+            { type: "deal", dealInfo: body.dealInfo },
+            { new: true }
+          ).lean();
+          if (updated) {
+            chat = updated;
+            body.participants.forEach((p: string) => invalidateCache(`chat:list:${p}`));
+          }
+        }
+      }
+
       return NextResponse.json({
         chat: {
-          id: existingChat._id.toString(),
-          type: existingChat.type,
-          participants: existingChat.participants.map((p) => toStr(p)),
-          dealInfo: existingChat.dealInfo,
-          isActive: existingChat.isActive,
-          createdAt: existingChat.createdAt,
-          updatedAt: existingChat.updatedAt,
+          id: chat._id.toString(),
+          type: chat.type,
+          participants: chat.participants.map((p) => toStr(p)),
+          dealInfo: chat.dealInfo,
+          isActive: chat.isActive,
+          createdAt: chat.createdAt,
+          updatedAt: chat.updatedAt,
         },
       });
     }

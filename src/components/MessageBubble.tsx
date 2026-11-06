@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import VoiceMessage from "./VoiceMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import ImageWithFallback from "@/components/ImageWithFallback";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types/chat";
 import ImageViewerModal from "@/components/ImageViewerModal";
@@ -375,7 +376,7 @@ export default function MessageBubble({
                     autoPlay loop muted playsInline preload="metadata" 
                   />
                 ) : (
-                  <img 
+                  <ImageWithFallback
                     src={message.content} 
                     alt="Shared media" 
                     className="rounded-lg max-w-full" 

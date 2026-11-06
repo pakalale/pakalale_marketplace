@@ -132,6 +132,26 @@ export async function GET(request: NextRequest) {
     ]);    const countMap = new Map<string, number>();
     productCounts.forEach((pc) => countMap.set(toStr(pc._id), pc.count));
 
+    // A few in-stock product images per shop so shop cards can preview what
+    // the shop actually sells (one query for the whole page).
+    const previewProducts = await Product.find({
+      shopId: { $in: shopIds },
+      isAvailable: true,
+    })
+      .sort({ updatedAt: -1 })
+      .select("name description price originalPrice discount images category stock isAvailable shopId views rating reviews tags createdAt updatedAt")
+      .limit(300)
+      .lean();
+
+    const previewMap = new Map<string, Array<Record<string, unknown>>>();
+    previewProducts.forEach((product) => {
+      const shopId = toStr(product.shopId);
+      const list = previewMap.get(shopId) || [];
+      if (list.length >= 3) return;
+      list.push({ ...product, id: product._id.toString(), shopId });
+      previewMap.set(shopId, list);
+    });
+
     // Build shop data with trending score
     let shopsWithScore = shops.map((shop) => {
       const owner = ownerMap.get(toStr(shop.ownerId));
@@ -168,6 +188,7 @@ export async function GET(request: NextRequest) {
         productCount,
         totalViews: Number(shopObj.totalViews) || 0,
         trendingScore,
+        previewProducts: previewMap.get(shop._id.toString()) || [],
         createdAt: shop.createdAt,
         updatedAt: shop.updatedAt,
       };

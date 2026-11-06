@@ -451,9 +451,9 @@ export default function Feed({ authorId }: FeedProps) {
       )}
 
       {/* Filters */}
-      <div className="flex gap-1 bg-muted/50 rounded-lg p-1">
+      <div className="flex gap-1 bg-brand-soft/60 rounded-lg p-1">
         {([ { id: "all" as const, label: "All", icon: TrendingUp }, { id: "promotions" as const, label: "Promos", icon: Star }, { id: "nearby" as const, label: "Nearby", icon: MapPin } ]).map((f) => (
-          <button key={f.id} onClick={() => setFilter(f.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 justify-center", filter === f.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+          <button key={f.id} onClick={() => setFilter(f.id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors flex-1 justify-center", filter === f.id ? "bg-primary text-primary-foreground" : "text-brand hover:bg-brand-soft")}>
             <f.icon className="h-3.5 w-3.5" /><span>{f.label}</span>
           </button>
         ))}

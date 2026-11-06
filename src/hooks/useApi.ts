@@ -274,6 +274,8 @@ export interface ShopData {
   totalViews?: number;
   orderCount?: number;
   trendingScore?: number;
+  /** A few in-stock products used for preview thumbnails around the platform. */
+  previewProducts?: ProductData[];
   createdAt: string;
   updatedAt: string;
 }
@@ -694,7 +696,11 @@ export interface LocationData {
   hours: string;
   contact: string;
   totalViews?: number;
+  /** Total products listed by shops in this location. */
+  productCount?: number;
   coordinates?: { lat: number; lng: number };
+  /** Product images from shops in this location, for previews. */
+  previewProducts?: ProductData[];
 }
 
 // ── Search ──

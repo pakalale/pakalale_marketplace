@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Star, Search, Filter, ArrowRight, Loader2, Store, Eye, Users } from "lucide-react";
+import { MapPin, Star, Search, Filter, ArrowRight, Loader2, Store, Eye, Users, Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useLocations, type LocationData } from "@/hooks/useApi";
+import { useLocations, type LocationData, type ProductData } from "@/hooks/useApi";
 import { useOnlineStore } from "@/store/onlineStore";
+import ProductPreviewStrip from "@/components/ProductPreview";
 
 export default function LocationsPage() {
   const router = useRouter();
@@ -19,6 +20,12 @@ export default function LocationsPage() {
   const { data, loading } = useLocations({ search: searchQuery || undefined, specialty: selectedSpecialty });
 
   const locations = data?.locations || [];
+
+  const openPreviewProduct = (location: LocationData, product: ProductData) => {
+    const shopId = typeof product.shopId === "string" ? product.shopId : product.shopId?.id;
+    const base = `/customer/locations/${location.slug || location.id}`;
+    router.push(shopId ? `${base}?shopId=${shopId}&productId=${product.id}` : base);
+  };
 
   // Collect all unique specialties across locations for the filter
   const allSpecialties = ["all", ...Array.from(new Set(locations.flatMap((l) => l.specialties || [])))];
@@ -81,9 +88,14 @@ export default function LocationsPage() {
               >
                 <CardContent className="p-0">
                   <div className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold group-hover:text-brand transition-colors">{location.name}</h3>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-brand transition-colors shrink-0" />
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                          <MapPin className="h-3.5 w-3.5" />
+                        </span>
+                        <h3 className="font-semibold truncate group-hover:text-brand transition-colors">{location.name}</h3>
+                      </div>
+                      <ArrowRight className="h-4 w-4 text-brand/60 group-hover:text-brand transition-colors shrink-0" />
                     </div>
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{location.description}</p>
 
@@ -107,6 +119,10 @@ export default function LocationsPage() {
                         <Store className="h-3 w-3" />
                         <span>{location.shopCount} shops</span>
                       </div>
+                      <div className="flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        <span>{location.productCount ?? 0} products</span>
+                      </div>
                       {(location as LocationData & { totalViews?: number }).totalViews ? (
                         <div className="flex items-center gap-1">
                           <Eye className="h-3 w-3" />
@@ -118,6 +134,20 @@ export default function LocationsPage() {
                         <span>{onlineUserIds.size} online</span>
                       </div>
                     </div>
+
+                    {(location.previewProducts?.length || 0) > 0 && (
+                      <div className="mt-3 border-t border-brand/10 pt-3">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                          Products from local shops
+                        </p>
+                        <ProductPreviewStrip
+                          products={location.previewProducts || []}
+                          max={9}
+                          showPrice
+                          onSelect={(product) => openPreviewProduct(location, product)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

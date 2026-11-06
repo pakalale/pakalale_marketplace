@@ -9,6 +9,9 @@
   --color-foreground: var(--foreground);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-muted: var(--brand-muted);
+  --color-primary-soft: var(--primary-soft);
   --color-teal-50: #f0fdfa;
   --color-teal-100: #ccfbf1;
   --color-teal-200: #99f6e4;
@@ -110,6 +113,9 @@
   --primary-foreground: #002583;
   --brand: #002583;
   --brand-foreground: #ffffff;
+  --brand-soft: #e9eef9;
+  --brand-muted: #cbd6ec;
+  --primary-soft: #fff6dc;
   --secondary: #eef1f7;
   --secondary-foreground: #1c2a4d;
   --muted: #eef1f7;
@@ -150,6 +156,9 @@
   --primary-foreground: oklch(0.13 0.02 70);
   --brand: oklch(0.78 0.16 70);
   --brand-foreground: oklch(0.13 0.02 70);
+  --brand-soft: oklch(0.25 0.05 70);
+  --brand-muted: oklch(0.34 0.05 70);
+  --primary-soft: oklch(0.24 0.04 70);
   --secondary: oklch(0.22 0.01 260);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.22 0.01 260);

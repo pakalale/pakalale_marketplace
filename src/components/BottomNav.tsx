@@ -3,20 +3,20 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Home, MessageSquare, MapPin, ShoppingBag, Bell } from "lucide-react";
+import { Home, MessageSquare, MapPin, Bell, Package } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
-import { useDealStore } from "@/store/dealStore";
 import { useCountPolling } from "@/hooks/useCountPolling";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL = 30_000; // 30 seconds
 
 const navItems = [
   { id: "home", label: "Home", icon: Home, href: "/customer" },
+  { id: "shop", label: "Shops", icon: MapPin, href: "/customer/locations" },
   { id: "chat", label: "Chat", icon: MessageSquare, href: "/customer/chat" },
-  { id: "locations", label: "Shops", icon: MapPin, href: "/customer/locations" },
-  { id: "deals", label: "Deals", icon: ShoppingBag, href: "/customer/deals" },
+  { id: "orders", label: "Orders", icon: Package, href: "/customer/orders" },
   { id: "alerts", label: "Alerts", icon: Bell, href: "/customer/notifications" },
 ];
 
@@ -25,8 +25,7 @@ export default function BottomNav() {
   const { user } = useAuthStore();
   const globalUnreadCount = useNotificationStore((s) => s.unreadCount);
   const [chatUnread, setChatUnread] = useState(0);
-  const dealCount = useDealStore((s) => s.dealCount);
-  const setDealCount = useDealStore((s) => s.setDealCount);
+  const navVisible = useNavScrollVisibility();
 
   // Start polling for notification + deal counts
   useCountPolling(user?.id);
@@ -41,7 +40,6 @@ export default function BottomNav() {
         if (!res.ok) return;
         const d = await res.json();
         setChatUnread(d.totalUnread || 0);
-        setDealCount(d.totalDeals || 0);
       } catch { /* ignore */ }
     };
 
@@ -58,7 +56,7 @@ export default function BottomNav() {
       clearInterval(iv);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [user?.id, setDealCount]);
+  }, [user?.id]);
 
   // Real-time updates via custom events from global socket
   useEffect(() => {
@@ -84,7 +82,7 @@ export default function BottomNav() {
     if (pathname === "/customer") return "home";
     if (pathname.startsWith("/customer/chat")) return "chat";
     if (pathname.startsWith("/customer/locations")) return "locations";
-    if (pathname.startsWith("/customer/deals")) return "deals";
+    if (pathname.startsWith("/customer/orders")) return "orders";
     if (pathname.startsWith("/customer/notifications")) return "alerts";
     return "home";
   };
@@ -92,18 +90,21 @@ export default function BottomNav() {
   const activeId = getActiveId();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden">
+    <nav className={cn(
+      "fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-bottom transition-transform duration-300 sm:hidden",
+      navVisible ? "translate-y-0" : "translate-y-full"
+    )}>
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = activeId === item.id;
-          const badgeCount = item.id === "alerts" ? globalUnreadCount : item.id === "chat" ? chatUnread : item.id === "deals" ? dealCount : 0;
+          const badgeCount = item.id === "alerts" ? globalUnreadCount : item.id === "chat" ? chatUnread : 0;
           return (
             <Link
               key={item.id}
               href={item.href}
               prefetch={true}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-[56px]",
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 transition-colors",
                 isActive
                   ? "text-brand"
                   : "text-muted-foreground hover:text-foreground"

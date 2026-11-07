@@ -76,12 +76,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex w-64 bg-card border-r border-border flex-col shrink-0">
         <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Shield className="h-4 w-4 text-primary-foreground" />
-            </div>
+          <div className="flex flex-col gap-1">
+            <img src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto" />
             <div>
-              <h1 className="text-sm font-bold">Pakalale Admin</h1>
+              <h1 className="text-sm font-bold">Admin</h1>
               <p className="text-[10px] text-muted-foreground">System Management</p>
             </div>
           </div>
@@ -132,7 +130,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="lg:hidden sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
           <div className="flex items-center justify-between px-4 h-14">
             <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-brand" />
+              <img src="/logo.jpeg" alt="Pakalale Market" className="h-7 w-auto" />
               <span className="text-sm font-bold">Admin</span>
             </div>
             <div className="flex items-center gap-2">
@@ -150,7 +148,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent side="left" className="w-72 p-0">
             <SheetTitle className="px-4 py-4 border-b border-border text-left flex items-center gap-2">
-              <Shield className="h-4 w-4 text-brand" />
+              <img src="/logo.jpeg" alt="Pakalale Market" className="h-6 w-auto" />
               Admin Panel
             </SheetTitle>
             <nav className="p-4 space-y-1">

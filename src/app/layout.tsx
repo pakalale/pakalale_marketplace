@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   title: "Pakalale — Your Local Trading Platform",
   description:
     "Connect with local shops across Lusaka's major trading areas. Find products, compare prices, and support your community.",
+  icons: { icon: "/logo.jpeg", apple: "/logo.jpeg" },
 };
 
 export const viewport = {

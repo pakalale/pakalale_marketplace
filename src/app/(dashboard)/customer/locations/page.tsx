@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useLocations, type LocationData, type ProductData } from "@/hooks/useApi";
 import { useOnlineStore } from "@/store/onlineStore";
+import { useCartStore } from "@/store/cartStore";
+import { cartLineFromProduct } from "@/lib/cart";
+import toast from "react-hot-toast";
 import ProductPreviewStrip from "@/components/ProductPreview";
 
 export default function LocationsPage() {
@@ -16,6 +19,7 @@ export default function LocationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const onlineUserIds = useOnlineStore((s) => s.onlineUserIds);
+  const addItem = useCartStore((state) => state.addItem);
 
   const { data, loading } = useLocations({ search: searchQuery || undefined, specialty: selectedSpecialty });
 
@@ -25,6 +29,16 @@ export default function LocationsPage() {
     const shopId = typeof product.shopId === "string" ? product.shopId : product.shopId?.id;
     const base = `/customer/locations/${location.slug || location.id}`;
     router.push(shopId ? `${base}?shopId=${shopId}&productId=${product.id}` : base);
+  };
+
+  const addPreviewProductToCart = (product: ProductData) => {
+    const line = cartLineFromProduct(product);
+    if (!line) {
+      toast.error("This product is not available to order right now.");
+      return;
+    }
+    addItem(line);
+    toast.success(`${product.name} added to cart`);
   };
 
   // Collect all unique specialties across locations for the filter
@@ -142,8 +156,8 @@ export default function LocationsPage() {
                         </p>
                         <ProductPreviewStrip
                           products={location.previewProducts || []}
-                          max={9}
-                          showPrice
+                          max={3}
+                          onAddToCart={addPreviewProductToCart}
                           onSelect={(product) => openPreviewProduct(location, product)}
                         />
                       </div>

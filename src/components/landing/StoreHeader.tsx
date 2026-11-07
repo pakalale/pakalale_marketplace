@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -16,7 +17,6 @@ import {
   UserRound,
   Users,
   Truck,
-  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -29,8 +29,8 @@ import { useHydrated } from "@/hooks/useHydrated";
 import { useAuthStore } from "@/store/authStore";
 import { STORE_CATEGORIES, categoryHref } from "@/lib/storeCategories";
 import { cn } from "@/lib/utils";
-import BrandLogo from "./BrandLogo";
 import Container from "./Container";
+import StoreSearch from "./StoreSearch";
 
 interface StoreHeaderProps {
   cartCount: number;
@@ -45,60 +45,32 @@ function dashboardPath(role?: string) {
   return "/customer";
 }
 
-function SearchField() {
+function SearchField({ onOpen }: { onOpen: () => void }) {
   const urlQuery = useSearchParams().get("q") || "";
-  // Remount when the URL changes so the field follows back/forward and "clear".
-  return <SearchForm key={urlQuery} urlQuery={urlQuery} />;
-}
 
-function SearchForm({ urlQuery }: { urlQuery: string }) {
-  const router = useRouter();
-  const [value, setValue] = useState(urlQuery);
-
-  const submit = (query: string) => {
-    const trimmed = query.trim();
-    router.push(trimmed ? `/?q=${encodeURIComponent(trimmed)}#products` : "/#products");
-  };
-
+  // Read-only on purpose: tapping it opens the same search experience the feed
+  // uses, so visitors can search before they have an account.
   return (
-    <form
-      role="search"
-      className="relative w-full"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit(value);
-      }}
-    >
+    <div className="relative w-full">
       <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground" />
       <input
         type="search"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
+        readOnly
+        value={urlQuery}
+        onClick={onOpen}
+        onFocus={onOpen}
         placeholder="Search for products..."
         aria-label="Search for products"
-        className="h-11 w-full rounded-full border border-border bg-muted/60 pl-11 pr-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-brand/40 focus:bg-card [&::-webkit-search-cancel-button]:hidden"
+        className="h-11 w-full cursor-pointer rounded-full border border-border bg-muted/60 pl-11 pr-10 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-brand/40 focus:bg-card [&::-webkit-search-cancel-button]:hidden"
       />
-      {value && (
-        <button
-          type="button"
-          aria-label="Clear search"
-          onClick={() => {
-            setValue("");
-            if (urlQuery) submit("");
-          }}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
-    </form>
+    </div>
   );
 }
 
-function HeaderSearch() {
+function HeaderSearch({ onOpen }: { onOpen: () => void }) {
   return (
     <Suspense fallback={<div className="h-11 w-full rounded-full border border-border bg-muted/60" />}>
-      <SearchField />
+      <SearchField onOpen={onOpen} />
     </Suspense>
   );
 }
@@ -125,6 +97,7 @@ export default function StoreHeader({
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
   const signedIn = useHydrated() && isAuthenticated;
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const tabs = [
     { href: "/", label: "Shop", icon: ShoppingBag, active: pathname === "/" },
@@ -144,10 +117,10 @@ export default function StoreHeader({
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-card/95 backdrop-blur-lg">
         <Container className="flex h-16 items-center justify-between gap-3 sm:h-[72px] lg:gap-8">
-          <BrandLogo />
+          <Image src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto shrink-0 sm:h-9" width={320} height={112} priority />
 
           <div className="hidden max-w-xl flex-1 md:block">
-            <HeaderSearch />
+            <HeaderSearch onOpen={() => setSearchOpen(true)} />
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5 sm:gap-1.5">
@@ -217,7 +190,7 @@ export default function StoreHeader({
       <div className="bg-card">
         <div className="pb-2 md:hidden">
           <Container>
-            <HeaderSearch />
+            <HeaderSearch onOpen={() => setSearchOpen(true)} />
           </Container>
         </div>
 
@@ -275,6 +248,8 @@ export default function StoreHeader({
           </nav>
         </Container>
       </div>
+
+      <StoreSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </>
   );
 }

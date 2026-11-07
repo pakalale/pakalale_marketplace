@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, MessageSquare, Share, ShoppingBag, MapPin, Clock, CheckCircle, Phone, Loader2 } from "lucide-react";
+import { Heart, MessageSquare, Share, ShoppingBag, ShoppingCart, MapPin, Clock, CheckCircle, Phone, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +16,9 @@ import ImageViewerModal from "./ImageViewerModal";
 import VerifiedBadge from "./VerifiedBadge";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/formatTime";
-import { type FeedPostData } from "@/hooks/useApi";
+import { type FeedPostData, type ProductData } from "@/hooks/useApi";
+import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore } from "@/store/wishlistStore";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -58,6 +61,11 @@ export default function FeedPost({
   currentUserRole,
 }: FeedPostProps) {
   const router = useRouter();
+  const addItem = useCartStore((state) => state.addItem);
+  const saved = useWishlistStore((state) =>
+    state.items.some((item) => item.id === (post.product?.id || post.id))
+  );
+  const toggleSaved = useWishlistStore((state) => state.toggle);
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
@@ -114,6 +122,50 @@ export default function FeedPost({
     if (!currentUserName) return;
     onComment(post.id, currentUserName, newComment.trim());
     setNewComment("");
+  };
+
+  // Feed posts carry only the basics of a product, so this is the shape both
+  // the cart and saved items work with.
+  const shopId = post.product?.shopId || post.author?.shopId || post.author?.id || "";
+  const saveableProduct: ProductData | null = post.product
+    ? {
+        id: post.product.id || post.id,
+        name: post.product.name,
+        description: "",
+        price: post.product.price,
+        originalPrice: post.product.originalPrice,
+        discount: post.product.discount,
+        images: post.product.image ? [post.product.image] : [],
+        category: "",
+        stock: 99,
+        isAvailable: true,
+        shopId,
+        views: 0,
+        rating: 0,
+        reviews: 0,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      }
+    : null;
+
+  const handleAddToCart = () => {
+    if (!post.product) return;
+    if (!shopId) {
+      toast.error("This product is not available to order right now.");
+      return;
+    }
+    addItem({
+      productId: post.product.id || post.id,
+      name: post.product.name,
+      image: post.product.image || undefined,
+      price: post.product.price,
+      originalPrice: post.product.originalPrice,
+      // The feed does not track stock; checkout re-checks it with the server.
+      stock: 99,
+      shopId,
+      shopName: post.author?.name,
+    });
+    toast.success(`${post.product.name} added to cart`);
   };
 
   const handleDealSend = async (data: { quantity: number; suggestedPrice: number; message: string }) => {
@@ -198,8 +250,12 @@ export default function FeedPost({
         {post.product && (
           <div className="mt-3 bg-muted/50 rounded-lg p-3 border border-border">
             <div className="flex items-center gap-3">
-              <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                <ShoppingBag className="h-6 w-6 text-muted-foreground" />
+              <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                {post.product.image ? (
+                  <img src={post.product.image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                ) : (
+                  <ShoppingBag className="h-6 w-6 text-muted-foreground" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-sm truncate">{post.product.name}</h4>
@@ -215,6 +271,17 @@ export default function FeedPost({
                   )}
                 </div>
               </div>
+              {saveableProduct && (
+                <button
+                  type="button"
+                  aria-pressed={saved}
+                  aria-label={saved ? `Remove ${post.product.name} from saved items` : `Save ${post.product.name}`}
+                  onClick={() => toggleSaved(saveableProduct)}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-sm transition-colors hover:text-rose-500"
+                >
+                  <Heart className={cn("h-4 w-4", saved && "fill-rose-500 text-rose-500")} />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -314,27 +381,15 @@ export default function FeedPost({
             <Share className="h-3.5 w-3.5 mr-0.5" />
             Share
           </Button>
-          {/* Contact: hidden for self-posts */}
-          {post.author?.id !== currentUserId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-[10px] sm:text-[11px] font-medium text-brand hover:bg-brand-soft hover:text-brand px-1.5 sm:px-2"
-              onClick={() => { setContactMounted(true); setShowContactModal(true); }}
-            >
-              <Phone className="h-3.5 w-3.5 mr-0.5" />
-              Contact
-            </Button>
-          )}
-          {/* Deal: only customer → shop_owner, never self, never shop-to-shop */}
-          {post.author?.role === "shop_owner" && currentUserRole === "customer" && post.author?.id !== currentUserId && (
+          {/* Products on a shop post go straight to the cart; checkout asks
+              visitors to sign up only when they are ready to order. */}
+          {post.product && post.author?.role === "shop_owner" && post.author?.id !== currentUserId && (
             <Button
               size="sm"
               className="h-7 text-[10px] sm:text-[11px] bg-primary text-primary-foreground hover:bg-primary/90 px-1.5 sm:px-2"
-              onClick={() => { setDealMounted(true); setShowDealModal(true); }}
+              onClick={handleAddToCart}
             >
-              <ShoppingBag className="h-3.5 w-3.5 mr-0.5" />
-              Deal
+              <ShoppingCart className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>

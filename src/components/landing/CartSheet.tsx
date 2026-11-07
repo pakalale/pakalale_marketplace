@@ -4,20 +4,23 @@ import { useRouter } from "next/navigation";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useHydrated } from "@/hooks/useHydrated";
-import { useCartStore, cartItemCount, cartSubtotal } from "@/store/cartStore";
+import { cartItemCount, cartSubtotal, useCartStore } from "@/store/cartStore";
 
 interface CartSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Checkout is gated: signed-out visitors are prompted to create an account. */
+  onCheckout: () => void;
 }
 
-export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
+export default function CartSheet({ open, onOpenChange, onCheckout }: CartSheetProps) {
   const router = useRouter();
   const { items, setQuantity, removeItem } = useCartStore();
   const mounted = useHydrated();
@@ -27,10 +30,10 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
   const subtotal = cartSubtotal(lines);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
-        <SheetHeader className="border-b border-border p-4 pr-12">
-          <SheetTitle className="flex items-center gap-2 text-left">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+        <DialogHeader className="border-b border-border p-4 pr-12">
+          <DialogTitle className="flex items-center gap-2 text-left">
             <ShoppingBag className="h-4 w-4 text-brand" />
             Your cart
             {count > 0 && (
@@ -38,11 +41,14 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
                 {count}
               </span>
             )}
-          </SheetTitle>
-        </SheetHeader>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Review your items. You can sign in or create an account at checkout.
+          </DialogDescription>
+        </DialogHeader>
 
         {lines.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <ShoppingBag className="h-7 w-7 text-muted-foreground" />
             </div>
@@ -52,7 +58,19 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
                 Add products you like and they will show up here.
               </p>
             </div>
-            <Button onClick={() => onOpenChange(false)}>Continue Shopping</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => { onOpenChange(false); router.push("/saved"); }}>
+                Saved items
+              </Button>
+              <Button
+                onClick={() => {
+                  onOpenChange(false);
+                  router.push("/customer/locations");
+                }}
+              >
+                Browse products
+              </Button>
+            </div>
           </div>
         ) : (
           <>
@@ -111,22 +129,25 @@ export default function CartSheet({ open, onOpenChange }: CartSheetProps) {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="text-lg font-bold text-brand">K{subtotal.toLocaleString()}</span>
               </div>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Sign in at checkout. Each shop arranges delivery after you order.
-              </p>
-              <Button
-                className="h-11 w-full rounded-full text-sm font-semibold"
-                onClick={() => {
-                  onOpenChange(false);
-                  router.push("/checkout");
-                }}
-              >
-                Checkout
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="h-11 flex-1 rounded-full text-sm font-semibold"
+                  onClick={() => {
+                    onOpenChange(false);
+                    router.push("/cart");
+                  }}
+                >
+                  View cart
+                </Button>
+                <Button className="h-11 flex-[1.4] rounded-full text-sm font-semibold" onClick={onCheckout}>
+                  Checkout
+                </Button>
+              </div>
             </div>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

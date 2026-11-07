@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import BrandLogo from "./BrandLogo";
 import Container from "./Container";
 
 const FOOTER_COLUMNS = [
@@ -92,7 +92,7 @@ export default function Footer() {
     <footer className="mt-auto border-t border-border/60 bg-card">
       <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-0">
         <div className="sm:col-span-2 lg:col-span-1 lg:pr-4">
-          <BrandLogo large className="[&>span]:text-xl" />
+          <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto sm:h-12" width={320} height={112} />
           <p className="mt-1 text-sm text-foreground/80 lg:pl-[52px]">Shop Smart. Live Better.</p>
         </div>
 

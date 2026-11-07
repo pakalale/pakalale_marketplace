@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { Mail, ArrowRight, Store } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +13,9 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="bg-primary p-2 rounded-xl">
-              <Store className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold">Pakalale</span>
-          </div>
+          <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
+            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto" width={320} height={112} priority />
+          </Link>
           <h1 className="text-2xl font-bold">Reset Password</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Enter your email to receive reset instructions

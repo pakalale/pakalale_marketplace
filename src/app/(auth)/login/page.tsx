@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { Eye, EyeOff, Mail, Lock, Store, ArrowRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import type { LoginCredentials } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -86,12 +87,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="bg-primary p-2.5 rounded-xl">
-              <Store className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold">Pakalale</span>
-          </div>
+          <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
+            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-12 w-auto" width={320} height={112} priority />
+          </Link>
           <h1 className="text-xl font-bold mt-4">Welcome Back</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Sign in to continue

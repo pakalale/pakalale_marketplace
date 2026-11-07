@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { Store, ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, User, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, User, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
 import SpecialtyPicker from "@/components/SpecialtyPicker";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,7 @@ export default function SignupPage() {
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.push(destinationAfterSignup(user.role));
+      router.replace(destinationAfterSignup(user.role));
     }
   }, [isAuthenticated, user, router]);
 
@@ -183,10 +184,9 @@ export default function SignupPage() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <div className="bg-primary p-2.5 rounded-xl"><Store className="h-6 w-6 text-primary-foreground" /></div>
-              <span className="text-2xl font-bold">Pakalale</span>
-            </div>
+            <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
+              <Image src="/logo.jpeg" alt="Pakalale Market" className="h-12 w-auto" width={320} height={112} priority />
+            </Link>
             <h1 className="text-xl font-bold mt-4">Create Account</h1>
             <p className="text-sm text-muted-foreground mt-1">Choose how you want to use Pakalale</p>
           </div>
@@ -232,10 +232,9 @@ export default function SignupPage() {
           <ArrowLeft className="h-4 w-4" />Back
         </button>
         <div className="text-center mb-6 pt-6">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <div className="bg-primary p-2 rounded-xl"><Store className="h-5 w-5 text-primary-foreground" /></div>
-            <span className="text-xl font-bold">Pakalale</span>
-          </div>
+          <Link href="/" aria-label="Pakalale Market home" className="mb-3 inline-flex items-center">
+            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto" width={320} height={112} priority />
+          </Link>
           <h1 className="text-lg font-bold">
             {selectedType === "customer" ? "Customer Account" : "Shop Owner Account"}
           </h1>

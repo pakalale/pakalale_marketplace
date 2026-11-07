@@ -137,23 +137,32 @@ export async function GET(request: NextRequest) {
     const previewProducts = await Product.find({
       shopId: { $in: shopIds },
       isAvailable: true,
+      stock: { $gt: 0 },
+      images: { $elemMatch: { $gt: "", $not: /\/video\/upload\/|\.(mp4|webm|mov)(\?|$)/i } },
     })
       .sort({ updatedAt: -1 })
       .select("name description price originalPrice discount images category stock isAvailable shopId views rating reviews tags createdAt updatedAt")
-      .limit(300)
+      .limit(400)
       .lean();
 
     const previewMap = new Map<string, Array<Record<string, unknown>>>();
+    const previewImageUrls = new Set<string>();
     previewProducts.forEach((product) => {
       const shopId = toStr(product.shopId);
       const list = previewMap.get(shopId) || [];
-      if (list.length >= 3) return;
-      list.push({ ...product, id: product._id.toString(), shopId });
+      if (list.length >= 4) return;
+      const image = product.images?.find((url) =>
+        url && !/\/video\/upload\/|\.(mp4|webm|mov)(\?|$)/i.test(url)
+      );
+      if (!image || previewImageUrls.has(image)) return;
+
+      previewImageUrls.add(image);
+      list.push({ ...product, images: [image], id: product._id.toString(), shopId });
       previewMap.set(shopId, list);
     });
 
     // Build shop data with trending score
-    let shopsWithScore = shops.map((shop) => {
+    const shopsWithScore = shops.map((shop) => {
       const owner = ownerMap.get(toStr(shop.ownerId));
       const productCount = countMap.get(shop._id.toString()) || 0;
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, ChevronUp, Users } from "lucide-react";
+import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import FeedPost from "./FeedPost";
 import { useAuthStore } from "@/store/authStore";
@@ -21,9 +21,10 @@ type FilterType = "all" | "promotions" | "nearby";
 
 interface FeedProps {
   authorId?: string;
+  afterComposer?: ReactNode;
 }
 
-export default function Feed({ authorId }: FeedProps) {
+export default function Feed({ authorId, afterComposer }: FeedProps) {
   const { user } = useAuthStore();
   const router = useRouter();
   const isGuest = !user;
@@ -114,16 +115,6 @@ export default function Feed({ authorId }: FeedProps) {
     }
     touchStartY.current = 0;
   }, [pullDistance, refresh]);
-
-  // ── Scroll to top button ──
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 600);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // ── Public visitors can read the feed, but interacting needs an account ──
   const requireAuth = useCallback(() => {
@@ -365,18 +356,18 @@ export default function Feed({ authorId }: FeedProps) {
         </Card>
       ) : (
       <Card className="bg-card border-border">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-3 mb-3">
+        <CardContent className="p-2.5 sm:p-3">
+          <div className="mb-1.5 flex items-center gap-2">
             <button onClick={(e) => { e.stopPropagation(); if (user?.id) router.push(`/customer/profile/${user.id}`); }} className="shrink-0 cursor-pointer rounded-full">
-              <Avatar className="h-9 w-9 cursor-pointer">
+              <Avatar className="h-8 w-8 cursor-pointer">
                 <AvatarImage src={user?.avatar} alt={user?.firstName} className="cursor-pointer" />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-amber-golden text-primary-foreground text-xs cursor-pointer">
                   {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
             </button>
-            <Button variant="outline" className="flex-1 justify-start text-muted-foreground text-sm h-9" onClick={() => { setCreatePostMounted(true); setShowCreatePost(true); }}>
-              What&apos;s on your mind, {user?.firstName}?
+            <Button variant="outline" className="h-8 flex-1 justify-start text-xs text-muted-foreground" onClick={() => { setCreatePostMounted(true); setShowCreatePost(true); }}>
+              Post what you&apos;re looking for, {user?.firstName}?
             </Button>
           </div>
 
@@ -397,14 +388,14 @@ export default function Feed({ authorId }: FeedProps) {
           )}
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="flex-1 text-muted-foreground" onClick={handleMediaPick}>
-              <Image className="h-4 w-4 mr-1.5" /><span className="hidden sm:inline">Media</span>
+            <Button variant="ghost" size="sm" className="h-7 flex-1 px-2 text-muted-foreground" onClick={handleMediaPick}>
+              <Image className="mr-1 h-3.5 w-3.5" /><span className="hidden sm:inline">Media</span>
             </Button>
-            <Button variant="ghost" size="sm" className="flex-1 text-muted-foreground" onClick={() => { setLocationPickerMounted(true); setShowLocationPicker(true); }}>
-              <MapPin className="h-4 w-4 mr-1.5" /><span className="hidden sm:inline">Location</span>
+            <Button variant="ghost" size="sm" className="h-7 flex-1 px-2 text-muted-foreground" onClick={() => { setLocationPickerMounted(true); setShowLocationPicker(true); }}>
+              <MapPin className="mr-1 h-3.5 w-3.5" /><span className="hidden sm:inline">Location</span>
             </Button>
-            <Button variant="ghost" size="sm" className="flex-1 text-muted-foreground" onClick={() => { setTagPickerMounted(true); setShowTagPicker(true); }}>
-              <Tag className="h-4 w-4 mr-1.5" /><span className="hidden sm:inline">Tag</span>
+            <Button variant="ghost" size="sm" className="h-7 flex-1 px-2 text-muted-foreground" onClick={() => { setTagPickerMounted(true); setShowTagPicker(true); }}>
+              <Tag className="mr-1 h-3.5 w-3.5" /><span className="hidden sm:inline">Tag</span>
             </Button>
           </div>
 
@@ -449,6 +440,8 @@ export default function Feed({ authorId }: FeedProps) {
         </CardContent>
       </Card>
       )}
+
+      {afterComposer}
 
       {/* Filters */}
       <div className="flex gap-1 bg-brand-soft/60 rounded-lg p-1">
@@ -512,27 +505,17 @@ export default function Feed({ authorId }: FeedProps) {
         )}
       </div>
 
-      {/* Scroll to top FAB */}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-20 right-4 z-40 bg-primary text-primary-foreground rounded-full p-3 shadow-lg hover:bg-primary/90 transition-all sm:hidden"
-        >
-          <ChevronUp className="h-5 w-5" />
-        </button>
-      )}
-
       {/* Create Post Dialog */}
       {createPostMounted && (
       <Dialog open={showCreatePost} onOpenChange={setShowCreatePost}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0">
-          <DialogHeader className="p-3 border-b border-border"><DialogTitle className="text-sm font-bold">Create Post</DialogTitle></DialogHeader>
+            <DialogHeader className="p-3 border-b border-border"><DialogTitle className="text-sm font-bold">Post what you&apos;re looking for</DialogTitle></DialogHeader>
           <div className="p-3 space-y-3">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8"><AvatarImage src={user?.avatar} /><AvatarFallback className="bg-primary text-xs text-primary-foreground">{user?.firstName?.[0]}</AvatarFallback></Avatar>
               <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
             </div>
-            <Textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} placeholder="What's on your mind?" rows={4} className="resize-none" />
+            <Textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} placeholder="What are you looking for?" rows={4} className="resize-none" />
 
             {/* Upload progress bar */}
             <UploadProgressBar uploading={mediaUploading} progress={uploadProgress} error={uploadError} />

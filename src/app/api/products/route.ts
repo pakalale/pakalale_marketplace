@@ -5,16 +5,6 @@ import Product from "@/models/Product";
 import Shop from "@/models/Shop";
 import { Location } from "@/models/FeedPost";
 
-// Helper to safely get string from any ID type
-function toStr(val: unknown): string {
-  if (!val) return "";
-  if (typeof val === "string") return val;
-  if (typeof val === "object" && val !== null && "_id" in val) {
-    return String((val as { _id: unknown })._id);
-  }
-  return String(val);
-}
-
 // Keep the populated shop reference on public product cards so the storefront
 // can show "Sold by <shop>" without a second request per product.
 function toShopRef(val: unknown) {
@@ -140,6 +130,16 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
+
+    const hasProductPhoto = Array.isArray(body.images) && body.images.some(
+      (image: unknown) =>
+        typeof image === "string" &&
+        image.trim() &&
+        !/\/video\/upload\/|\.(mp4|webm|mov)(\?|$)/i.test(image)
+    );
+    if (!hasProductPhoto) {
+      return NextResponse.json({ error: "At least one product photo is required" }, { status: 400 });
+    }
 
     // Resolve ownerId to Shop._id if the shopId is actually a user ID
     if (body.shopId) {

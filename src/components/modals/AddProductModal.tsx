@@ -73,6 +73,7 @@ export default function AddProductModal({
 
   const [images, setImages] = useState<string[]>([]);
   const { upload: uploadFile, uploading, progress: uploadProgress } = useUpload({ folder: "pakalale/products" });
+  const hasProductPhoto = images.some((image) => !isVideoUrl(image));
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -93,6 +94,7 @@ export default function AddProductModal({
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.price) return;
+    if (!hasProductPhoto) return;
 
     setSaving(true);
     try {
@@ -229,7 +231,7 @@ export default function AddProductModal({
               className="hidden"
             />
             <p className="text-[10px] text-muted-foreground">
-              Upload product photos (JPEG, PNG, WebP, max 5MB each)
+              Add at least one product photo. Photos should be JPEG, PNG, or WebP (max 5MB each).
             </p>
             <UploadProgressBar uploading={uploading} progress={uploadProgress} />
           </div>
@@ -332,7 +334,7 @@ export default function AddProductModal({
         <DialogFooter>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !form.name.trim() || !form.price}
+            disabled={saving || !form.name.trim() || !form.price || !hasProductPhoto}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {saving ? (

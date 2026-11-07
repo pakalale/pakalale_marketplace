@@ -1,36 +1,25 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { MapPin, Store, Star, Search, Users, Loader2, Package, ShoppingBag, ChevronRight, Eye, ArrowLeft, Filter, TrendingUp, Sparkles, Tag } from "lucide-react";
+import { Store, Star, Search, Package, Eye, ArrowLeft, TrendingUp, Sparkles, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useLocation, useShops, useProducts, useChats, createChat, sendMessage, type ProductData, type LocationData } from "@/hooks/useApi";
-import { useAuthStore } from "@/store/authStore";
-import { useDealStore } from "@/store/dealStore";
+import { useLocation, useShops, useProducts, type ProductData, type LocationData } from "@/hooks/useApi";
+import { useCartStore } from "@/store/cartStore";
+import { cartLineFromProduct } from "@/lib/cart";
+import ProductCard from "@/components/landing/ProductCard";
+import toast from "react-hot-toast";
 import { useOnlineStore } from "@/store/onlineStore";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ProductDetailModal from "@/components/ProductDetailModal";
-import DealModal from "@/components/DealModal";
-import DealSuccessPopup from "@/components/DealSuccessPopup";
-import ImageViewerModal from "@/components/ImageViewerModal";
 import ProductPreviewStrip from "@/components/ProductPreview";
 import ImageWithFallback from "@/components/ImageWithFallback";
-import { DEFAULT_SHOP_COVER, productPlaceholder } from "@/lib/placeholders";
-
-const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
-function isVideoUrl(url: string): boolean {
-  try {
-    const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-    if (ext && VIDEO_EXTENSIONS.includes(ext)) return true;
-    if (url.includes("/video/upload/")) return true;
-    return false;
-  } catch { return false; }
-}
+import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
 
 type ProductFilter = "all" | "promo" | "new" | string;
 
@@ -39,9 +28,9 @@ export default function LocationDetailPage() {
   const searchParams = useSearchParams();
   const initialShopId = searchParams.get("shopId");
   const initialProductId = searchParams.get("productId");
+  const initialCategory = searchParams.get("category");
   const openedInitialProduct = useRef(false);
   const router = useRouter();
-  const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedShop, setSelectedShop] = useState<string | null>(initialShopId);
@@ -72,19 +61,9 @@ export default function LocationDetailPage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
   const [selectedProduct, setSelectedProduct] = useState<ProductData | null>(null);
-  const [dealProduct, setDealProduct] = useState<ProductData | null>(null);
-  const [showDealModal, setShowDealModal] = useState(false);
-  const [dealSending, setDealSending] = useState(false);
-  const [dealSuccess, setDealSuccess] = useState<{ productName: string; quantity: number; totalPrice: number; chatId: string } | null>(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerImages, setViewerImages] = useState<string[]>([]);
-  const [viewerIndex, setViewerIndex] = useState(0);
-  const [productFilter, setProductFilter] = useState<ProductFilter>("all");
+  const [productFilter, setProductFilter] = useState<ProductFilter>(initialCategory || "all");
   const [productSearch, setProductSearch] = useState("");
-
-  const openViewer = (images: string[], index: number) => { setViewerImages(images); setViewerIndex(index); setViewerOpen(true); };
-  const dealCount = useDealStore((s) => s.dealCount);
-  const incrementDealCount = useDealStore((s) => s.incrementDealCount);
+  const addItem = useCartStore((state) => state.addItem);
   const onlineUserIds = useOnlineStore((s) => s.onlineUserIds);
 
   const { data: locData, loading: locLoading } = useLocation(locationId);
@@ -169,6 +148,16 @@ export default function LocationDetailPage() {
 
   const handleProductClick = (product: ProductData) => { setSelectedProduct(product); };
 
+  const handleAddToCart = (product: ProductData) => {
+    const line = cartLineFromProduct(product);
+    if (!line) {
+      toast.error("This product is not available to order right now.");
+      return;
+    }
+    addItem(line);
+    toast.success(`${product.name} added to cart`);
+  };
+
   // Open a product previewed on the location header (shop derived from product).
   const handleLocationPreview = (product: ProductData) => {
     const shopId = typeof product.shopId === "string" ? product.shopId : product.shopId?.id;
@@ -182,31 +171,18 @@ export default function LocationDetailPage() {
     setSelectedProduct(product);
   };
 
-  const handleMakeDealFromProduct = (product: ProductData) => {
+  const openProductShop = (product: ProductData) => {
     setSelectedProduct(null);
-    setDealProduct(product);
-    setShowDealModal(true);
+    setProductSearch("");
+    setProductFilter(product.category || "all");
+    if (currentShop) {
+      window.history.replaceState(
+        { shopId: currentShop.id },
+        "",
+        `?shopId=${currentShop.id}&category=${encodeURIComponent(product.category || "all")}`
+      );
+    }
   };
-
-  const handleDealSend = useCallback(async (data: { quantity: number; suggestedPrice: number; message: string }) => {
-    if (!dealProduct || !user || !currentShop) return;
-    setDealSending(true);
-    try {
-      const ownerId = typeof currentShop.ownerId === "string" ? currentShop.ownerId : (currentShop.ownerId as { id: string }).id;
-      const createRes = await createChat({
-        type: "deal",
-        participants: [user.id, ownerId],
-        dealInfo: { productName: dealProduct.name, productId: dealProduct.id, quantity: data.quantity, initialPrice: data.suggestedPrice, status: "pending" },
-      });
-      const chatId = createRes.chat.id;
-      const senderName = `${user.firstName} ${user.lastName}`;
-      await sendMessage({ chatId, senderId: user.id, senderName, senderRole: "customer", content: data.message, type: "text" });
-      setShowDealModal(false);
-      incrementDealCount();
-      setDealSuccess({ productName: dealProduct.name, quantity: data.quantity, totalPrice: data.quantity * data.suggestedPrice, chatId });
-      setDealProduct(null);
-    } catch (e) { console.error("Failed to create deal:", e); } finally { setDealSending(false); }
-  }, [dealProduct, user, currentShop, incrementDealCount]);
 
   const loading = selectedShop ? false : (locLoading || shopsLoading);
 
@@ -271,7 +247,7 @@ export default function LocationDetailPage() {
                       <ProductPreviewStrip
                         products={location.previewProducts || []}
                         max={9}
-                        showPrice
+                        onAddToCart={handleAddToCart}
                         onSelect={handleLocationPreview}
                       />
                     </div>
@@ -346,12 +322,12 @@ export default function LocationDetailPage() {
                 </div>
 
                 {productsLoading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <div key={i} className="bg-card border border-border rounded-lg p-3 space-y-2">
-                        <Skeleton className="aspect-[4/3] w-full rounded-lg" />
+                      <div key={i} className="space-y-3 rounded-2xl border border-border bg-card p-4">
+                        <Skeleton className="aspect-square w-full rounded-xl" />
                         <Skeleton className="h-3 w-3/4" />
-                        <div className="flex justify-between"><Skeleton className="h-3 w-16" /><Skeleton className="h-2 w-12" /></div>
+                        <Skeleton className="h-10 w-full rounded-full" />
                       </div>
                     ))}
                   </div>
@@ -361,67 +337,14 @@ export default function LocationDetailPage() {
                     <p className="text-xs text-muted-foreground">No products found</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {filteredProducts.map((product) => (
-                      <Card key={product.id} className="bg-card border-border hover:border-primary/30 transition-all duration-200 cursor-pointer active:scale-[0.98]"
-                        onClick={() => handleProductClick(product)}>
-                        <CardContent className="p-3">
-                          <div className="mb-2 relative">
-                            {product.images && product.images.length > 0 ? (
-                              product.images.length === 1 ? (
-                                <div className="aspect-[4/3] w-full bg-muted rounded-lg overflow-hidden cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, 0); }}>
-                                  {isVideoUrl(product.images[0]) ? (
-                                    <video src={product.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
-                                  ) : (
-                                    <ImageWithFallback src={product.images[0]} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="aspect-[4/3] grid grid-cols-2 gap-0.5 rounded-lg overflow-hidden">
-                                  {product.images.slice(0, 2).map((img, i) => (
-                                    <div key={i} className="relative h-full w-full min-w-0 overflow-hidden bg-muted cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, i); }}>
-                                      {isVideoUrl(img) ? (
-                                        <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
-                                      ) : (
-                                        <ImageWithFallback src={img} fallbackSrc={productPlaceholder(product.category, `${product.id}-${i}`)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
-                                      )}
-                                      {i === 1 && product.images!.length > 2 && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                          <span className="text-white text-lg font-bold">+{product.images!.length - 2}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )
-                            ) : (
-                              <div className="aspect-[4/3] w-full bg-muted rounded-lg overflow-hidden">
-                                <ImageWithFallback src={undefined} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" />
-                              </div>
-                            )}
-                            {product.discount && product.discount > 0 && (
-                              <div className="absolute top-1 right-1 z-10 pointer-events-none">
-                                <Badge className="bg-rose-500 text-white text-[9px] px-1 h-4 border-0">-{product.discount}%</Badge>
-                              </div>
-                            )}
-                          </div>
-                          <h4 className="font-medium text-xs truncate mb-0.5">{product.name}</h4>
-                          <p className="text-[10px] text-muted-foreground truncate mb-1.5">{product.description}</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-bold text-brand">K{product.price.toLocaleString()}</span>
-                            {product.originalPrice && (
-                              <span className="text-[10px] text-muted-foreground line-through">K{product.originalPrice.toLocaleString()}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <div className="flex items-center gap-1">
-                              <Star className="h-2.5 w-2.5 text-yellow-400 fill-yellow-400" />
-                              <span className="text-[10px]">{product.rating} ({product.reviews})</span>
-                            </div>
-                            <span className="text-[10px] text-muted-foreground">{product.stock} in stock</span>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onOpen={handleProductClick}
+                        onAddToCart={handleAddToCart}
+                      />
                     ))}
                   </div>
                 )}
@@ -487,8 +410,8 @@ export default function LocationDetailPage() {
                         <ProductPreviewStrip
                           products={shop.previewProducts || []}
                           max={3}
-                          showPrice
                           className="mb-3"
+                          onAddToCart={handleAddToCart}
                           onSelect={(product) => {
                             setSelectedShop(shop.id);
                             window.history.pushState(
@@ -528,13 +451,21 @@ export default function LocationDetailPage() {
 
       {/* Modals */}
       {selectedProduct && (
-        <ProductDetailModal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)} product={selectedProduct} shopName={currentShop?.name} onMakeDeal={handleMakeDealFromProduct} />
+        <ProductDetailModal
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          product={selectedProduct}
+          shopName={currentShop?.name}
+          primaryActionLabel="Add to Cart"
+          onPrimaryAction={(product) => {
+            handleAddToCart(product);
+            setSelectedProduct(null);
+          }}
+          secondaryActionLabel="View Shop"
+          secondaryActionDisabled={false}
+          onSecondaryAction={openProductShop}
+        />
       )}
-      <DealModal isOpen={showDealModal} onClose={() => { setShowDealModal(false); setDealProduct(null); }} productName={dealProduct?.name || ""} productPrice={dealProduct?.price} shopName={currentShop?.name} onSendDeal={handleDealSend} sending={dealSending} />
-      <DealSuccessPopup isOpen={!!dealSuccess} onClose={() => setDealSuccess(null)} productName={dealSuccess?.productName || ""} quantity={dealSuccess?.quantity || 0} totalPrice={dealSuccess?.totalPrice || 0}
-        onGoToChat={() => { if (dealSuccess?.chatId) router.push(`/customer/chat?chatId=${dealSuccess.chatId}`); setDealSuccess(null); }}
-        onContinueBrowsing={() => setDealSuccess(null)} />
-      <ImageViewerModal isOpen={viewerOpen} onClose={() => setViewerOpen(false)} images={viewerImages} initialIndex={viewerIndex} alt="Product image" />
     </div>
   );
 }

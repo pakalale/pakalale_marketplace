@@ -12,6 +12,9 @@ interface ProductCardProps {
   product: ProductData;
   onOpen: (product: ProductData) => void;
   onAddToCart: (product: ProductData) => void;
+  className?: string;
+  compact?: boolean;
+  imageOverride?: string | null;
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -33,24 +36,38 @@ function compactCount(count: number) {
   return count >= 1000 ? `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(count);
 }
 
-export default function ProductCard({ product, onOpen, onAddToCart }: ProductCardProps) {
+export default function ProductCard({ product, onOpen, onAddToCart, className, compact = false, imageOverride }: ProductCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const saved = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
   const toggleSaved = useWishlistStore((state) => state.toggle);
 
-  const image = imageFailed ? undefined : productImage(product);
+  const image = imageFailed
+    ? undefined
+    : imageOverride === undefined
+      ? productImage(product)
+      : imageOverride || undefined;
   const discount = productDiscount(product);
   const outOfStock = product.stock <= 0;
   const shopName = productShopName(product);
 
   return (
-    <article className="group flex h-full flex-col rounded-2xl border border-border bg-card p-3 shadow-[0_2px_12px_rgba(0,37,131,0.05)] transition-shadow hover:shadow-[0_8px_26px_rgba(0,37,131,0.12)] sm:p-4">
+    <article className={cn(
+      "group flex h-full flex-col rounded-2xl border border-border bg-card shadow-[0_2px_12px_rgba(0,37,131,0.05)] transition-shadow hover:shadow-[0_8px_26px_rgba(0,37,131,0.12)]",
+      compact ? "p-2" : "p-3 sm:p-4",
+      className
+    )}>
       <div className="relative">
         <button
           type="button"
-          onClick={() => onOpen(product)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(product);
+          }}
           aria-label={`View ${product.name}`}
-          className="block aspect-square w-full overflow-hidden rounded-xl bg-white"
+          className={cn(
+            "block w-full overflow-hidden rounded-xl bg-white",
+            compact ? "h-16" : "aspect-square"
+          )}
         >
           {image ? (
             <img
@@ -80,25 +97,36 @@ export default function ProductCard({ product, onOpen, onAddToCart }: ProductCar
           type="button"
           aria-pressed={saved}
           aria-label={saved ? `Remove ${product.name} from saved items` : `Save ${product.name}`}
-          onClick={() => toggleSaved(product)}
+          onClick={(event) => {
+            event.stopPropagation();
+            toggleSaved(product);
+          }}
           className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-sm transition-colors hover:text-rose-500"
         >
           <Heart className={cn("h-4 w-4", saved && "fill-rose-500 text-rose-500")} />
         </button>
       </div>
 
-      <div className="mt-3 flex flex-1 flex-col">
-        {shopName && <p className="truncate text-xs text-muted-foreground">{shopName}</p>}
+      <div className={cn("flex flex-1 flex-col", compact ? "mt-1.5" : "mt-3")}>
+        {!compact && <p className="h-4 truncate text-xs leading-4 text-muted-foreground">
+          {shopName || <span aria-hidden="true">&nbsp;</span>}
+        </p>}
         <button
           type="button"
-          onClick={() => onOpen(product)}
-          className="line-clamp-2 text-left text-sm font-semibold leading-snug text-foreground hover:text-brand sm:text-[15px]"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(product);
+          }}
+          className={cn(
+            "line-clamp-2 text-left font-semibold leading-5 text-foreground hover:text-brand",
+            compact ? "min-h-9 text-xs" : "min-h-10 text-sm sm:text-[15px]"
+          )}
         >
           {product.name}
         </button>
 
-        <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
-          <span className="text-lg font-bold text-brand sm:text-xl">{formatKwacha(product.price)}</span>
+        <div className={cn("mt-1.5 flex min-h-6 flex-wrap items-baseline gap-x-2", compact && "mt-1 min-h-5")}>
+          <span className={cn("font-bold text-brand", compact ? "text-sm" : "text-lg sm:text-xl")}>{formatKwacha(product.price)}</span>
           {discount > 0 && product.originalPrice && (
             <span className="text-xs text-muted-foreground line-through sm:text-sm">
               {formatKwacha(product.originalPrice)}
@@ -107,7 +135,7 @@ export default function ProductCard({ product, onOpen, onAddToCart }: ProductCar
         </div>
 
         {/* New products default to a rating of 5, so only show earned ratings. */}
-        <div className="mt-1 flex min-h-5 flex-wrap items-center gap-1 text-xs text-muted-foreground">
+        {!compact && <div className="mt-1 flex h-5 shrink-0 flex-wrap items-center gap-1 overflow-hidden text-xs text-muted-foreground">
           {product.reviews > 0 ? (
             <>
               <Stars rating={product.rating} />
@@ -118,15 +146,21 @@ export default function ProductCard({ product, onOpen, onAddToCart }: ProductCar
           ) : (
             <span>No reviews yet</span>
           )}
-        </div>
+        </div>}
 
         <button
           type="button"
           disabled={outOfStock}
-          onClick={() => onAddToCart(product)}
-          className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+          onClick={(event) => {
+            event.stopPropagation();
+            onAddToCart(product);
+          }}
+          className={cn(
+            "mt-auto flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
+            compact ? "h-8 text-[10px]" : "mt-3 h-10 gap-2 text-sm"
+          )}
         >
-          {!outOfStock && <ShoppingCart className="h-4 w-4" />}
+          {!outOfStock && <ShoppingCart className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />}
           {outOfStock ? "Out of Stock" : "Add to Cart"}
         </button>
       </div>

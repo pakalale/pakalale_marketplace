@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
-import { ShoppingBag, Star, Package, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { ShoppingBag, Star, Package, Store, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ interface ProductDetailModalProps {
   onPrimaryAction?: (product: ProductData) => void;
   secondaryActionLabel?: string;
   onSecondaryAction?: (product: ProductData) => void;
+  secondaryActionDisabled?: boolean;
 }
 
 export default function ProductDetailModal({
@@ -48,6 +49,7 @@ export default function ProductDetailModal({
   onPrimaryAction,
   secondaryActionLabel,
   onSecondaryAction,
+  secondaryActionDisabled,
 }: ProductDetailModalProps) {
   useModalBack(isOpen, onClose);
 
@@ -223,8 +225,9 @@ export default function ProductDetailModal({
               variant="outline"
               className="w-full h-10 text-sm"
               onClick={() => onSecondaryAction(product)}
-              disabled={product.stock <= 0}
+              disabled={secondaryActionDisabled ?? product.stock <= 0}
             >
+              <Store className="mr-2 h-4 w-4" />
               {secondaryActionLabel}
             </Button>
           )}

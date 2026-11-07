@@ -144,7 +144,7 @@ export default function CheckoutPage() {
             </li>
           ))}
         </ul>
-        <Link href="/" className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-7 font-semibold text-primary-foreground hover:bg-primary/90">
+        <Link href="/customer/locations" className="mt-6 inline-flex h-11 items-center rounded-full bg-primary px-7 font-semibold text-primary-foreground hover:bg-primary/90">
           Continue Shopping
         </Link>
       </Container>
@@ -157,7 +157,7 @@ export default function CheckoutPage() {
         <ShoppingBag className="mx-auto h-12 w-12 text-muted-foreground" />
         <h1 className="mt-4 text-2xl font-bold text-brand">Your cart is empty</h1>
         <p className="mt-1 text-muted-foreground">Add a few products, then come back to check out.</p>
-        <Link href="/" className="mt-5 inline-flex h-11 items-center rounded-full bg-primary px-7 font-semibold text-primary-foreground hover:bg-primary/90">
+        <Link href="/customer/locations" className="mt-5 inline-flex h-11 items-center rounded-full bg-primary px-7 font-semibold text-primary-foreground hover:bg-primary/90">
           Browse Products
         </Link>
       </Container>

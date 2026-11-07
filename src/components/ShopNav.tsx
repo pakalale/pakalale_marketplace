@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Store, Bell } from "lucide-react";
+import { Settings, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shopNavItems } from "@/components/ShopBottomNav";
 
@@ -19,12 +20,10 @@ export default function ShopNav() {
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="bg-primary p-1.5 rounded-lg shrink-0">
-            <Store className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-bold truncate">Pakalale Shop</span>
-        </div>
+        <Link href="/shop/virtual-shop" aria-label="Pakalale Shop home" className="flex items-center gap-2 min-w-0">
+          <Image src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto shrink-0" width={320} height={112} priority />
+          <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">Shop</span>
+        </Link>
 
         <nav className="hidden sm:flex flex-1 items-center justify-center gap-1">
           {shopNavItems.map((item) => (

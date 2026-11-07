@@ -20,7 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import { useLocations, useProducts, type ProductData } from "@/hooks/useApi";
-import { productImage, productShopId, productShopName } from "@/lib/product";
+import { productShopName } from "@/lib/product";
+import { cartLineFromProduct } from "@/lib/cart";
 import { STORE_CATEGORIES, categoryFilter, categoryHref } from "@/lib/storeCategories";
 import { useCartStore } from "@/store/cartStore";
 import Container from "./Container";
@@ -76,6 +77,14 @@ function ProductSkeletons({ count }: { count: number }) {
       ))}
     </div>
   );
+}
+
+function uniquePhoto(product: ProductData, usedUrls: Set<string>) {
+  const photo = product.images?.find((url) =>
+    url && !/\/video\/upload\/|\.(mp4|webm|mov)(\?|$)/i.test(url) && !usedUrls.has(url)
+  );
+  if (photo) usedUrls.add(photo);
+  return photo || null;
 }
 
 function FilterSelect({
@@ -144,6 +153,7 @@ export default function Storefront() {
     page,
     limit: PAGE_SIZE,
     available: true,
+    hasImage: true,
   });
 
   // "Best sellers" ranks by views: orders are too new to rank on. Photos only,
@@ -159,7 +169,17 @@ export default function Storefront() {
   const products = data?.products || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
-  const bestSellers = bestSellerData?.products || [];
+  const productIdsOnPage = new Set(products.map((product) => product.id));
+  const bestSellers = (bestSellerData?.products || []).filter((product) => !productIdsOnPage.has(product.id));
+  const usedProductPhotos = new Set<string>();
+  const bestSellerCards = bestSellers.map((product) => ({
+    product,
+    image: uniquePhoto(product, usedProductPhotos),
+  }));
+  const productCards = products.map((product) => ({
+    product,
+    image: uniquePhoto(product, usedProductPhotos),
+  }));
   const groupLabels = STORE_CATEGORIES.map((group) => group.label);
   const otherCategories = (data?.categories || bestSellerData?.categories || []).filter(
     (item) => !groupLabels.includes(item)
@@ -167,21 +187,12 @@ export default function Storefront() {
   const hasFilters = Boolean(search) || category !== "all" || market !== "all" || onSale;
 
   const handleAddToCart = (product: ProductData) => {
-    const shopId = productShopId(product);
-    if (!shopId) {
+    const line = cartLineFromProduct(product);
+    if (!line) {
       toast.error("This product is not available to order right now.");
       return;
     }
-    addItem({
-      productId: product.id,
-      name: product.name,
-      image: productImage(product),
-      price: product.price,
-      originalPrice: product.originalPrice,
-      stock: product.stock,
-      shopId,
-      shopName: productShopName(product) || undefined,
-    });
+    addItem(line);
     toast.success(`${product.name} added to cart`);
   };
 
@@ -238,23 +249,26 @@ export default function Storefront() {
         </div>
       </section>
 
-      <section aria-label="Best sellers">
-        <SectionHeading title="Best Sellers" href="/?sort=popular#products" action="View All Best Sellers" />
-        {bestSellersLoading && bestSellers.length === 0 ? (
-          <ProductSkeletons count={4} />
-        ) : (
-          <div className={productGrid}>
-            {bestSellers.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onOpen={setSelectedProduct}
-                onAddToCart={handleAddToCart}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {(bestSellersLoading || bestSellerCards.length > 0) && (
+        <section aria-label="Best sellers">
+          <SectionHeading title="Best Sellers" href="/?sort=popular#products" action="View All Best Sellers" />
+          {bestSellersLoading && bestSellerCards.length === 0 ? (
+            <ProductSkeletons count={4} />
+          ) : (
+            <div className={productGrid}>
+              {bestSellerCards.map(({ product, image }) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  imageOverride={image}
+                  onOpen={setSelectedProduct}
+                  onAddToCart={handleAddToCart}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section
         aria-label="Deals"
@@ -368,10 +382,11 @@ export default function Storefront() {
           <ProductSkeletons count={8} />
         ) : products.length > 0 ? (
           <div className={`${productGrid} transition-opacity ${loading ? "opacity-60" : ""}`}>
-            {products.map((product) => (
+            {productCards.map(({ product, image }) => (
               <ProductCard
                 key={product.id}
                 product={product}
+                imageOverride={image}
                 onOpen={setSelectedProduct}
                 onAddToCart={handleAddToCart}
               />

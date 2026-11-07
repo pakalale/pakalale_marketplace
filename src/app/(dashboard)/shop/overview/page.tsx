@@ -1,11 +1,13 @@
 "use client";
 
 import ShopNav from "@/components/ShopNav";
+import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
-import { Eye, ShoppingBag, TrendingUp, Star, User, Store, Loader2, DollarSign } from "lucide-react";
+import { Eye, ShoppingBag, Star, Loader2, DollarSign, Store } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAnalytics } from "@/hooks/useApi";
+import ShopVisitorsList from "@/components/ShopVisitorsList";
 import { formatTimeAgo } from "@/lib/formatTime";
 
 const statusColors: Record<string, string> = {
@@ -25,10 +27,10 @@ export default function OverviewPage() {
 
   const statCards = stats
     ? [
-        { icon: Eye, value: (stats.shopTotalViews || stats.totalViews).toLocaleString(), label: "Shop Views", color: "text-blue-400", bg: "bg-blue-400/10" },
-        { icon: ShoppingBag, value: stats.totalOrders.toString(), label: "Deals", color: "text-emerald-400", bg: "bg-emerald-400/10" },
-        { icon: DollarSign, value: `K${stats.totalRevenue.toLocaleString()}`, label: "Revenue", color: "text-yellow-400", bg: "bg-yellow-400/10" },
-        { icon: Star, value: `${stats.shopRating || 0} (${stats.shopReviews || 0})`, label: "Rating & Reviews", color: "text-purple-400", bg: "bg-purple-400/10" },
+        { icon: Eye, value: (stats.shopTotalViews || stats.totalViews).toLocaleString(), label: "Shop Views", color: "text-blue-400", bg: "bg-blue-400/10", href: "/shop/overview#shop-visitors" },
+        { icon: ShoppingBag, value: stats.totalOrders.toString(), label: "Orders", color: "text-emerald-400", bg: "bg-emerald-400/10", href: "/shop/orders" },
+        { icon: DollarSign, value: `K${stats.totalRevenue.toLocaleString()}`, label: "Revenue", color: "text-yellow-400", bg: "bg-yellow-400/10", href: undefined },
+        { icon: Star, value: `${stats.shopRating || 0} (${stats.shopReviews || 0})`, label: "Rating & Reviews", color: "text-purple-400", bg: "bg-purple-400/10", href: undefined },
       ]
     : [];
 
@@ -36,17 +38,18 @@ export default function OverviewPage() {
     <div className="min-h-screen bg-background">
       <ShopNav />
       <main className="p-3 sm:p-4 space-y-4 max-w-5xl mx-auto">
-        {/* Welcome */}
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 border-primary/20">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-brand shrink-0" />
-              <h2 className="text-lg font-bold">Welcome back, {user?.firstName}!</h2>
-              <Store className="h-5 w-5 text-brand shrink-0" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">Your shop dashboard</p>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-bold">My Shop</h1>
+            <p className="text-xs text-muted-foreground">Performance, visitors, and storefront</p>
+          </div>
+          <Link
+            href="/shop/virtual-shop"
+            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Store className="h-4 w-4" />Preview storefront
+          </Link>
+        </div>
 
         {/* Stats */}
         {loading ? (
@@ -56,8 +59,8 @@ export default function OverviewPage() {
         ) : (
           <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-              {statCards.map((stat) => (
-                <Card key={stat.label} className="bg-card border-border hover:border-primary/20 transition-colors">
+              {statCards.map((stat) => {
+                const content = (
                   <CardContent className="p-3 sm:p-4">
                     <div className="flex items-center gap-2.5">
                       <div className={`p-2 rounded-lg ${stat.bg} shrink-0`}>
@@ -69,8 +72,26 @@ export default function OverviewPage() {
                       </div>
                     </div>
                   </CardContent>
-                </Card>
-              ))}
+                );
+                const card = (
+                  <Card className="bg-card border-border hover:border-primary/20 transition-colors">
+                    {content}
+                  </Card>
+                );
+
+                return stat.href ? (
+                  <Link
+                    key={stat.label}
+                    href={stat.href}
+                    aria-label={`Open ${stat.label}`}
+                    className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {card}
+                  </Link>
+                ) : (
+                  <div key={stat.label}>{card}</div>
+                );
+              })}
             </div>
 
             {/* Key Metrics */}
@@ -88,12 +109,14 @@ export default function OverviewPage() {
                     </div>
                     <div className="text-center">
                       <p className="text-lg font-bold text-yellow-400">K{stats.avgOrderValue?.toLocaleString() || 0}</p>
-                      <p className="text-[10px] text-muted-foreground">Avg Deal</p>
+                      <p className="text-[10px] text-muted-foreground">Avg Order</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
+
+            <ShopVisitorsList ownerId={user?.id || null} />
 
             {/* Recent Orders */}
             <Card className="bg-card border-border">

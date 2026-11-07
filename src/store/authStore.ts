@@ -25,6 +25,9 @@ export const useAuthStore = create<AuthState>()(
       hasCheckedSession: false,
 
       login: (user: User) => {
+        if (typeof window !== "undefined" && user.role === "shop_owner") {
+          sessionStorage.removeItem(`shopWelcomeShown:${user.id}`);
+        }
         set({ user, isAuthenticated: true, isLoading: false, hasCheckedSession: true });
       },
 

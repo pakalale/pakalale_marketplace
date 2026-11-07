@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import ShopNav from "@/components/ShopNav";
 import Feed from "@/components/Feed";
 import { useAuthStore } from "@/store/authStore";
@@ -8,13 +9,30 @@ import { Store, TrendingUp } from "lucide-react";
 
 export default function ShopFeedPage() {
   const { user } = useAuthStore();
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const key = `shopWelcomeShown:${user.id}`;
+    let hideTimer: number | undefined;
+    const showTimer = window.setTimeout(() => {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+      setShowWelcome(true);
+      hideTimer = window.setTimeout(() => setShowWelcome(false), 5000);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(showTimer);
+      if (hideTimer) window.clearTimeout(hideTimer);
+    };
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
       <main className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
-        {/* Welcome */}
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 border-primary/20">
+        {showWelcome && <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Store className="h-5 w-5 text-brand shrink-0" />
@@ -24,7 +42,7 @@ export default function ShopFeedPage() {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </Card>}
 
         {/* Community Feed */}
         <div>

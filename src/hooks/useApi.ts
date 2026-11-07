@@ -258,6 +258,16 @@ export function useShop(id: string | null) {
   return useFetch<{ shop: ShopData }>(id ? `/api/shops?id=${id}` : null, [id]);
 }
 
+export interface ShopVisitorData {
+  id: string;
+  visitor: { id: string; firstName: string; lastName: string; avatar?: string };
+  lastViewedAt: string;
+}
+
+export function useShopVisitors(ownerId: string | null) {
+  return useFetch<{ views: ShopVisitorData[] }>(ownerId ? "/api/shops/views" : null, [ownerId]);
+}
+
 export interface ShopData {
   id: string;
   name: string;
@@ -342,6 +352,14 @@ export function useFeed(params?: { filter?: string; locationId?: string; authorI
   const url = `/api/feed${qs ? `?${qs}` : ""}`;
 
   return useFetch<{ posts: FeedPostData[]; total: number }>(url, [params?.filter, params?.locationId, params?.authorId]);
+}
+
+export function useShopPosts(ownerId: string | null) {
+  const url = ownerId
+    ? `/api/feed?authorId=${encodeURIComponent(ownerId)}&mode=chronological&limit=50`
+    : null;
+
+  return useFetch<{ posts: FeedPostData[]; total: number }>(url, [ownerId]);
 }
 
 // ── Infinite Feed (Facebook-style cursor pagination) ──
@@ -529,6 +547,7 @@ export interface FeedPostData {
   commentsCount: number;
   shares: number;
   isPromotion: boolean;
+  postType?: "promotion" | "product_arrival" | "price_drop" | "customer_request" | "customer_review" | "shop_announcement" | "demand_signal" | "general";
   product?: {
     id?: string;
     name: string;

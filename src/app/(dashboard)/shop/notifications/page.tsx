@@ -86,7 +86,7 @@ export default function ShopNotificationsPage() {
     }
   };
 
-  const dealCount = notifications.filter((n) => n.type === "deal").length;
+  const orderCount = notifications.filter((n) => n.type === "order").length;
   const messageCount = notifications.filter(
     (n) => n.type === "message"
   ).length;
@@ -138,12 +138,12 @@ export default function ShopNotificationsPage() {
           </Card>
           <Card
             className="bg-gradient-to-br from-primary/10 to-amber-500/10 border-primary/20 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => router.push("/shop/deals")}
+            onClick={() => router.push("/shop/orders")}
           >
             <CardContent className="p-3 text-center">
               <ShoppingBag className="h-5 w-5 text-brand mx-auto mb-1" />
-              <p className="text-lg font-bold">{dealCount}</p>
-              <p className="text-[10px] text-muted-foreground">Deal Alerts</p>
+              <p className="text-lg font-bold">{orderCount}</p>
+              <p className="text-[10px] text-muted-foreground">Order Alerts</p>
             </CardContent>
           </Card>
         </div>

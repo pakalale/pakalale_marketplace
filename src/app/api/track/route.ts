@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
+import { getSessionUser } from "@/lib/session";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
+import ShopView from "@/models/ShopView";
 import { FeedPost } from "@/models/FeedPost";
 import ProductView from "@/models/ProductView";
 import FeedEvent from "@/models/FeedEvent";
@@ -33,8 +36,30 @@ export async function POST(request: NextRequest) {
       }
 
       case "shop_view": {
-        // Increment shop view count
-        await Shop.findByIdAndUpdate(targetId, { $inc: { totalViews: 1 } });
+        if (!mongoose.isValidObjectId(targetId)) break;
+        const shop = await Shop.findById(targetId).select("_id").lean();
+        if (!shop) break;
+
+        const session = await getSessionUser(request);
+        if (!session || !mongoose.isValidObjectId(session.id)) {
+          break;
+        }
+
+        const filter = { shopId: shop._id, visitorId: new mongoose.Types.ObjectId(session.id) };
+        let result;
+        try {
+          result = await ShopView.updateOne(
+            filter,
+            { $set: { lastViewedAt: new Date() } },
+            { upsert: true }
+          );
+        } catch (error) {
+          if ((error as { code?: number }).code !== 11000) throw error;
+          await ShopView.updateOne(filter, { $set: { lastViewedAt: new Date() } });
+        }
+        if (result?.upsertedCount) {
+          await Shop.findByIdAndUpdate(targetId, { $inc: { totalViews: 1 } });
+        }
         break;
       }
 

@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/session";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
+import { FeedPost } from "@/models/FeedPost";
 
 const ORDER_STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"];
 
@@ -126,6 +127,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Shop not found" }, { status: 404 });
     }
 
+    const promotionPosts = products.length > 0
+      ? await FeedPost.find({
+          relatedShopId: shop._id,
+          relatedProductId: { $in: products.map((product) => product._id) },
+          isPromotion: true,
+        })
+          .sort({ createdAt: -1 })
+          .select("relatedProductId product")
+          .lean()
+      : [];
+    const promotionPrices = new Map<string, number>();
+    promotionPosts.forEach((post) => {
+      const productId = post.relatedProductId?.toString();
+      const price = Number(post.product?.price);
+      const originalPrice = Number(post.product?.originalPrice);
+      if (productId && !promotionPrices.has(productId) && price > 0 && originalPrice > price) {
+        promotionPrices.set(productId, price);
+      }
+    });
+    const orderPrice = (product: (typeof products)[number]) => {
+      const promotionPrice = promotionPrices.get(product._id.toString());
+      return promotionPrice && promotionPrice < product.price ? promotionPrice : product.price;
+    };
+
     // The database, not the browser cart, decides price and availability.
     const byId = new Map(products.map((product) => [product._id.toString(), product]));
     const orderItems = [];
@@ -140,14 +165,15 @@ export async function POST(request: NextRequest) {
       } else if (product.stock < quantity) {
         problems.push(`Only ${product.stock} of ${product.name} left`);
       } else {
-        orderItems.push({ productId: product._id, quantity, price: product.price });
-        serverTotal += product.price * quantity;
+        const price = orderPrice(product);
+        orderItems.push({ productId: product._id, quantity, price });
+        serverTotal += price * quantity;
       }
     }
 
     const current = products.map((product) => ({
       productId: product._id.toString(),
-      price: product.price,
+      price: orderPrice(product),
       stock: product.stock,
       isAvailable: product.isAvailable,
     }));

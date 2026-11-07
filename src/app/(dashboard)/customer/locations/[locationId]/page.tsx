@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useLocation, useShops, useProducts, type ProductData, type LocationData } from "@/hooks/useApi";
+import { useLocation, useShops, useProducts, useShopPosts, type FeedPostData, type ProductData, type LocationData } from "@/hooks/useApi";
 import { useCartStore } from "@/store/cartStore";
 import { cartLineFromProduct } from "@/lib/cart";
 import ProductCard from "@/components/landing/ProductCard";
@@ -67,6 +67,11 @@ export default function LocationDetailPage() {
 
   const location = locData?.location;
   const allShops = shopsData?.shops || [];
+  const currentShop = allShops.find((s) => s.id === selectedShop);
+  const currentShopOwnerId = currentShop
+    ? typeof currentShop.ownerId === "string" ? currentShop.ownerId : currentShop.ownerId.id
+    : null;
+  const { data: shopPostsData } = useShopPosts(currentShopOwnerId);
 
   // Auto-select shop from URL param once shops are loaded
   useEffect(() => {
@@ -117,14 +122,52 @@ export default function LocationDetailPage() {
   });
 
   const shopProducts = productsData?.products || [];
-  const currentShop = allShops.find((s) => s.id === selectedShop);
+  const promotionPostsByProduct = new Map<string, FeedPostData>();
+  const arrivalPostsByProduct = new Map<string, FeedPostData>();
+  const findPostProductId = (post: FeedPostData) => {
+    const productId = post.product?.id;
+    if (productId && shopProducts.some((product) => product.id === productId)) return productId;
+    return shopProducts.find((product) => product.name.trim().toLowerCase() === post.product?.name.trim().toLowerCase())?.id;
+  };
+
+  (shopPostsData?.posts || []).forEach((post) => {
+    const productId = findPostProductId(post);
+    if (!productId) return;
+
+    const target = post.isPromotion || post.postType === "promotion" || post.postType === "price_drop"
+      ? promotionPostsByProduct
+      : post.postType === "product_arrival" ? arrivalPostsByProduct : null;
+    if (!target) return;
+
+    const existing = target.get(productId);
+    if (!existing || new Date(post.createdAt) > new Date(existing.createdAt)) {
+      target.set(productId, post);
+    }
+  });
+
+  const shopProductsWithPosts = shopProducts.map((product) => {
+    const promotion = promotionPostsByProduct.get(product.id)?.product;
+    if (!promotion || promotion.price <= 0) return product;
+
+    const originalPrice = promotion.originalPrice ?? product.price;
+    if (originalPrice <= promotion.price) return product;
+
+    return {
+      ...product,
+      price: promotion.price,
+      originalPrice,
+      discount: promotion.discount ?? Math.round(((originalPrice - promotion.price) / originalPrice) * 100),
+    };
+  });
 
   // Filter products based on productFilter
-  const filteredProducts = shopProducts.filter((p) => {
-    if (productFilter === "promo") return p.discount && p.discount > 0;
+  const filteredProducts = shopProductsWithPosts.filter((p) => {
+    if (productFilter === "promo") return (p.discount || 0) > 0 || promotionPostsByProduct.has(p.id);
     if (productFilter === "new") {
-      const age = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-      return age <= 14; // products added in last 14 days
+      const arrivalPost = arrivalPostsByProduct.get(p.id);
+      const productAge = (Date.now() - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      const postAge = arrivalPost ? (Date.now() - new Date(arrivalPost.createdAt).getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+      return productAge <= 14 || postAge <= 14;
     }
     if (productFilter !== "all" && productFilter !== "promo" && productFilter !== "new") {
       return p.category === productFilter;
@@ -134,7 +177,16 @@ export default function LocationDetailPage() {
     if (!productSearch) return true;
     return p.name.toLowerCase().includes(productSearch.toLowerCase());
   }).sort((a, b) => {
-    if (productFilter === "new") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (productFilter === "new") {
+      const aDate = Math.max(new Date(a.createdAt).getTime(), new Date(arrivalPostsByProduct.get(a.id)?.createdAt || 0).getTime());
+      const bDate = Math.max(new Date(b.createdAt).getTime(), new Date(arrivalPostsByProduct.get(b.id)?.createdAt || 0).getTime());
+      return bDate - aDate;
+    }
+    if (productFilter === "promo") {
+      const aDate = new Date(promotionPostsByProduct.get(a.id)?.createdAt || a.updatedAt).getTime();
+      const bDate = new Date(promotionPostsByProduct.get(b.id)?.createdAt || b.updatedAt).getTime();
+      return bDate - aDate;
+    }
     return 0; // default order (API returns ranked)
   });
 
@@ -254,27 +306,46 @@ export default function LocationDetailPage() {
               <div className="space-y-3">
                 {/* Shop header */}
                 {currentShop && (
-                  <div className="flex items-center gap-3 p-3 bg-brand-soft/60 border border-brand/10 rounded-lg">
-                    <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarImage src={currentShop.profileImage} alt={currentShop.name} />
-                      <AvatarFallback className="bg-primary/10 text-brand text-sm">
-                        {currentShop.name?.charAt(0) || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold text-sm truncate">{currentShop.name}</h3>
-                        {currentShop.status === "verified" && <VerifiedBadge size="sm" />}
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                        {currentShop.rating ? <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 text-yellow-400 fill-yellow-400" />{currentShop.rating}</span> : null}
-                        <span>{currentShop.productCount || 0} products</span>
-                      </div>
+                  <div className="space-y-2">
+                    <div className="h-28 overflow-hidden rounded-lg border border-border bg-muted sm:h-40">
+                      <ImageWithFallback
+                        src={currentShop.coverImage}
+                        fallbackSrc={DEFAULT_SHOP_COVER}
+                        alt={`${currentShop.name} cover`}
+                        className="h-full w-full object-cover"
+                      />
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 text-[10px] shrink-0" onClick={() => {
-                      const profilePath = `/customer/profile/${typeof currentShop.ownerId === "string" ? currentShop.ownerId : (currentShop.ownerId as { id: string }).id}`;
-                      router.push(profilePath);
-                    }}>View Profile</Button>
+                    <div className="flex items-center gap-3 rounded-lg border border-brand/10 bg-brand-soft/60 p-3">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        <AvatarImage src={currentShop.profileImage} alt={currentShop.name} />
+                        <AvatarFallback className="bg-primary/10 text-brand text-sm">
+                          {currentShop.name?.charAt(0) || "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="font-semibold text-sm truncate">{currentShop.name}</h3>
+                          {currentShop.status === "verified" ? (
+                            <VerifiedBadge size="sm" />
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className={currentShop.status === "rejected" ? "border-destructive/30 text-destructive" : "border-amber-500/30 text-amber-600"}
+                            >
+                              {currentShop.status === "rejected" ? "Verification rejected" : "Verification pending"}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                          {currentShop.rating ? <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5 text-yellow-400 fill-yellow-400" />{currentShop.rating}</span> : null}
+                          <span>{currentShop.productCount || 0} products</span>
+                        </div>
+                      </div>
+                      <Button size="sm" variant="ghost" className="h-7 text-[10px] shrink-0" onClick={() => {
+                        const profilePath = `/customer/profile/${typeof currentShop.ownerId === "string" ? currentShop.ownerId : (currentShop.ownerId as { id: string }).id}`;
+                        router.push(profilePath);
+                      }}>View Profile</Button>
+                    </div>
                   </div>
                 )}
 

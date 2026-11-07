@@ -16,7 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 import { Plus, Upload, X, Loader2, ImageIcon } from "lucide-react";
-import { createProduct } from "@/hooks/useApi";
+import { createProduct, type ProductData } from "@/hooks/useApi";
 import ImageViewerModal from "@/components/ImageViewerModal";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
@@ -33,7 +33,7 @@ function isVideoUrl(url: string): boolean {
 
 interface AddProductModalProps {
   shopId: string;
-  onProductAdded?: () => void;
+  onProductAdded?: (product: ProductData) => void;
 }
 
 const CATEGORIES = [
@@ -93,7 +93,7 @@ export default function AddProductModal({
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.price) return;
+    if (!form.name.trim() || !form.description.trim() || !form.price) return;
     if (!hasProductPhoto) return;
 
     setSaving(true);
@@ -126,7 +126,9 @@ export default function AddProductModal({
         reviews: 0,
       };
 
-      await createProduct(productData);
+      const result = await createProduct(productData);
+      if (!result?.product) throw new Error(result?.error || "Failed to create product");
+      const savedProduct = result.product as ProductData;
 
       // Reset form
       setForm({
@@ -140,7 +142,7 @@ export default function AddProductModal({
       });
       setImages([]);
       setOpen(false);
-      onProductAdded?.();
+      onProductAdded?.({ ...productData, ...savedProduct, id: savedProduct.id } as ProductData);
     } catch (err) {
       console.error("Failed to create product:", err);
     } finally {
@@ -248,9 +250,10 @@ export default function AddProductModal({
 
           {/* Description */}
           <div className="space-y-1.5">
-            <Label className="text-xs">Description</Label>
+            <Label className="text-xs">Description *</Label>
             <Textarea
               placeholder="Describe your product..."
+              required
               value={form.description}
               onChange={(e) =>
                 setForm((p) => ({ ...p, description: e.target.value }))
@@ -334,7 +337,7 @@ export default function AddProductModal({
         <DialogFooter>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !form.name.trim() || !form.price || !hasProductPhoto}
+            disabled={saving || !form.name.trim() || !form.description.trim() || !form.price || !hasProductPhoto}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {saving ? (

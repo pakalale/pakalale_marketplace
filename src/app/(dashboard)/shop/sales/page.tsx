@@ -194,7 +194,7 @@ export default function SalesPage() {
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px]"
-                    onClick={() => router.push("/shop/deals")}
+                    onClick={() => router.push("/shop/orders")}
                   >
                     View
                   </Button>

@@ -106,7 +106,7 @@ export default function EditProductModal({
   };
 
   const handleSubmit = async () => {
-    if (!form.name.trim() || !form.price) return;
+    if (!form.name.trim() || !form.description.trim() || !form.price) return;
 
     setSaving(true);
     try {
@@ -243,9 +243,10 @@ export default function EditProductModal({
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label className="text-xs">Description</Label>
+              <Label className="text-xs">Description *</Label>
               <Textarea
                 placeholder="Describe your product..."
+                required
                 value={form.description}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, description: e.target.value }))
@@ -331,7 +332,7 @@ export default function EditProductModal({
           <DialogFooter>
             <Button
               onClick={handleSubmit}
-              disabled={saving || !form.name.trim() || !form.price}
+              disabled={saving || !form.name.trim() || !form.description.trim() || !form.price}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? (

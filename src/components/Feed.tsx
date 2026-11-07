@@ -13,11 +13,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useInfiniteFeed, useShops, createFeedPost, createChat, type FeedPostData, type ShopData } from "@/hooks/useApi";
+import { useInfiniteFeed, useShops, useProducts, createFeedPost, createChat, type ProductData, type ShopData } from "@/hooks/useApi";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 
 type FilterType = "all" | "promotions" | "nearby";
+type ShopPostTemplate = "promotion" | "product_arrival" | "shop_announcement" | "custom";
+
+function isVideoUrl(url: string) {
+  return url.includes("/video/upload/") || /\.(mp4|webm|mov|avi|mkv)(\?|$)/i.test(url);
+}
+
+function productMedia(images: string[]) {
+  return images.map((url) => ({ url, type: isVideoUrl(url) ? "video" as const : "image" as const }));
+}
 
 interface FeedProps {
   authorId?: string;
@@ -28,7 +37,12 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
   const { user } = useAuthStore();
   const router = useRouter();
   const isGuest = !user;
+  const isShopOwner = user?.role === "shop_owner";
   const [newPostContent, setNewPostContent] = useState("");
+  const [postTemplate, setPostTemplate] = useState<ShopPostTemplate>("custom");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedProductDraft, setSelectedProductDraft] = useState<ProductData | null>(null);
+  const [priceDrop, setPriceDrop] = useState("");
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [posting, setPosting] = useState(false);
@@ -68,6 +82,32 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
 
   const { data: shopsData } = useShops();
   const allShops = shopsData?.shops || [];
+  const { data: inventoryData } = useProducts(isShopOwner && user?.id ? { shopId: user.id } : undefined);
+  const inventoryProducts = inventoryData?.products || [];
+  const selectedProduct = inventoryProducts.find((product) => product.id === selectedProductId) || selectedProductDraft;
+
+  useEffect(() => {
+    if (!isShopOwner) return;
+    const timer = window.setTimeout(() => {
+      const savedDraft = sessionStorage.getItem("shopFeedProductDraft");
+      if (!savedDraft) return;
+      sessionStorage.removeItem("shopFeedProductDraft");
+      try {
+        const product = JSON.parse(savedDraft) as ProductData;
+        if (!product.id) return;
+        setPostTemplate("product_arrival");
+        setSelectedProductId(product.id);
+        setSelectedProductDraft(product);
+        setNewPostContent(`NEW ARRIVAL!\n\n${product.name} is now in stock at our shop.\n\nK${product.price.toLocaleString()} | ${product.stock} available\n\nVisit us or message to order!`);
+        setPostMedia(productMedia(product.images || []));
+        setCreatePostMounted(true);
+        setShowCreatePost(true);
+      } catch {
+        sessionStorage.removeItem("shopFeedProductDraft");
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isShopOwner]);
 
   // ── IntersectionObserver for infinite scroll ──
   useEffect(() => {
@@ -198,22 +238,50 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
 
   // ── Create Post ──
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() || !user) return;
+    if (!user || !newPostContent.trim()) return;
+    const isProductPost = isShopOwner && postTemplate !== "custom";
+    if (isProductPost && !selectedProduct) return;
+    const salePrice = Number(priceDrop);
+    if (postTemplate === "promotion" && (!priceDrop || !Number.isFinite(salePrice) || salePrice <= 0 || salePrice >= (selectedProduct?.price || 0))) return;
     setPosting(true);
     try {
       const tagNames = taggedShops.map((s) => `@${s.name}`).join(" ");
       const locationText = postLocation ? `\n📍 ${postLocation}` : "";
       const fullContent = `${newPostContent}${tagNames ? "\n" + tagNames : ""}${locationText}`;
+      const productShopId = isProductPost && selectedProduct
+        ? typeof selectedProduct.shopId === "string" ? selectedProduct.shopId : selectedProduct.shopId.id
+        : undefined;
+      const saleDiscount = postTemplate === "promotion" && selectedProduct
+        ? Math.round(((selectedProduct.price - salePrice) / selectedProduct.price) * 100)
+        : undefined;
+      const postProduct = isProductPost && selectedProduct
+        ? {
+            name: selectedProduct.name,
+            price: postTemplate === "promotion" ? salePrice : selectedProduct.price,
+            originalPrice: postTemplate === "promotion" ? selectedProduct.price : undefined,
+            discount: postTemplate === "promotion" ? saleDiscount : undefined,
+            image: selectedProduct.images.find((image) => !isVideoUrl(image)) || selectedProduct.images[0] || "",
+            shopId: productShopId || user.id,
+          }
+        : undefined;
+      const postType = postTemplate === "custom" ? "general" : postTemplate;
 
       const result = await createFeedPost({
         content: fullContent,
         authorId: user.id,
         locationId: postLocation || user.location,
         images: postMedia.map((m) => m.url),
+        postType,
+        isPromotion: postTemplate === "promotion",
+        relatedProductId: isProductPost ? selectedProduct?.id : undefined,
+        relatedShopId: productShopId,
+        product: postProduct,
       });
       if (result?.post) {
         prependPost({
           ...result.post,
+          postType,
+          product: postProduct ? { ...postProduct, id: selectedProduct?.id } : undefined,
           author: { id: user.id, name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role as "customer" | "shop_owner" },
           likes: 0, likedBy: [], comments: [], commentsCount: 0, shares: 0,
         });
@@ -222,6 +290,10 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
       setPostMedia([]);
       setPostLocation("");
       setTaggedShops([]);
+      setPostTemplate("custom");
+      setSelectedProductId("");
+      setSelectedProductDraft(null);
+      setPriceDrop("");
       setShowCreatePost(false);
     } catch (e) {
       console.error("Failed to create post:", e);
@@ -260,60 +332,43 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     } catch (e) { console.error("Failed to create chat:", e); }
   };
 
-  // ── Post Templates for shop owners ──
-  const isShopOwner = user?.role === "shop_owner";
-
-  const templateContents: Record<string, string> = {
-    promotion: [
-      "FLASH SALE!",
-      "",
-      "[Product name] now only K[Price]!",
-      "",
-      "Was K[Original price] - [Discount]% OFF!",
-      "",
-      "Limited time only. Do not miss out!",
-      "",
-      "#Pakalale #Sale #Deals",
-    ].join("\n"),
-    "new-arrival": [
-      "NEW ARRIVAL!",
-      "",
-      "Just restocked! [Product name] is back in stock.",
-      "",
-      "K[Price] - [Quantity] units available",
-      "",
-      "Come grab yours before they are gone!",
-      "",
-      "#Pakalale #NewStock #FreshArrivals",
-    ].join("\n"),
-    featured: [
-      "FEATURED PRODUCT",
-      "",
-      "[Product name]",
-      "",
-      "[Why it is special - quality, durability, value]",
-      "",
-      "K[Price]",
-      "Available at our shop",
-      "",
-      "DM us or visit to order!",
-      "",
-      "#Pakalale #Featured #ShopLocal",
-    ].join("\n"),
-    custom: "",
-  };
-
   const postTemplates = [
-    { id: "promotion", label: "Promotion", icon: Zap, color: "text-rose-400 bg-rose-400/10 border-rose-400/20" },
-    { id: "new-arrival", label: "New Stock", icon: Package, color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
-    { id: "featured", label: "Featured", icon: Megaphone, color: "text-brand bg-primary/10 border-primary/20" },
-    { id: "custom", label: "Custom", icon: Sparkles, color: "text-muted-foreground bg-muted border-border" },
+    { id: "promotion", postType: "promotion" as const, label: "Promote", hint: "Select product + sale price", icon: Zap, color: "text-rose-400 bg-rose-400/10 border-rose-400/20" },
+    { id: "new-arrival", postType: "product_arrival" as const, label: "New arrival", hint: "Share new inventory", icon: Package, color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20" },
+    { id: "featured", postType: "shop_announcement" as const, label: "Featured", hint: "Spotlight one product", icon: Megaphone, color: "text-brand bg-primary/10 border-primary/20" },
+    { id: "custom", postType: "custom" as const, label: "Custom", hint: "Write your own post", icon: Sparkles, color: "text-muted-foreground bg-muted border-border" },
   ];
 
   const handleTemplateSelect = (templateId: string) => {
     setCreatePostMounted(true);
-    setNewPostContent(templateContents[templateId] || "");
+    const template = postTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+    setPostTemplate(template.postType);
+    setSelectedProductId("");
+    setSelectedProductDraft(null);
+    setPriceDrop("");
+    setNewPostContent("");
+    setPostMedia([]);
     setShowCreatePost(true);
+  };
+
+  const handleProductSelect = (productId: string) => {
+    const product = inventoryProducts.find((item) => item.id === productId);
+    setSelectedProductId(productId);
+    setSelectedProductDraft(product || null);
+    setPriceDrop("");
+    setPostMedia(productMedia(product?.images || []));
+    if (!product) {
+      setNewPostContent("");
+      return;
+    }
+    if (postTemplate === "promotion") {
+      setNewPostContent(`PRICE DROP!\n\n${product.name} is on sale at our shop.\n\nLimited time only. Visit us or message to order!`);
+    } else if (postTemplate === "product_arrival") {
+      setNewPostContent(`NEW ARRIVAL!\n\n${product.name} is now available at our shop.\n\nK${product.price.toLocaleString()} | ${product.stock} available\n\nVisit us or message to order!`);
+    } else {
+      setNewPostContent(`FEATURED PRODUCT\n\n${product.name}\n\n${product.description}\n\nK${product.price.toLocaleString()}\n\nAvailable at our shop. Message us to order!`);
+    }
   };
 
   return (
@@ -366,8 +421,8 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
                 </AvatarFallback>
               </Avatar>
             </button>
-            <Button variant="outline" className="h-8 flex-1 justify-start text-xs text-muted-foreground" onClick={() => { setCreatePostMounted(true); setShowCreatePost(true); }}>
-              Post what you&apos;re looking for, {user?.firstName}?
+            <Button variant="outline" className="h-8 flex-1 justify-start text-xs text-muted-foreground" onClick={() => { setPostTemplate("custom"); setCreatePostMounted(true); setShowCreatePost(true); }}>
+              {isShopOwner ? "Promote your business..." : `Post what you’re looking for, ${user?.firstName}?`}
             </Button>
           </div>
 
@@ -378,10 +433,14 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
                 <button
                   key={template.id}
                   onClick={() => handleTemplateSelect(template.id)}
-                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98] ${template.color}`}
+                  title={template.hint}
+                  className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${template.color}`}
                 >
-                  <template.icon className="h-3.5 w-3.5" />
-                  {template.label}
+                  <template.icon className="h-4 w-4" />
+                  <span className="flex flex-col leading-tight">
+                    <span className="text-[11px] font-semibold">{template.label}</span>
+                    <span className="text-[9px] opacity-75">{template.hint}</span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -509,13 +568,53 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
       {createPostMounted && (
       <Dialog open={showCreatePost} onOpenChange={setShowCreatePost}>
         <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-md p-0">
-            <DialogHeader className="p-3 border-b border-border"><DialogTitle className="text-sm font-bold">Post what you&apos;re looking for</DialogTitle></DialogHeader>
+            <DialogHeader className="p-3 border-b border-border"><DialogTitle className="text-sm font-bold">{isShopOwner ? "Promote your business" : "Post what you’re looking for"}</DialogTitle></DialogHeader>
           <div className="p-3 space-y-3">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8"><AvatarImage src={user?.avatar} /><AvatarFallback className="bg-primary text-xs text-primary-foreground">{user?.firstName?.[0]}</AvatarFallback></Avatar>
               <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
             </div>
-            <Textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} placeholder="What are you looking for?" rows={4} className="resize-none" />
+
+            {isShopOwner && postTemplate !== "custom" && (
+              <div className="space-y-2">
+                <label htmlFor="feed-product" className="text-xs font-medium">Choose a product</label>
+                <select
+                  id="feed-product"
+                  value={selectedProductId}
+                  onChange={(event) => handleProductSelect(event.target.value)}
+                  className="w-full rounded-md border border-border bg-muted px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">{inventoryProducts.length ? "Select from your inventory" : "Add a product to your inventory first"}</option>
+                  {selectedProductDraft && !inventoryProducts.some((product) => product.id === selectedProductDraft.id) && (
+                    <option value={selectedProductDraft.id}>{selectedProductDraft.name} · K{selectedProductDraft.price.toLocaleString()}</option>
+                  )}
+                  {inventoryProducts.map((product) => (
+                    <option key={product.id} value={product.id}>{product.name} · K{product.price.toLocaleString()}</option>
+                  ))}
+                </select>
+                {postTemplate === "promotion" && selectedProduct && (
+                  <div className="space-y-1">
+                    <label htmlFor="feed-sale-price" className="text-xs font-medium">New price (K)</label>
+                    <Input
+                      id="feed-sale-price"
+                      type="number"
+                      min="0.01"
+                      max={Math.max(0, selectedProduct.price - 0.01)}
+                      step="0.01"
+                      value={priceDrop}
+                      onChange={(event) => setPriceDrop(event.target.value)}
+                      placeholder={`Current price: K${selectedProduct.price.toLocaleString()}`}
+                    />
+                    <p className="text-[10px] text-muted-foreground">Original price K{selectedProduct.price.toLocaleString()} is filled from your inventory.</p>
+                  </div>
+                )}
+                {postTemplate === "shop_announcement" && (
+                  <p className="text-[11px] text-muted-foreground">Featured puts one product in the spotlight. Its price, description, and photos come from your inventory.</p>
+                )}
+              </div>
+            )}
+
+            <Textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} placeholder={isShopOwner ? "Add a message for your customers..." : "What are you looking for?"} rows={4} className="resize-none" />
 
             {/* Upload progress bar */}
             <UploadProgressBar uploading={mediaUploading} progress={uploadProgress} error={uploadError} />
@@ -556,7 +655,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
               <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setTagPickerMounted(true); setShowTagPicker(true); }}><Tag className="h-4 w-4 mr-1" />Tag</Button>
             </div>
             <div className="flex justify-end">
-              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting || (isShopOwner && postTemplate !== "custom" && !selectedProduct) || (postTemplate === "promotion" && (!priceDrop || Number(priceDrop) <= 0 || Number(priceDrop) >= (selectedProduct?.price || 0)))} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post"}
               </Button>
             </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import ShopNav from "@/components/ShopNav";
-import { Plus, Search, XCircle, CheckCircle, Star, Loader2, Trash2, Package, ImageIcon } from "lucide-react";
+import { Search, XCircle, CheckCircle, Star, Loader2, Trash2, Package } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ function isVideoUrl(url: string): boolean {
 }
 
 export default function ProductsPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -51,6 +53,12 @@ export default function ProductsPage() {
 
   const products = data?.products || [];
   const categories = ["all", ...Array.from(new Set(products.map((p) => p.category)))];
+
+  const handleProductAdded = async (product: ProductData) => {
+    sessionStorage.setItem("shopFeedProductDraft", JSON.stringify(product));
+    await refetch();
+    router.push("/shop/feed");
+  };
 
   const handleToggleStock = async (product: ProductData) => {
     setAdjustingStock(product.id);
@@ -99,7 +107,7 @@ export default function ProductsPage() {
             <h1 className="text-lg font-bold">Products</h1>
             <p className="text-xs text-muted-foreground">Manage your inventory</p>
           </div>
-          <AddProductModal shopId={user?.id || ""} onProductAdded={refetch} />
+          <AddProductModal shopId={user?.id || ""} onProductAdded={handleProductAdded} />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">

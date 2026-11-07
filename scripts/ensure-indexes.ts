@@ -55,6 +55,13 @@ async function ensureIndexes() {
   await db.collection("feedposts").createIndex({ rankScore: -1 });
   console.log("  ✓ rankScore");
 
+  // ── ShopView ──
+  console.log("\nShopView collection indexes:");
+  await db.collection("shopviews").createIndex({ shopId: 1, visitorId: 1 }, { unique: true });
+  console.log("  ✓ shopId + visitorId (unique)");
+  await db.collection("shopviews").createIndex({ shopId: 1, lastViewedAt: -1 });
+  console.log("  ✓ shopId + lastViewedAt");
+
   // ── Messages ──
   console.log("\nMessages collection indexes:");
   await db.collection("messages").createIndex({ chatId: 1, timestamp: 1 });

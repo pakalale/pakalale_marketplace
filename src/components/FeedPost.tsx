@@ -67,6 +67,8 @@ export default function FeedPost({
   );
   const toggleSaved = useWishlistStore((state) => state.toggle);
   const [showComments, setShowComments] = useState(false);
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -105,6 +107,7 @@ export default function FeedPost({
 
   const isLiked = currentUserId ? (post.likedBy || []).includes(currentUserId) : false;
   const allComments = post.comments || [];
+  const hasPromotionPricing = post.isPromotion || post.postType === "promotion";
 
   const handleLike = () => {
     setLikeAnimating(true);
@@ -112,9 +115,13 @@ export default function FeedPost({
     onLike(post.id);
   };
 
+  const handleToggleLikers = () => {
+    setShowLikers(!showLikers);
+  };
+
   const handlePostComment = () => {
     if (!newComment.trim()) return;
-    // Guests can type; the parent handles the sign-in prompt.
+    // Guests can type; the sign-in prompt is handled by the parent.
     if (!currentUserId) {
       onComment(post.id, "", newComment.trim());
       return;
@@ -133,8 +140,8 @@ export default function FeedPost({
         name: post.product.name,
         description: "",
         price: post.product.price,
-        originalPrice: post.product.originalPrice,
-        discount: post.product.discount,
+        originalPrice: hasPromotionPricing ? post.product.originalPrice : undefined,
+        discount: hasPromotionPricing ? post.product.discount : undefined,
         images: post.product.image ? [post.product.image] : [],
         category: "",
         stock: 99,
@@ -159,7 +166,7 @@ export default function FeedPost({
       name: post.product.name,
       image: post.product.image || undefined,
       price: post.product.price,
-      originalPrice: post.product.originalPrice,
+      originalPrice: hasPromotionPricing ? post.product.originalPrice : undefined,
       // The feed does not track stock; checkout re-checks it with the server.
       stock: 99,
       shopId,
@@ -234,10 +241,10 @@ export default function FeedPost({
           </div>
 
           {/* Promo badge top-right */}
-          {post.isPromotion && (
+          {(post.isPromotion || post.postType === "product_arrival" || post.postType === "shop_announcement") && (
             <div className="flex items-center gap-1 shrink-0 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-              <span className="text-sm animate-fire animate-fire-glow">🔥</span>
-              <span className="text-[10px] font-semibold text-emerald-500">Promo</span>
+              <span className="text-sm">{post.postType === "product_arrival" ? "✦" : post.postType === "shop_announcement" ? "★" : "🔥"}</span>
+              <span className="text-[10px] font-semibold text-emerald-500">{post.postType === "product_arrival" ? "New arrival" : post.postType === "shop_announcement" ? "Featured" : "Price drop"}</span>
             </div>
           )}
         </div>
@@ -249,6 +256,11 @@ export default function FeedPost({
 
         {post.product && (
           <div className="mt-3 bg-muted/50 rounded-lg p-3 border border-border">
+            {post.postType && post.postType !== "general" && (
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                {post.postType === "product_arrival" ? "Just added to inventory" : post.postType === "shop_announcement" ? "Shop spotlight" : post.postType === "promotion" ? "Limited-time price" : ""}
+              </p>
+            )}
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 bg-muted rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                 {post.product.image ? (
@@ -261,10 +273,10 @@ export default function FeedPost({
                 <h4 className="font-medium text-sm truncate">{post.product.name}</h4>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-lg font-bold text-brand">K{post.product.price.toLocaleString()}</span>
-                  {post.product.originalPrice && (
+                  {hasPromotionPricing && post.product.originalPrice && (
                     <span className="text-xs text-muted-foreground line-through">K{post.product.originalPrice.toLocaleString()}</span>
                   )}
-                  {post.product.discount && (
+                  {hasPromotionPricing && post.product.discount && (
                     <Badge variant="secondary" className="text-[10px] bg-rose-500/10 text-rose-400">
                       -{post.product.discount}%
                     </Badge>
@@ -327,16 +339,87 @@ export default function FeedPost({
 
       {/* Stats */}
       {(post.likes > 0 || allComments.length > 0 || post.shares > 0) && (
-        <div className="px-4 py-1 border-t border-border">
+        <div className="px-4 py-1 border-t border-border justify-end">
           <div className="flex items-center gap-3 text-[11px] font-medium text-brand">
             {post.likes > 0 && (
-              <span className="flex items-center gap-1">
-                <Heart className="h-3 w-3 text-brand" /> {post.likes}
+              <span className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>                <Heart className="h-3 w-3 text-brand" /> {post.likes}
               </span>
             )}
-            {allComments.length > 0 && <span>{allComments.length} comments</span>}
+            {allComments.length > 0 && <span onClick={() => setShowCommentsModal(!showCommentsModal)} className="cursor-pointer hover:underline">{allComments.length} comments</span>}
             {post.shares > 0 && <span>{post.shares} shares</span>}
           </div>
+        </div>
+      )}
+
+      {showCommentsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 p-4 flex flex-col items-center gap-4">
+          <h3 className="text-lg font-semibold">Comments</h3>
+          <div className="w-full max-w-md space-y-3">
+            <div className="border-b border-border pb-3">
+              {allComments.map((comment, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
+                      {comment.authorName?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-muted rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-medium">{comment.authorName || "User"}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {comment.createdAt ? formatTimeAgo(comment.createdAt) : ""}
+                        </span>
+                      </div>
+                      <p className="text-xs leading-relaxed break-words">{comment.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-border">
+              <Input
+                type="text"
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handlePostComment();
+                  }
+                }}
+                className="flex-1 h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={!newComment.trim()}
+                onClick={handlePostComment}
+              >
+                Post
+              </Button>
+            </div>
+          </div>
+          <button className="mt-2 text-sm text-primary hover:underline" onClick={() => setShowCommentsModal(false)}>Close</button>
+        </div>
+      )}
+
+      {showLikers && post.likes > 0 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 p-4 flex flex-col items-center gap-4" onClick={() => setShowLikers(false)}>
+          <h3 className="text-lg font-semibold">Who liked this</h3>
+          <div className="grid grid-cols-3 gap-2 max-w-md">
+            {(post.likedBy || []).slice(0, 9).map((likerId) => (
+              <div key={likerId} className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">{likerId.charAt(0) || "U"}</AvatarFallback>
+                </Avatar>
+                <span className="text-xs">{likerId}</span>
+              </div>
+            ))}
+          </div>
+          <button className="mt-4 text-sm text-primary hover:underline" onClick={() => setShowLikers(false)}>Close</button>
         </div>
       )}
 
@@ -447,7 +530,59 @@ export default function FeedPost({
         </div>
       )}
 
-      {contactMounted && (
+      {showCommentsModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 p-4 flex flex-col items-center gap-4">
+          <h3 className="text-lg font-semibold">Comments</h3>
+          <div className="w-full max-w-md space-y-3">
+            <div className="border-b border-border pb-3">
+              {allComments.map((comment, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-[10px]">
+                      {comment.authorName?.[0] || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-muted rounded-lg p-2.5">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-medium">{comment.authorName || "User"}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {comment.createdAt ? formatTimeAgo(comment.createdAt) : ""}
+                        </span>
+                      </div>
+                      <p className="text-xs leading-relaxed break-words">{comment.content}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}</div>
+
+            <div className="pt-3 border-t border-border">
+              <Input
+                type="text"
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handlePostComment();
+                  }
+                }}
+                className="flex-1 h-8 text-sm"
+              />
+              <Button
+                size="sm"
+                className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={!newComment.trim()}
+                onClick={handlePostComment}
+              >
+                Post
+              </Button>
+            </div>
+          </div>
+          <button className="mt-2 text-sm text-primary hover:underline" onClick={() => setShowCommentsModal(false)}>Close</button>
+        </div>
+      )}      {contactMounted && (
         <ContactModal
           isOpen={showContactModal}
           onClose={() => setShowContactModal(false)}

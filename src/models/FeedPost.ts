@@ -1,6 +1,4 @@
-import mongoose, { Schema, Document, Model } from "mongoose";
-
-export interface IFeedComment {
+import mongoose, { Schema, Document, Model } from "mongoose";export interface IFeedComment {
   authorId: mongoose.Types.ObjectId;
   authorName: string;
   content: string;
@@ -27,7 +25,7 @@ export interface IFeedPost extends Document {
     price: number;
     originalPrice?: number;
     discount?: number;
-    image: string;
+          image: string;
     shopId: mongoose.Types.ObjectId;
   };
   createdAt: Date;
@@ -75,7 +73,6 @@ FeedPostSchema.index({ authorId: 1 });
 FeedPostSchema.index({ postType: 1, createdAt: -1 });
 FeedPostSchema.index({ locationId: 1, createdAt: -1 });
 FeedPostSchema.index({ rankScore: -1 });
-
 export interface ILocation extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
@@ -122,3 +119,4 @@ const Location: Model<ILocation> =
   mongoose.models.Location || mongoose.model<ILocation>("Location", LocationSchema);
 
 export { FeedPost, Location };
+

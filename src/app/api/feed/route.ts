@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { FeedPost } from "@/models/FeedPost";
+import User from "@/models/User";
 import Shop from "@/models/Shop";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
 
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
     let posts: (Record<string, unknown> & { _rankScore?: number; _likesCount?: number; _commentsCount?: number })[] = await FeedPost.find(query)
       .sort({ createdAt: -1 })
       .limit(fetchLimit)
-      .select("content images authorId locationId shares isPromotion product postType createdAt updatedAt")
+      .select("content images authorId locationId shares isPromotion product postType relatedProductId relatedShopId createdAt updatedAt")
       .lean() as unknown as (Record<string, unknown> & { _rankScore?: number })[];
 
     // Get likes and comments counts via aggregation (avoids transferring full arrays)
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
         return {
           id: String(p._id),
           content: (() => { const c = String(p.content || ""); return c.length > 500 ? c.slice(0, 500) + "..." : c; })(),
-          images: images.slice(0, 3), // Max 3 images per post in feed list
+          images,
           authorId: toStr(p.authorId),
           author: hasAuthor
             ? {
@@ -180,8 +181,9 @@ export async function GET(request: NextRequest) {
           commentsCount: p._commentsCount || 0,
           shares: p.shares,
           isPromotion: p.isPromotion,
+          postType: p.postType || "general",
           product: product
-            ? { ...product, id: toStr(product.shopId), shopId: toStr(product.shopId) }
+            ? { ...product, id: toStr(p.relatedProductId), shopId: toStr(product.shopId) }
             : undefined,
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
@@ -241,8 +243,8 @@ export async function PUT(request: NextRequest) {
         _id: id,
         likes: userIdObj,
       })
-        .select("_id")
-        .lean();
+      .select("_id")
+      .lean();
 
       if (alreadyLiked) {
         await FeedPost.findByIdAndUpdate(id, { $pull: { likes: userIdObj } });
@@ -253,6 +255,10 @@ export async function PUT(request: NextRequest) {
           likesCount: post?.likes?.length || 0,
         });
       } else {
+        // Fetch user's name for notification
+        const userDoc = await User.findById(userId).select("firstName lastName").lean();
+        const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}`.trim() || "a user" : "a user";
+
         await FeedPost.findByIdAndUpdate(id, { $push: { likes: userIdObj } });
         const post = await FeedPost.findById(id).select("likes authorId").lean();
         invalidateCache("feed:");
@@ -263,9 +269,10 @@ export async function PUT(request: NextRequest) {
           await createNotification({
             userId: toStr(post.authorId),
             type: "review",
-            title: "Someone liked your post ❤️",
+            title: `Your post was liked by ${userName} ❤️`,
             message: `Your post was liked by a user.`,
-            actionUrl: "/customer",
+            actionUrl: "/customer/profile/${userId}",
+            relatedId: userId,
           });
         }
 

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Shop from "@/models/Shop";
+import ShopView from "@/models/ShopView";
 import Product from "@/models/Product";
 import { Chat, Message } from "@/models/Message";
 import { getCached, setCache } from "@/lib/cache";
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "shopId is required" }, { status: 400 });
     }
 
-    const cacheKey = `analytics:${shopIdParam}`;
+    const cacheKey = `analytics:v2:${shopIdParam}`;
     const cached = getCached(cacheKey);
     if (cached) return NextResponse.json(cached);
 
@@ -102,9 +103,12 @@ export async function GET(request: NextRequest) {
     const conversionRate = viewsCount > 0 ? ((completedCount / viewsCount) * 100).toFixed(1) : "0";
 
     // Get shop data in same query batch
-    const shopData = await Shop.findById(shopObjectId)
-      .select("rating totalReviews totalViews responseRate avgResponseTime")
-      .lean();
+    const [shopData, shopTotalViews] = await Promise.all([
+      Shop.findById(shopObjectId)
+        .select("rating totalReviews responseRate avgResponseTime")
+        .lean(),
+      ShopView.countDocuments({ shopId: shopObjectId }),
+    ]);
 
     // Get customer names for recent deals
     const participantIds = [...new Set(
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
         totalStock: productStats.totalStock || 0,
         shopRating: shopData?.rating || 0,
         shopReviews: shopData?.totalReviews || 0,
-        shopTotalViews: shopData?.totalViews || 0,
+        shopTotalViews,
         responseRate: shopData?.responseRate || 0,
         avgResponseTime: shopData?.avgResponseTime || 0,
       },

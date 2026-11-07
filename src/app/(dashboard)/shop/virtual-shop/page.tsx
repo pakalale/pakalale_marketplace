@@ -8,9 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/authStore";
 import { useShop, useProducts } from "@/hooks/useApi";
+import ShopVisitorsList from "@/components/ShopVisitorsList";
+import ImageWithFallback from "@/components/ImageWithFallback";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
 
 export default function VirtualShopPage() {
   const router = useRouter();
@@ -54,15 +58,36 @@ export default function VirtualShopPage() {
             {/* Shop Info */}
             <Card className="bg-card border-border overflow-hidden">
               <CardContent className="p-0">
+                <div className="h-32 bg-muted sm:h-44">
+                  <ImageWithFallback
+                    src={shop.coverImage}
+                    fallbackSrc={DEFAULT_SHOP_COVER}
+                    alt={`${shop.name} cover`}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
                 <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 p-4 sm:p-6">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 border-2 border-background">
+                      <AvatarImage src={shop.profileImage} alt={shop.name} />
                       <AvatarFallback className="bg-gradient-to-br from-primary to-amber-golden text-primary-foreground text-lg sm:text-xl">
                         {shop.name?.charAt(0) || "S"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <h2 className="text-lg sm:text-xl font-bold truncate">{shop.name}</h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg sm:text-xl font-bold truncate">{shop.name}</h2>
+                        {shop.status === "verified" ? (
+                          <VerifiedBadge size="sm" />
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className={shop.status === "rejected" ? "border-destructive/30 text-destructive" : "border-amber-500/30 text-amber-600"}
+                          >
+                            {shop.status === "rejected" ? "Verification rejected" : "Verification pending"}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                         <span className="flex items-center gap-1"><Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />{shop.rating || "—"} ({shop.totalReviews})</span>
                         <span className="flex items-center gap-1"><Store className="h-3 w-3" />{products.length} products</span>
@@ -100,6 +125,8 @@ export default function VirtualShopPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <ShopVisitorsList ownerId={user?.id || null} />
 
             {/* Products */}
             <div>

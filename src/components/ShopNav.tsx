@@ -20,9 +20,8 @@ export default function ShopNav() {
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
-        <Link href="/shop/virtual-shop" aria-label="Pakalale Shop home" className="flex items-center gap-2 min-w-0">
+        <Link href="/shop/overview" aria-label="Pakalale My Shop" className="flex items-center gap-2 min-w-0">
           <Image src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto shrink-0" width={320} height={112} priority />
-          <span className="hidden text-xs font-semibold text-muted-foreground sm:inline">Shop</span>
         </Link>
 
         <nav className="hidden sm:flex flex-1 items-center justify-center gap-1">
@@ -32,7 +31,7 @@ export default function ShopNav() {
               href={item.href}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                pathname.startsWith(item.href)
+                pathname.startsWith(item.href) || (item.id === "shop" && pathname.startsWith("/shop/virtual-shop"))
                   ? "bg-primary/10 text-brand"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}

@@ -133,6 +133,10 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
 
+    if (typeof body.description !== "string" || !body.description.trim()) {
+      return NextResponse.json({ error: "Product description is required" }, { status: 400 });
+    }
+
     const hasProductPhoto = Array.isArray(body.images) && body.images.some(
       (image: unknown) =>
         typeof image === "string" &&
@@ -170,6 +174,10 @@ export async function PUT(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
+    }
+
+    if (updateData.description !== undefined && (typeof updateData.description !== "string" || !updateData.description.trim())) {
+      return NextResponse.json({ error: "Product description is required" }, { status: 400 });
     }
 
     const product = await Product.findByIdAndUpdate(id, updateData, { new: true }).lean();

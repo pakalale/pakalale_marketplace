@@ -50,9 +50,11 @@ export async function GET(request: NextRequest) {
       query.category = { $in: categoryParams };
     }
 
-    // Storefront rails: only products with a real photo (videos do not count).
-    if (searchParams.get("hasImage") === "true") {
-      query.images = { $elemMatch: { $gt: "", $not: /\/video\/upload\/|\.(mp4|webm|mov)$/i } };
+    // Product media filters distinguish photo-only callers from mixed-media listings.
+    if (searchParams.get("hasMedia") === "true") {
+      query.images = { $elemMatch: { $regex: /\S/ } };
+    } else if (searchParams.get("hasImage") === "true") {
+      query.images = { $elemMatch: { $gt: "", $not: /\/video\/upload\/|\.(mp4|webm|mov|avi|mkv)(\?|$)/i } };
     }
 
     if (searchParams.get("onSale") === "true") {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Store, Star, Search, Package, Eye, ArrowLeft, TrendingUp, Sparkles, Tag } from "lucide-react";
+import { Store, Star, Search, Package, Eye, TrendingUp, Sparkles, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,15 +35,10 @@ export default function LocationDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedShop, setSelectedShop] = useState<string | null>(initialShopId);
 
-  // Push history entry when selecting a shop so back returns to shops list
-  const selectShop = (shopId: string | null) => {
-    if (shopId) {
-      setSelectedShop(shopId);
-      window.history.pushState({ shopId }, "", `?shopId=${shopId}`);
-    } else {
-      setSelectedShop(null);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
+  // Keep the location list in history so native Back returns to it.
+  const selectShop = (shopId: string) => {
+    setSelectedShop(shopId);
+    window.history.pushState({ shopId }, "", `?shopId=${shopId}`);
   };
 
   // Handle native back button
@@ -189,12 +184,10 @@ export default function LocationDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
-        <div className="flex items-center justify-between px-4 h-14">
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => selectedShop ? selectShop(null) : router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h1 className="text-sm font-bold truncate">{selectedShop ? currentShop?.name || "Shop" : location?.name || "Location"}</h1>
-          <div className="w-8" />
+        <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">
+          <div aria-hidden="true" />
+          <h1 className="max-w-[70vw] truncate text-sm font-bold">{selectedShop ? currentShop?.name || "Shop" : location?.name || "Location"}</h1>
+          <div aria-hidden="true" />
         </div>
       </header>
 

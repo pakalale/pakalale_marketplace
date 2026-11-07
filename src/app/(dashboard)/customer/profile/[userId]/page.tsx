@@ -333,13 +333,13 @@ export default function ProfilePage() {
                       <div className="mt-3">
                         {post.images.length === 1 ? (
                           <div
-                            className="w-full h-48 sm:h-64 bg-muted rounded-lg overflow-hidden cursor-pointer"
+                            className="relative w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden cursor-pointer"
                             onClick={() => openViewer(post.images!, 0)}
                           >
                             {isVideoUrl(post.images[0]) ? (
-                              <video src={post.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
+                              <video src={post.images[0]} className="absolute inset-0 w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                             ) : (
-                               <ImageWithFallback src={post.images[0]} alt="Profile post" className="w-full h-full object-cover" loading="lazy" />
+                               <ImageWithFallback src={post.images[0]} alt="Profile post" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                             )}
                           </div>
                         ) : (

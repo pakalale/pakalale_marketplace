@@ -290,13 +290,13 @@ export default function FeedPost({
           <div className="mt-3">
             {post.images.length === 1 ? (
               <div
-                className="w-full bg-muted rounded-lg overflow-hidden cursor-pointer"
+                className="relative w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden cursor-pointer"
                 onClick={() => { setViewerMounted(true); setViewerIndex(0); setViewerOpen(true); }}
               >
                 {isVideoUrl(post.images[0]) ? (
-                  <video ref={videoRef} src={post.images[0]} className="w-full max-h-80 object-cover" controls playsInline preload="metadata" />
+                  <video ref={videoRef} src={post.images[0]} className="absolute inset-0 w-full h-full object-cover" controls playsInline preload="metadata" />
                 ) : (
-                  <ImageWithFallback src={post.images[0]} alt="Post image" className="w-full object-cover max-h-80" loading="lazy" />
+                  <ImageWithFallback src={post.images[0]} alt="Post image" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                 )}
               </div>
             ) : (

@@ -153,17 +153,16 @@ export default function Storefront() {
     page,
     limit: PAGE_SIZE,
     available: true,
-    hasImage: true,
+    hasMedia: true,
   });
 
-  // "Best sellers" ranks by views: orders are too new to rank on. Photos only,
-  // since this rail is the storefront's shop window.
+  // "Best sellers" ranks by views: orders are too new to rank on.
   const { data: bestSellerData, loading: bestSellersLoading } = useProducts({
     sort: "views",
     order: "desc",
     limit: 4,
     available: true,
-    hasImage: true,
+    hasMedia: true,
   });
 
   const products = data?.products || [];

@@ -2,27 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
-import { ShoppingBag, Star, Package, Store, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ShoppingBag, Star, Package, Store, ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { productDiscount } from "@/lib/product";
+import { cloudflareStreamPlayerUrl, isProductVideo, productDiscount } from "@/lib/product";
 import ImageWithFallback from "@/components/ImageWithFallback";
+import ImageViewerModal from "@/components/ImageViewerModal";
 import { productPlaceholder } from "@/lib/placeholders";
 import type { ProductData } from "@/hooks/useApi";
-
-const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
-function isVideoUrl(url: string): boolean {
-  try {
-    const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-    if (ext && VIDEO_EXTENSIONS.includes(ext)) return true;
-    if (url.includes("/video/upload/")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -54,6 +43,7 @@ export default function ProductDetailModal({
   useModalBack(isOpen, onClose);
 
   const [imageIndex, setImageIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   // Track product view when modal opens
   useEffect(() => {
@@ -66,23 +56,23 @@ export default function ProductDetailModal({
     }
   }, [isOpen, product?.id]);
 
-  const images = product.images && product.images.length > 0
-    ? product.images
-    : []; // No images — show placeholder
-
-  const hasImages = images.length > 0;
+  const productMedia = product.images?.map((url) => url.trim()).filter(Boolean) || [];
+  const fallbackImage = productPlaceholder(product.category, product.id);
+  const images = productMedia.length > 0 ? productMedia : [fallbackImage];
+  const imageIndexInRange = Math.min(imageIndex, images.length - 1);
 
   const nextImage = () => {
-    if (hasImages) setImageIndex((prev) => (prev + 1) % images.length);
+    setImageIndex((prev) => (prev + 1) % images.length);
   };
 
   const prevImage = () => {
-    if (hasImages) setImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const discount = productDiscount(product);
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent overlayClassName="z-[70]" className="z-[70] w-[calc(100vw-1rem)] max-w-md p-0 gap-0 max-h-[90vh] overflow-hidden flex flex-col sm:w-full rounded-2xl">
         {/* Close button */}
@@ -95,39 +85,61 @@ export default function ProductDetailModal({
 
         {/* Image Slider */}
         <div className="relative shrink-0 bg-muted aspect-[4/3] overflow-hidden">
-          {hasImages ? (
+          {isProductVideo(images[imageIndexInRange]) ? (
+            cloudflareStreamPlayerUrl(images[imageIndexInRange]) ? (
+              <iframe
+                src={cloudflareStreamPlayerUrl(images[imageIndexInRange])!}
+                title={`${product.name} video`}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+                className="h-full w-full"
+              />
+            ) : (
+              <video src={images[imageIndexInRange]} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+            )
+          ) : (
+                <button
+                  type="button"
+                  onClick={() => setViewerOpen(true)}
+                  aria-label={`View ${product.name} image ${imageIndexInRange + 1} full screen`}
+                  className="absolute inset-0 z-0 h-full w-full cursor-zoom-in p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                >
+                  <ImageWithFallback
+                    src={images[imageIndexInRange]}
+                    fallbackSrc={fallbackImage}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </button>
+          )}
+          {images.length > 1 && (
             <>
-              {isVideoUrl(images[imageIndex]) ? (
-                <video src={images[imageIndex]} className="w-full h-full object-cover" controls preload="metadata" />
-              ) : (
-                <ImageWithFallback
-                  src={images[imageIndex]}
-                  fallbackSrc={productPlaceholder(product.category, product.id)}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
-              )}
-              {images.length > 1 && (
-                <>
                   <button
+                    type="button"
                     onClick={prevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
+                    aria-label="View previous product image"
+                    className="absolute left-2 top-1/2 z-10 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={nextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
+                    aria-label="View next product image"
+                    className="absolute right-2 top-1/2 z-10 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                   {/* Dots */}
-                  <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1">
+                  <div className="absolute bottom-2 inset-x-0 z-10 flex justify-center gap-1">
                     {images.map((_, i) => (
                       <button
                         key={i}
+                        type="button"
                         onClick={() => setImageIndex(i)}
+                        aria-label={`View product media ${i + 1}`}
+                          aria-current={i === imageIndexInRange ? "true" : undefined}
                         className={cn(
                           "w-1.5 h-1.5 rounded-full transition-colors",
                           i === imageIndex ? "bg-white" : "bg-white/40"
@@ -135,26 +147,26 @@ export default function ProductDetailModal({
                       />
                     ))}
                   </div>
-                </>
-              )}
             </>
-          ) : (
-            <ImageWithFallback
-              src={undefined}
-              fallbackSrc={productPlaceholder(product.category, product.id)}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
           )}
 
           {/* Discount badge */}
           {discount > 0 && (
-            <div className="absolute top-3 left-3">
+            <div className="absolute top-3 left-3 z-10">
               <Badge className="bg-rose-500 text-white text-[10px] px-1.5 h-5 border-0">
                 -{discount}%
               </Badge>
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => setViewerOpen(true)}
+            aria-label="View product media full screen"
+            title="View full media"
+            className="absolute bottom-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-background"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Scrollable content */}
@@ -234,5 +246,13 @@ export default function ProductDetailModal({
         </div>
       </DialogContent>
     </Dialog>
+    <ImageViewerModal
+      isOpen={viewerOpen}
+      onClose={() => setViewerOpen(false)}
+      images={images}
+      initialIndex={imageIndexInRange}
+      alt={product.name}
+    />
+    </>
   );
 }

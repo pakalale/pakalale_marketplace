@@ -131,21 +131,21 @@ export default function ProductsPage() {
                   <div className="mb-2 relative">
                     {product.images && product.images.length > 0 ? (
                       product.images.length === 1 ? (
-                        <div className="h-32 w-full bg-muted rounded-lg overflow-hidden cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, 0); }}>
+                        <div className="aspect-[4/3] w-full bg-muted rounded-lg overflow-hidden cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, 0); }}>
                           {isVideoUrl(product.images[0]) ? (
                             <video src={product.images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                           ) : (
-                            <ImageWithFallback src={product.images[0]} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                            <ImageWithFallback src={product.images[0]} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-contain p-2" loading="lazy" />
                           )}
                         </div>
                       ) : (
-                        <div className="h-32 grid grid-cols-2 gap-0.5 rounded-lg overflow-hidden">
+                        <div className="aspect-[4/3] grid grid-cols-2 gap-0.5 rounded-lg overflow-hidden">
                           {product.images.slice(0, 2).map((img, i) => (
-                            <div key={i} className="relative bg-muted cursor-pointer aspect-square h-full" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, i); }}>
+                            <div key={i} className="relative flex h-full items-center justify-center bg-muted cursor-pointer" onClick={(e) => { e.stopPropagation(); openViewer(product.images!, i); }}>
                               {isVideoUrl(img) ? (
                                 <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                               ) : (
-                                <ImageWithFallback src={img} fallbackSrc={productPlaceholder(product.category, `${product.id}-${i}`)} alt={product.name} className="w-full h-full object-cover" loading="lazy" />
+                                <ImageWithFallback src={img} fallbackSrc={productPlaceholder(product.category, `${product.id}-${i}`)} alt={product.name} className="w-full h-full object-contain p-2" loading="lazy" />
                               )}
                               {i === 1 && product.images!.length > 2 && (
                                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -157,9 +157,14 @@ export default function ProductsPage() {
                         </div>
                       )
                     ) : (
-                      <div className="w-full h-32 rounded-lg bg-muted/50 overflow-hidden mb-2">
+                      <button
+                        type="button"
+                        aria-label={`View ${product.name} placeholder image full screen`}
+                        className="mb-2 block h-32 w-full cursor-zoom-in overflow-hidden rounded-lg bg-muted/50"
+                        onClick={(event) => { event.stopPropagation(); openViewer([productPlaceholder(product.category, product.id)], 0); }}
+                      >
                         <ImageWithFallback src={undefined} fallbackSrc={productPlaceholder(product.category, product.id)} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
+                      </button>
                     )}
                   </div>
                   <div className="flex items-start justify-between mb-2">

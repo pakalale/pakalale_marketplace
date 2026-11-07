@@ -149,6 +149,7 @@ export function useProducts(params?: {
   category?: string | string[];
   available?: boolean;
   hasImage?: boolean;
+  hasMedia?: boolean;
   onSale?: boolean;
   locationId?: string;
   sort?: string;
@@ -164,6 +165,7 @@ export function useProducts(params?: {
   });
   if (params?.available) searchParams.set("available", "true");
   if (params?.hasImage) searchParams.set("hasImage", "true");
+  if (params?.hasMedia) searchParams.set("hasMedia", "true");
   if (params?.onSale) searchParams.set("onSale", "true");
   if (params?.locationId && params.locationId !== "all") searchParams.set("locationId", params.locationId);
   if (params?.sort) searchParams.set("sort", params.sort);
@@ -185,6 +187,7 @@ export function useProducts(params?: {
     params?.search,
     params?.available,
     params?.hasImage,
+    params?.hasMedia,
     params?.onSale,
     params?.locationId,
     params?.sort,

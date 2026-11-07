@@ -4,18 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import ImageWithFallback from "@/components/ImageWithFallback";
-
-const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
-function isVideoUrl(url: string): boolean {
-  try {
-    const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-    if (ext && VIDEO_EXTENSIONS.includes(ext)) return true;
-    if (url.includes("/video/upload/")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
+import { cloudflareStreamPlayerUrl, isProductVideo } from "@/lib/product";
 
 interface ImageViewerModalProps {
   isOpen: boolean;
@@ -129,14 +118,24 @@ export default function ImageViewerModal({
           </button>
         )}
 
-        {isVideoUrl(images[currentIndex]) ? (
-          <video
-            src={images[currentIndex]}
-            className="max-h-[85vh] max-w-full object-contain select-none"
-            controls
-            autoPlay
-            playsInline
-          />
+        {isProductVideo(images[currentIndex]) ? (
+          cloudflareStreamPlayerUrl(images[currentIndex]) ? (
+            <iframe
+              src={cloudflareStreamPlayerUrl(images[currentIndex])!}
+              title={`Video ${currentIndex + 1}`}
+              allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+              allowFullScreen
+              className="aspect-video max-h-[85vh] w-[min(90vw,1280px)] bg-black"
+            />
+          ) : (
+            <video
+              src={images[currentIndex]}
+              className="max-h-[85vh] max-w-full object-contain select-none"
+              controls
+              autoPlay
+              playsInline
+            />
+          )
         ) : (
           <ImageWithFallback
             src={images[currentIndex]}

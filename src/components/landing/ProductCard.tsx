@@ -1,9 +1,10 @@
 "use client";
 
 import { createElement, useState } from "react";
-import { Heart, ShoppingCart, Star } from "lucide-react";
+import { Heart, Play, ShoppingCart, Star } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlistStore";
-import { formatKwacha, productDiscount, productImage, productShopName } from "@/lib/product";
+import { formatKwacha, isProductVideo, productDiscount, productImages, productShopName, productVideos } from "@/lib/product";
+import { productPlaceholder } from "@/lib/placeholders";
 import { cn } from "@/lib/utils";
 import type { ProductData } from "@/hooks/useApi";
 import { getCategoryIcon } from "./categoryIcon";
@@ -37,15 +38,17 @@ function compactCount(count: number) {
 }
 
 export default function ProductCard({ product, onOpen, onAddToCart, className, compact = false, imageOverride }: ProductCardProps) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageCount, setFailedImageCount] = useState(0);
   const saved = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
   const toggleSaved = useWishlistStore((state) => state.toggle);
 
-  const image = imageFailed
-    ? undefined
-    : imageOverride === undefined
-      ? productImage(product)
-      : imageOverride || undefined;
+  const photos = productImages(product);
+  const videos = productVideos(product);
+  const override = imageOverride?.trim();
+  const fallbackImage = productPlaceholder(product.category, product.id);
+  const imageCandidates = [...new Set([...(override ? [override] : []), ...photos, ...videos, fallbackImage])];
+  const image = imageCandidates[failedImageCount];
+  const isVideo = image ? isProductVideo(image) : false;
   const discount = productDiscount(product);
   const outOfStock = product.stock <= 0;
   const shopName = productShopName(product);
@@ -63,20 +66,39 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
             event.stopPropagation();
             onOpen(product);
           }}
-          aria-label={`View ${product.name}`}
+          aria-label={`View ${product.name}${isVideo ? " video" : ""}`}
           className={cn(
-            "block w-full overflow-hidden rounded-xl bg-white",
+            "relative block w-full overflow-hidden rounded-xl bg-white",
             compact ? "h-16" : "aspect-square"
           )}
         >
           {image ? (
-            <img
-              src={image}
-              alt=""
-              loading="lazy"
-              onError={() => setImageFailed(true)}
-              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-            />
+            isVideo ? (
+              <>
+                <video
+                  src={image}
+                  muted
+                  autoPlay
+                  loop
+                  playsInline
+                  preload="metadata"
+                  onError={() => setFailedImageCount((count) => count + 1)}
+                  className="h-full w-full object-cover"
+                />
+                <span aria-hidden="true" className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white">
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                </span>
+              </>
+            ) : (
+              <img
+                src={image}
+                alt=""
+                loading="eager"
+                decoding="async"
+                onError={() => setFailedImageCount((count) => count + 1)}
+                className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            )
           ) : (
             <span className="flex h-full w-full items-center justify-center bg-[#edf0f9]">
               {createElement(getCategoryIcon(product.category || ""), {

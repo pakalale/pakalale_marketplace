@@ -129,6 +129,9 @@ export async function POST(request: NextRequest) {
 
     const promotionPosts = products.length > 0
       ? await FeedPost.find({
+          // Only the selling shop's owner can set a promotion price. Anyone can
+          // post to the feed, so other people's "promotions" must not count.
+          authorId: shop.ownerId,
           relatedShopId: shop._id,
           relatedProductId: { $in: products.map((product) => product._id) },
           isPromotion: true,

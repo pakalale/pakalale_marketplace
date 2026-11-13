@@ -3,21 +3,89 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys race each other on the same server
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
+    name: Typecheck
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  deploy:
+    name: Deploy to EC2
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 30m
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /var/www/pakalale
-            git pull origin main
+
+            if [ ! -f .env ]; then
+              echo "::error::/var/www/pakalale/.env is missing - refusing to deploy"
+              exit 1
+            fi
+
+            # Sync the checkout to the commit that triggered this deploy
+            git fetch --prune origin main
+            git checkout -f main
+            git reset --hard origin/main
+            echo "Deploying $(git rev-parse --short HEAD) - $(git log -1 --pretty=%s)"
+
+            # Build the new image first; the running container keeps serving traffic
+            sudo docker build -t pakalale:new .
+
+            # Swap the container only now that the image is ready
+            sudo docker rm -f pakalale-previous >/dev/null 2>&1 || true
+            if sudo docker inspect pakalale >/dev/null 2>&1; then
+              sudo docker stop pakalale >/dev/null
+              sudo docker rename pakalale pakalale-previous
+            fi
+
+            sudo docker run -d --name pakalale --restart unless-stopped \
+              -p 80:3000 --env-file .env pakalale:new
+
+            # Health check: give the app up to 60s to answer on port 80
+            for i in $(seq 1 30); do
+              if curl -fsS -o /dev/null --max-time 5 http://localhost/; then
+                sudo docker image tag pakalale:new pakalale:latest
+                sudo docker image prune -f >/dev/null
+                echo "Deployed $(git rev-parse --short HEAD) - healthy"
+                exit 0
+              fi
+              sleep 2
+            done
+
+            echo "::error::Health check failed - rolling back"
+            sudo docker logs --tail 60 pakalale || true
             sudo docker rm -f pakalale || true
-            sudo docker build -t pakalale .
-            sudo docker run -d --name pakalale -p 80:3000 --env-file .env --restart unless-stopped pakalale
-            echo "✅ Deployed successfully!"
+            if sudo docker inspect pakalale-previous >/dev/null 2>&1; then
+              sudo docker rename pakalale-previous pakalale
+              sudo docker start pakalale
+              echo "Rolled back to the previous container"
+            fi
+            exit 1

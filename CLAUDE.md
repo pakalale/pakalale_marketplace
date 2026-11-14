@@ -59,24 +59,25 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
 
 Route groups in parentheses do not appear in URLs.
 
-- `(store)`: public storefront at `/`, plus `/feed`, `/cart`, `/checkout`, `/saved`. Guests can browse. Cart and wishlist live in persisted Zustand stores (`cartStore`, `wishlistStore`).
-- `(auth)`: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`, built on `components/auth/AuthShell`.
-- `(dashboard)`: `/customer/*` and `/shop/*`. The layout validates the session, redirects to login and opens the global socket (`useGlobalSocket`).
-- `(admin)`: `/admin`, `/admin/users`, `/admin/shops`.
-- `api/`: REST route handlers (`route.ts`). `feed/v2` and `search/v2` are the versions current clients use. The v1 routes remain.
+- `(site)`: every customer-facing page. `(site)/layout.tsx` renders `components/site/SiteHeader` (logo → `/`, search, account menu, saved, cart, navy primary nav; a hamburger `MobileMenu` on phones) and the footer, and validates the saved login once. **No dead ends:** every interior page shows `Breadcrumbs` / `PageHeading`, and confirmation screens have a "Continue Shopping" button (`ContinueShopping` in `AuthShell`, `OrderComplete` in `CheckoutView`). Nav links live in `src/lib/siteNav.ts`; the header, mobile menu and account sidebar all read them from there.
+  - `(store)`: `/` (`Storefront`: hero, `FilterPanel`, product grid, live `CartPanel`; filters are URL params), `/cart`, `/checkout`, `/saved`, `/feed`, `/about`. Everyone, signed in or not, uses these. There are no separate `/customer/cart` or `/customer/checkout` pages; `next.config.ts` redirects the old URLs.
+  - `(auth)`: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`, inside `components/auth/AuthShell`.
+  - `customer/`: customers only. `layout.tsx` gates on the session, sends other roles to their own area, and opens the global socket. `customer/(account)/` pages (overview, profile, orders, `orders/[orderId]`, addresses, chat, notifications, saved, settings) render inside `components/site/AccountShell`: "← Back to Shop", breadcrumbs taken from the URL, a sidebar on desktop and a scrollable tab bar on phones. `locations`, `search` and `profile/[userId]` are browse pages, with breadcrumbs but no sidebar.
+- `(dashboard)`: `/shop/*` seller dashboard (`ShopNav`). `(admin)`: `/admin/*`. Both keep their own tool navigation; their logo and "View store" link go to `/`.
+- `api/`: REST route handlers (`route.ts`). `feed/v2` and `search/v2` are the versions current clients use. The v1 routes remain. `api/products/facets` returns the filter-panel counts; `api/user/addresses` manages saved addresses.
 
-`PROJECT_DOCUMENTATION.md` has a page-by-page table, but parts of it are outdated (it lists `/customer/deals`, for example).
+`PROJECT_DOCUMENTATION.md` has a page-by-page table, but parts of it are outdated.
 
 ### Data (`src/models`)
 
 Mongoose models: User, Shop, Product, Order, Message (exports `Chat` too), FeedPost (also exports `Location`), FeedEvent, Notification, Review, DemandRecord, SearchHistory, ProductView, ShopView, NewsletterSubscriber. `connectToDatabase()` in `src/lib/mongodb.ts` caches the connection on `global` and imports models so `populate()` works. Call it at the top of every route handler. Helpers include `lib/notifications.ts` (creates notifications), `lib/cloudinary.ts` + `api/upload` + `hooks/useUpload.ts` (media), and `lib/product.ts`.
 
-API conventions: return `NextResponse.json({ error, code? }, { status })` on failure, and escape user input before using it in a `$regex` (see `api/products`). Checkout recomputes prices and stock on the server. It only applies promotions set by the shop owner. Never trust client prices.
+API conventions: return `NextResponse.json({ error, code? }, { status })` on failure, and escape user input before using it in a `$regex` (see `api/products`). Checkout recomputes prices and stock on the server. It only applies promotions set by the shop owner. Never trust client prices. Delivery options and fees live in `src/lib/delivery.ts`. Each order belongs to one shop and carries one delivery fee: the server stores `subtotal`, `deliveryMethod`, `deliveryFee`, and `total = subtotal + deliveryFee`. It also copies the delivery details into `notes`, because the seller order screen shows notes.
 
 ### Client
 
 - Data fetching: `src/hooks/useApi.ts` (in-memory stale-while-revalidate cache with request dedupe) and `useCountPolling`. Realtime goes through `useSocket` / `useGlobalSocket`.
-- State: Zustand stores in `src/store/` (auth, cart, wishlist, deals, notifications, online presence, typing).
+- State: Zustand stores in `src/store/` (auth, cart with the chosen `delivery`, wishlist, deals, notifications, online presence, typing).
 - UI: shadcn primitives in `src/components/ui/`, storefront pieces in `src/components/landing/`, feature components at the top of `src/components/`. Icons come from lucide-react, animation from framer-motion, toasts from react-hot-toast, and forms use react-hook-form + zod.
 - Theme: light is the default. Dark mode uses the `.dark` class. `src/lib/theme.ts` holds the storage key `pakalale-theme` and an inline init script loaded in `app/layout.tsx`. Colour tokens live in `src/app/globals.css`. Use the existing palette: mustard `#ffb800` and brand blue `#002583`.
 - Path alias: `@/*` → `src/*`.

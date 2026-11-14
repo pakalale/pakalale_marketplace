@@ -1,5 +1,14 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IAddress {
+  _id: mongoose.Types.ObjectId;
+  label: string;
+  recipient?: string;
+  phone?: string;
+  details: string;
+  isDefault: boolean;
+}
+
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   email: string;
@@ -25,6 +34,7 @@ export interface IUser extends Document {
   bio?: string;
   locationCoordinates?: { lat: number; lng: number };
   interestedCategories?: string[];
+  addresses?: IAddress[];
   lastActiveAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -58,6 +68,15 @@ const UserSchema = new Schema<IUser>(
       lng: { type: Number },
     },
     interestedCategories: [{ type: String }],
+    addresses: [
+      {
+        label: { type: String, required: true, trim: true, maxlength: 40 },
+        recipient: { type: String, trim: true, maxlength: 80 },
+        phone: { type: String, trim: true, maxlength: 40 },
+        details: { type: String, required: true, trim: true, maxlength: 300 },
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     lastActiveAt: { type: Date },
   },
   { timestamps: true }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { createNotification } from "@/lib/notifications";
+import { deliveryOption } from "@/lib/delivery";
 import { getSessionUser } from "@/lib/session";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
@@ -32,6 +33,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const query: Record<string, unknown> = {};
+    const idParam = searchParams.get("id");
+    if (idParam) {
+      if (!mongoose.isValidObjectId(idParam)) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      query._id = idParam;
+    }
     const customerParam = searchParams.get("customerId");
     if (customerParam) query.customerId = customerParam;
 
@@ -100,7 +106,22 @@ export async function POST(request: NextRequest) {
     const customerId = session.id;
 
     await connectToDatabase();
-    const { shopId, items, total, notes, paymentMethod } = await request.json();
+    const { shopId, items, subtotal, total, notes, paymentMethod, deliveryMethod, address, phone } = await request.json();
+    // Older clients sent the item total as `total`.
+    const clientSubtotal = typeof subtotal === "number" ? subtotal : total;
+
+    const delivery = deliveryOption(deliveryMethod);
+    if (!delivery) {
+      return NextResponse.json({ error: "Choose a delivery option" }, { status: 400 });
+    }
+    const cleanPhone = typeof phone === "string" ? phone.trim().slice(0, 40) : "";
+    const cleanAddress = typeof address === "string" ? address.trim().slice(0, 300) : "";
+    if (!cleanPhone) {
+      return NextResponse.json({ error: "Add a phone number so the shop can reach you" }, { status: 400 });
+    }
+    if (delivery.needsAddress && !cleanAddress) {
+      return NextResponse.json({ error: "Add a delivery address" }, { status: 400 });
+    }
 
     const lines: OrderLineInput[] = Array.isArray(items) ? items : [];
     const validLines = lines.every(
@@ -184,27 +205,41 @@ export async function POST(request: NextRequest) {
     if (problems.length > 0) {
       return NextResponse.json({ error: problems.join(". "), current }, { status: 409 });
     }
-    if (serverTotal !== total) {
+    if (serverTotal !== clientSubtotal) {
       return NextResponse.json(
         { error: "Prices have changed. Please review your order and try again.", current },
         { status: 409 }
       );
     }
 
+    // Each shop delivers its own order, so each order carries one delivery fee.
+    const orderTotal = serverTotal + delivery.fee;
+    const customerNote = typeof notes === "string" ? notes.trim().slice(0, 1000) : "";
     const order = await Order.create({
       customerId,
       shopId,
       items: orderItems,
-      total: serverTotal,
+      subtotal: serverTotal,
+      total: orderTotal,
+      deliveryMethod: delivery.id,
+      deliveryFee: delivery.fee,
+      deliveryAddress: delivery.needsAddress ? cleanAddress : undefined,
+      phone: cleanPhone,
       paymentMethod: typeof paymentMethod === "string" ? paymentMethod.slice(0, 40) : undefined,
-      notes: typeof notes === "string" ? notes.slice(0, 1000) : undefined,
+      // The seller's order screen shows notes, so delivery details go there too.
+      notes: [
+        `Delivery: ${delivery.label}${delivery.fee ? ` (K${delivery.fee})` : ""}`,
+        `Phone: ${cleanPhone}`,
+        delivery.needsAddress && `Deliver to: ${cleanAddress}`,
+        customerNote && `Note: ${customerNote}`,
+      ].filter(Boolean).join("\n"),
     });
 
     await createNotification({
       userId: shop.ownerId.toString(),
       type: "order",
       title: "New order",
-      message: `New order worth K${serverTotal.toLocaleString()} is waiting for you.`,
+      message: `New order worth K${orderTotal.toLocaleString()} (${delivery.label}) is waiting for you.`,
       actionUrl: "/shop/orders",
       relatedId: order._id.toString(),
     });

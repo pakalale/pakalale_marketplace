@@ -12,7 +12,14 @@ export interface IOrder extends Document {
   shopId: mongoose.Types.ObjectId;
   items: IOrderItem[];
   status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+  /** Items only. Older orders have no subtotal: their total had no delivery. */
+  subtotal?: number;
+  /** subtotal + deliveryFee, charged by the server. */
   total: number;
+  deliveryMethod?: string;
+  deliveryFee?: number;
+  deliveryAddress?: string;
+  phone?: string;
   paymentMethod?: string;
   notes?: string;
   createdAt: Date;
@@ -35,7 +42,12 @@ const OrderSchema = new Schema<IOrder>(
       enum: ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"],
       default: "pending",
     },
+    subtotal: { type: Number },
     total: { type: Number, required: true },
+    deliveryMethod: { type: String },
+    deliveryFee: { type: Number, default: 0 },
+    deliveryAddress: { type: String },
+    phone: { type: String },
     paymentMethod: { type: String, default: "Cash" },
     notes: { type: String },
   },

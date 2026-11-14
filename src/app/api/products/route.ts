@@ -62,6 +62,25 @@ export async function GET(request: NextRequest) {
       query.$expr = { $gt: ["$originalPrice", "$price"] };
     }
 
+    // Price range from the filter panel; ignore blank or invalid bounds.
+    const bound = (name: string) => {
+      const value = Number(searchParams.get(name));
+      return searchParams.get(name) && Number.isFinite(value) && value >= 0 ? value : null;
+    };
+    const minPrice = bound("minPrice");
+    const maxPrice = bound("maxPrice");
+    if (minPrice !== null || maxPrice !== null) {
+      query.price = {
+        ...(minPrice !== null && { $gte: minPrice }),
+        ...(maxPrice !== null && { $lte: maxPrice }),
+      };
+    }
+
+    const brands = searchParams.getAll("brand").filter(Boolean).slice(0, 20);
+    if (brands.length > 0) query.brand = { $in: brands };
+
+    if (searchParams.get("inStock") === "true") query.stock = { $gt: 0 };
+
     const shopIdParam = searchParams.get("shopId");
     if (shopIdParam) {
       // Resolve ownerId to Shop._id if needed

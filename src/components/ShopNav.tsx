@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings, Bell } from "lucide-react";
+import { Settings, Bell, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shopNavItems } from "@/components/ShopBottomNav";
 
@@ -20,7 +20,8 @@ export default function ShopNav() {
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
       <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
-        <Link href="/shop/overview" aria-label="Pakalale My Shop" className="flex items-center gap-2 min-w-0">
+        {/* The logo always leads to the public store, as on every other page. */}
+        <Link href="/" aria-label="PakalaleMarket store" className="flex items-center gap-2 min-w-0">
           <Image src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto shrink-0" width={320} height={112} priority />
         </Link>
 
@@ -43,6 +44,9 @@ export default function ShopNav() {
         </nav>
 
         <div className="flex items-center gap-1 shrink-0">
+          <Link href="/" className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-brand hover:bg-muted">
+            <Store className="h-4 w-4" /> <span className="hidden md:inline">View store</span>
+          </Link>
           {topLinks.map((link) => (
             <Link
               key={link.to}

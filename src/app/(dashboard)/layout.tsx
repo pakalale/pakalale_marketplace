@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { loginHref } from "@/lib/authRedirect";
 import { useGlobalSocket } from "@/hooks/useGlobalSocket";
-import BottomNav from "@/components/BottomNav";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -54,26 +53,10 @@ export default function DashboardLayout({
     return null;
   }
 
-  const isCustomer = pathname.startsWith("/customer");
+  // Customer pages live in the (site) group; this layout serves the seller area.
   const isShop = pathname.startsWith("/shop");
-  const isAdmin = pathname.startsWith("/admin");
 
-  // Admin routes are handled by (admin) layout — skip dashboard layout rendering
-  if (isAdmin) {
-    return <>{children}</>;
-  }
-
-  // Role-based route protection
-  if (isCustomer && user.role === "shop_owner") {
-    router.replace("/shop/feed");
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
-      </div>
-    );
-  }
-
-  if (isShop && user.role === "customer") {
+  if (isShop && user.role !== "shop_owner" && user.role !== "admin") {
     router.replace("/customer");
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -84,10 +67,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <main className={isCustomer ? "pb-16 sm:pb-0" : ""}>
-        {children}
-      </main>
-      {isCustomer && <BottomNav />}
+      <main>{children}</main>
     </div>
   );
 }

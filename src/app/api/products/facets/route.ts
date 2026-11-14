@@ -21,9 +21,9 @@ export async function GET() {
     if (cached) return NextResponse.json(cached);
 
     await connectToDatabase();
-    // Same base set as the storefront grid: available products with media.
+    // Same base set as the storefront grid: every available product.
     const [result] = await Product.aggregate([
-      { $match: { isAvailable: true, images: { $elemMatch: { $regex: /\S/ } } } },
+      { $match: { isAvailable: true } },
       {
         $facet: {
           categories: [{ $group: { _id: "$category", count: { $sum: 1 } } }],

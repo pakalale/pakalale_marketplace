@@ -165,8 +165,8 @@ export default function Storefront() {
     order: SORT_OPTIONS[sortKey].order,
     page,
     limit: PAGE_SIZE,
+    // Products without a photo are listed too; ProductCard shows a category placeholder.
     available: true,
-    hasMedia: true,
   });
 
   const products = data?.products || [];

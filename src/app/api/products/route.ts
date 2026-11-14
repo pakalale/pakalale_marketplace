@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import { requireSession, forbidden } from "@/lib/session";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
 import { Location } from "@/models/FeedPost";
@@ -128,10 +129,24 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** True when the caller owns the product's shop, or is an admin. */
+async function canManageProduct(user: { id: string; role: string }, productId: string) {
+  if (user.role === "admin") return true;
+  if (!mongoose.isValidObjectId(productId)) return false;
+  const product = await Product.findById(productId).select("shopId").lean();
+  if (!product) return false;
+  return Boolean(await Shop.exists({ _id: product.shopId, ownerId: user.id }));
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
+    if (auth.response) return auth.response;
+
     await connectToDatabase();
-    const body = await request.json();
+    // Ratings, reviews and views are earned, not set by the seller.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { views, rating, reviews, demandScore, ...body } = await request.json();
 
     if (typeof body.description !== "string" || !body.description.trim()) {
       return NextResponse.json({ error: "Product description is required" }, { status: 400 });
@@ -147,15 +162,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "At least one product photo is required" }, { status: 400 });
     }
 
-    // Resolve ownerId to Shop._id if the shopId is actually a user ID
-    if (body.shopId) {
+    // Sellers can only add to their own shop. Admins may name any shop.
+    if (auth.user.role === "admin" && body.shopId) {
       const existingShop = await Shop.findById(body.shopId).select("_id").lean();
-      if (!existingShop) {
-        const shopByOwner = await Shop.findOne({ ownerId: body.shopId }).select("_id").lean();
-        if (shopByOwner) {
-          body.shopId = shopByOwner._id;
-        }
-      }
+      const shop = existingShop || (await Shop.findOne({ ownerId: body.shopId }).select("_id").lean());
+      if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+      body.shopId = shop._id;
+    } else {
+      const ownShop = await Shop.findOne({ ownerId: auth.user.id }).select("_id").lean();
+      if (!ownShop) return NextResponse.json({ error: "Create your shop first" }, { status: 400 });
+      body.shopId = ownShop._id;
     }
 
     const product = await Product.create(body);
@@ -168,13 +184,18 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
+    if (auth.response) return auth.response;
+
     await connectToDatabase();
-    const body = await request.json();
-    const { id, ...updateData } = body;
+    // A product cannot be moved to another shop or given ratings or views.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, shopId, views, rating, reviews, demandScore, ...updateData } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
     }
+    if (!(await canManageProduct(auth.user, id))) return forbidden("You can only edit your own products");
 
     if (updateData.description !== undefined && (typeof updateData.description !== "string" || !updateData.description.trim())) {
       return NextResponse.json({ error: "Product description is required" }, { status: 400 });
@@ -201,6 +222,10 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
     }
+
+    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
+    if (auth.response) return auth.response;
+    if (!(await canManageProduct(auth.user, id))) return forbidden("You can only delete your own products");
 
     await Product.findByIdAndDelete(id);
     return NextResponse.json({ success: true });

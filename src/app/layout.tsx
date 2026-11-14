@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import SuppressExtensionErrors from "@/components/SuppressExtensionErrors";
 import ContextMenuBlocker from "@/components/ContextMenuBlocker";
+import SessionWatcher from "@/components/auth/SessionWatcher";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { themeInitScript } from "@/lib/theme";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SuppressExtensionErrors />
           <ContextMenuBlocker />
+          <SessionWatcher />
           {children}
           <Toaster
             position="top-right"

@@ -39,7 +39,7 @@ export default function StoreCartPage() {
             {count === 0 ? "Nothing in your cart yet" : `${count} ${count === 1 ? "item" : "items"}`}
           </p>
         </div>
-        <Button variant="ghost" onClick={() => router.push("/customer/locations")}>Continue shopping</Button>
+        <Button variant="ghost" onClick={() => router.push("/")}>Continue shopping</Button>
       </div>
 
       {lines.length === 0 ? (
@@ -47,7 +47,7 @@ export default function StoreCartPage() {
           <ShoppingBag className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 font-semibold">Your cart is empty</p>
           <p className="mt-1 text-sm text-muted-foreground">Add products you like and they will show up here.</p>
-          <Button className="mt-4 rounded-full" onClick={() => router.push("/customer/locations")}>Browse products</Button>
+          <Button className="mt-4 rounded-full" onClick={() => router.push("/")}>Browse products</Button>
         </div>
       ) : (
         <div className="grid items-start gap-5 lg:grid-cols-[1fr_20rem]">

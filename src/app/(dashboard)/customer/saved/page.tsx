@@ -40,7 +40,7 @@ export default function CustomerSavedPage() {
             {saved.length === 0 ? "Nothing saved yet" : `${saved.length} saved ${saved.length === 1 ? "product" : "products"}`}
           </p>
         </div>
-        <Button variant="ghost" onClick={() => router.push("/")}>Continue shopping</Button>
+        <Button variant="ghost" onClick={() => router.push("/customer/locations")}>Continue shopping</Button>
       </div>
 
       {saved.length === 0 ? (
@@ -48,7 +48,7 @@ export default function CustomerSavedPage() {
           <Heart className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 font-semibold">Nothing saved yet</p>
           <p className="mt-1 text-sm text-muted-foreground">Tap the heart on a product while browsing to keep it here.</p>
-          <Button className="mt-4 rounded-full" onClick={() => router.push("/")}>Browse products</Button>
+          <Button className="mt-4 rounded-full" onClick={() => router.push("/customer/locations")}>Browse products</Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -67,7 +67,7 @@ export default function CustomerSavedPage() {
         <Button
           variant="outline"
           className="w-full h-11 rounded-full text-sm font-medium"
-          onClick={() => router.push("/cart")}
+          onClick={() => router.push("/customer/cart")}
         >
           View cart (checkout)
         </Button>

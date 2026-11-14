@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
+import { loginHref } from "@/lib/authRedirect";
 import {
   LayoutDashboard,
   Store,
@@ -40,8 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (hasCheckedSession && !isAuthenticated) {
-      sessionStorage.setItem("redirectAfterLogin", pathname);
-      router.replace("/login");
+      router.replace(loginHref(pathname));
     }
   }, [hasCheckedSession, isAuthenticated, pathname, router]);
 

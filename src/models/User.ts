@@ -9,6 +9,15 @@ export interface IUser extends Document {
   avatar?: string;
   role: "customer" | "shop_owner" | "admin";
   isVerified: boolean;
+  /** Undefined for accounts created before email verification existed. */
+  emailVerified?: boolean;
+  emailVerificationTokenHash?: string;
+  emailVerificationExpires?: Date;
+  emailVerificationSentAt?: Date;
+  passwordResetTokenHash?: string;
+  passwordResetExpires?: Date;
+  passwordResetSentAt?: Date;
+  passwordChangedAt?: Date;
   location?: string;
   phone?: string;
   bio?: string;
@@ -28,6 +37,15 @@ const UserSchema = new Schema<IUser>(
     avatar: { type: String },
     role: { type: String, enum: ["customer", "shop_owner", "admin"], default: "customer" },
     isVerified: { type: Boolean, default: false },
+    // No default: older accounts stay undefined and are treated as verified.
+    emailVerified: { type: Boolean },
+    emailVerificationTokenHash: { type: String, select: false, index: { sparse: true } },
+    emailVerificationExpires: { type: Date, select: false },
+    emailVerificationSentAt: { type: Date, select: false },
+    passwordResetTokenHash: { type: String, select: false, index: { sparse: true } },
+    passwordResetExpires: { type: Date, select: false },
+    passwordResetSentAt: { type: Date, select: false },
+    passwordChangedAt: { type: Date },
     location: { type: String },
     phone: { type: String },
     bio: { type: String },

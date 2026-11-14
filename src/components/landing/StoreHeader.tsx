@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useHydrated } from "@/hooks/useHydrated";
 import { useAuthStore } from "@/store/authStore";
+import { loginHref } from "@/lib/authRedirect";
 import { STORE_CATEGORIES, categoryHref } from "@/lib/storeCategories";
 import { cn } from "@/lib/utils";
 import Container from "./Container";
@@ -163,7 +164,7 @@ export default function StoreHeader({
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem className="py-2" onClick={() => router.push("/login")}>
+                    <DropdownMenuItem className="py-2" onClick={() => router.push(pathname === "/" ? "/login" : loginHref(pathname))}>
                       <LogIn /> Sign in
                     </DropdownMenuItem>
                     <DropdownMenuItem className="py-2" onClick={() => router.push("/signup")}>

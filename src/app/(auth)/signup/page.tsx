@@ -1,31 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, User, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm, type UseFormReturn } from "react-hook-form";
+import { ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
 import SpecialtyPicker from "@/components/SpecialtyPicker";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import AuthShell, { FormAlert } from "@/components/auth/AuthShell";
+import { destinationAfterLogin, rememberReturnPath, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
 
-type Step = "type" | "form";
+type AccountType = "customer" | "shop_owner";
 
-interface CustomerForm {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-}
-
-interface ShopOwnerForm {
+interface SignupForm {
   firstName: string;
   lastName: string;
   email: string;
@@ -35,40 +25,130 @@ interface ShopOwnerForm {
   locationId: string;
   shopName: string;
   shopDescription: string;
-  specialties: string;
 }
 
-// Keep someone who signed up mid-checkout on their way to placing the order.
-function destinationAfterSignup(role: string) {
-  if (role === "admin") return "/admin";
-  if (role === "shop_owner") return "/shop/feed";
-  const redirect = sessionStorage.getItem("redirectAfterLogin");
-  if (redirect === "/checkout") {
-    sessionStorage.removeItem("redirectAfterLogin");
-    return redirect;
-  }
-  return "/customer";
+const MIN_PASSWORD = 8;
+const inputClass = "h-11 rounded-xl";
+
+function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      {children}
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
 }
 
-export default function SignupPage() {
+function IconInput({ icon: Icon, children }: { icon: typeof Mail; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <Icon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      {children}
+    </div>
+  );
+}
+
+function PasswordFields({ form, show, onToggle }: { form: UseFormReturn<SignupForm>; show: boolean; onToggle: () => void }) {
+  const { register, formState: { errors }, getValues } = form;
+  return (
+    <>
+      <Field label="Password" error={errors.password?.message}>
+        <IconInput icon={Lock}>
+          <Input
+            type={show ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder={`At least ${MIN_PASSWORD} characters`}
+            className={`${inputClass} pl-10 pr-10`}
+            {...register("password", {
+              required: "Choose a password",
+              minLength: { value: MIN_PASSWORD, message: `Use at least ${MIN_PASSWORD} characters` },
+            })}
+          />
+          <button type="button" onClick={onToggle} aria-label={show ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </IconInput>
+      </Field>
+      <Field label="Confirm password" error={errors.confirmPassword?.message}>
+        <IconInput icon={Lock}>
+          <Input
+            type="password"
+            autoComplete="new-password"
+            placeholder="Type it again"
+            className={`${inputClass} pl-10`}
+            {...register("confirmPassword", {
+              required: "Confirm your password",
+              validate: (value) => value === getValues("password") || "Passwords don't match",
+            })}
+          />
+        </IconInput>
+      </Field>
+    </>
+  );
+}
+
+function CheckYourEmail({ email, onBack }: { email: string; onBack: () => void }) {
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const resend = async () => {
+    setState("sending");
+    const res = await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).catch(() => null);
+    setState(res?.ok ? "sent" : "error");
+  };
+
+  return (
+    <AuthShell
+      illustration="mail"
+      title="Check your inbox"
+      tagline="One quick step left."
+      subtitle={<>We sent a confirmation link to <strong className="text-foreground">{email}</strong>. Open it to activate your account.</>}
+      footer={<>Already confirmed? <Link href="/login" className="font-semibold text-brand hover:underline">Sign in</Link></>}
+    >
+      <div className="space-y-3">
+        {state === "sent" && <FormAlert tone="success">A new link is on its way.</FormAlert>}
+        {state === "error" && <FormAlert tone="error">We could not send the email. Please try again in a minute.</FormAlert>}
+        <p className="text-sm text-muted-foreground">The link works for 24 hours. Can&apos;t find it? Check your spam folder.</p>
+        <Button onClick={resend} disabled={state === "sending"} variant="outline" className="h-11 w-full rounded-full font-semibold">
+          {state === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend email"}
+        </Button>
+        <button onClick={onBack} className="w-full text-sm font-medium text-muted-foreground hover:text-foreground">
+          Used the wrong email? Start again
+        </button>
+      </div>
+    </AuthShell>
+  );
+}
+
+function SignupFlow() {
   const router = useRouter();
+  const params = useSearchParams();
   const { login, isAuthenticated, user } = useAuthStore();
-  const [step, setStep] = useState<Step>("type");
-  const [selectedType, setSelectedType] = useState<"customer" | "shop_owner" | null>(null);
+  const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [locations, setLocations] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [sentTo, setSentTo] = useState("");
+  const form = useForm<SignupForm>();
+  const { register, handleSubmit, formState: { errors } } = form;
 
-  // Redirect if already logged in
+  const next = safeNextPath(params.get("next"));
+
+  // Keep the destination across the email round trip (the link opens in this browser).
   useEffect(() => {
-    if (isAuthenticated && user) {
-      router.replace(destinationAfterSignup(user.role));
-    }
+    if (next) rememberReturnPath(next);
+  }, [next]);
+
+  // Signed in (e.g. when email confirmation is off): go where they were heading.
+  useEffect(() => {
+    if (isAuthenticated && user) router.replace(destinationAfterLogin(user.role, takeReturnPath()));
   }, [isAuthenticated, user, router]);
 
-  // Fetch locations for shop owner registration
   useEffect(() => {
     fetch("/api/locations")
       .then((r) => r.json())
@@ -76,23 +156,11 @@ export default function SignupPage() {
       .catch(() => {});
   }, []);
 
-  const customerForm = useForm<CustomerForm>();
-  const shopForm = useForm<ShopOwnerForm>();
-
-  const handleTypeSelect = (type: "customer" | "shop_owner") => {
-    setSelectedType(type);
-    setStep("form");
-    setError("");
-  };
-
-  const onCustomerSubmit = async (data: CustomerForm) => {
-    if (data.password !== data.confirmPassword) {
-      setError("Passwords don't match");
-      return;
-    }
+  const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
     setError("");
     try {
+      const isShop = accountType === "shop_owner";
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,26 +169,39 @@ export default function SignupPage() {
           password: data.password,
           firstName: data.firstName,
           lastName: data.lastName,
-          role: "customer",
+          role: accountType,
           phone: data.phone,
+          next: next ?? undefined,
+          ...(isShop && {
+            location: locations.find((l) => l.id === data.locationId)?.name || "",
+            shop: {
+              name: data.shopName,
+              description: data.shopDescription,
+              locationId: data.locationId,
+              specialties: selectedSpecialties,
+            },
+          }),
         }),
       });
       const result = await res.json();
       if (!res.ok) {
-        setError(result.error || "Registration failed");
+        setError(result.error || "Could not create your account");
         return;
       }
-      // Auto-login after registration
+
+      if (result.verificationRequired) {
+        setSentTo(data.email);
+        return;
+      }
+
+      // Email confirmation is switched off: sign straight in.
       const loginRes = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: data.email, password: data.password }),
       });
       const loginData = await loginRes.json();
-      if (loginRes.ok && loginData.user) {
-        // The signed-in redirect effect above takes it from here.
-        login(loginData.user);
-      }
+      if (loginRes.ok && loginData.user) login(loginData.user);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -128,271 +209,133 @@ export default function SignupPage() {
     }
   };
 
-  const onShopOwnerSubmit = async (data: ShopOwnerForm) => {
-    if (data.password !== data.confirmPassword) {
-      setError("Passwords don't match");
-      return;
-    }
-    setIsLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          role: "shop_owner",
-          phone: data.phone,
-          location: locations.find((l) => l.id === data.locationId)?.name || "",
-          shop: {
-            name: data.shopName,
-            description: data.shopDescription,
-            locationId: data.locationId,
-            specialties: selectedSpecialties,
-          },
-        }),
-      });
-      const result = await res.json();
-      if (!res.ok) {
-        setError(result.error || "Registration failed");
-        return;
-      }
-      // Auto-login
-      const loginRes = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.email, password: data.password }),
-      });
-      const loginData = await loginRes.json();
-      if (loginRes.ok && loginData.user) {
-        // The signed-in redirect effect above takes it from here.
-        login(loginData.user);
-      }
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (sentTo) return <CheckYourEmail email={sentTo} onBack={() => { setSentTo(""); form.reset(); }} />;
 
-  // Step 1: Choose account type
-  if (step === "type") {
+  const signInLink = (
+    <>Already have an account? <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"} className="font-semibold text-brand hover:underline">Sign in</Link></>
+  );
+
+  if (!accountType) {
+    const options = [
+      { type: "customer" as const, icon: ShoppingBag, title: "I want to shop", text: "Browse local shops, save favourites and order." },
+      { type: "shop_owner" as const, icon: Building2, title: "I want to sell", text: "Open your shop, list products and reach buyers." },
+    ];
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
-              <Image src="/logo.jpeg" alt="Pakalale Market" className="h-12 w-auto" width={320} height={112} priority />
-            </Link>
-            <h1 className="text-xl font-bold mt-4">Create Account</h1>
-            <p className="text-sm text-muted-foreground mt-1">Choose how you want to use Pakalale</p>
-          </div>
-
-          <div className="space-y-3">
-            <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer" onClick={() => handleTypeSelect("customer")}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl"><ShoppingBag className="h-6 w-6 text-brand" /></div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm">Customer</h3>
-                  <p className="text-xs text-muted-foreground">Browse shops, find deals, connect with sellers</p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer" onClick={() => handleTypeSelect("shop_owner")}>
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl"><Building2 className="h-6 w-6 text-brand" /></div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-sm">Shop Owner</h3>
-                  <p className="text-xs text-muted-foreground">Sell products, manage orders, grow your business</p>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          </div>
-
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{" "}
-            <Link href="/login" className="text-brand hover:text-brand/80 font-medium">Sign in</Link>
-          </p>
+      <AuthShell illustration="shop" title="Create your account" subtitle="How will you use PakalaleMarket.com?" tagline="Your market, in your pocket." footer={signInLink}>
+        <div className="space-y-3">
+          {options.map((option) => (
+            <button
+              key={option.type}
+              onClick={() => { setAccountType(option.type); setError(""); }}
+              className="group flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-brand/30 hover:bg-brand/5"
+            >
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-brand">
+                <option.icon className="h-6 w-6" />
+              </span>
+              <span className="flex-1">
+                <span className="block font-semibold">{option.title}</span>
+                <span className="block text-xs text-muted-foreground">{option.text}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </button>
+          ))}
         </div>
-      </div>
+      </AuthShell>
     );
   }
 
-  // Step 2: Registration form
+  const isShop = accountType === "shop_owner";
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="w-full max-w-sm relative">
-        <button onClick={() => { setStep("type"); setSelectedType(null); setError(""); }} className="absolute left-0 -top-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" />Back
-        </button>
-        <div className="text-center mb-6 pt-6">
-          <Link href="/" aria-label="Pakalale Market home" className="mb-3 inline-flex items-center">
-            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto" width={320} height={112} priority />
-          </Link>
-          <h1 className="text-lg font-bold">
-            {selectedType === "customer" ? "Customer Account" : "Shop Owner Account"}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-1">
-            {selectedType === "customer"
-              ? "Quick and easy — just your basic info"
-              : "Set up your shop profile to start selling"}
-          </p>
+    <AuthShell
+      illustration={isShop ? "shop" : "welcome"}
+      title={isShop ? "Open your shop" : "Create your account"}
+      subtitle={isShop ? "Tell us about you and your shop." : "Just the basics. It takes a minute."}
+      tagline={isShop ? "Reach buyers across Zambia." : "Your market, in your pocket."}
+      footer={signInLink}
+    >
+      <button onClick={() => { setAccountType(null); setError(""); }} className="-mt-2 mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Back
+      </button>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
+        {error && <FormAlert tone="error">{error}</FormAlert>}
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name" error={errors.firstName?.message}>
+            <Input autoComplete="given-name" className={inputClass} {...register("firstName", { required: "Required" })} />
+          </Field>
+          <Field label="Last name" error={errors.lastName?.message}>
+            <Input autoComplete="family-name" className={inputClass} {...register("lastName", { required: "Required" })} />
+          </Field>
         </div>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-5">
-            {error && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg mb-4">
-                <p className="text-xs text-destructive">{error}</p>
-              </div>
-            )}
+        <Field label="Email" error={errors.email?.message}>
+          <IconInput icon={Mail}>
+            <Input
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              className={`${inputClass} pl-10`}
+              {...register("email", {
+                required: "Required",
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Enter a valid email address" },
+              })}
+            />
+          </IconInput>
+        </Field>
 
-            {selectedType === "customer" ? (
-              <form onSubmit={customerForm.handleSubmit(onCustomerSubmit)} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">First Name</Label>
-                    <Input {...customerForm.register("firstName", { required: "Required" })} placeholder="John" className="h-10" />
-                    {customerForm.formState.errors.firstName && <p className="text-[10px] text-destructive">{customerForm.formState.errors.firstName.message}</p>}
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Last Name</Label>
-                    <Input {...customerForm.register("lastName", { required: "Required" })} placeholder="Doe" className="h-10" />
-                    {customerForm.formState.errors.lastName && <p className="text-[10px] text-destructive">{customerForm.formState.errors.lastName.message}</p>}
-                  </div>
-                </div>
+        <Field label={isShop ? "Phone" : "Phone (optional)"} error={errors.phone?.message}>
+          <IconInput icon={Phone}>
+            <Input type="tel" autoComplete="tel" placeholder="+260 9X XXX XXXX" className={`${inputClass} pl-10`} {...register("phone", isShop ? { required: "Required" } : {})} />
+          </IconInput>
+        </Field>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
-                  <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="email" {...customerForm.register("email", { required: "Required", pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: "Invalid email" } })} placeholder="you@example.com" className="pl-10 h-10" />
-                  </div>
-                  {customerForm.formState.errors.email && <p className="text-[10px] text-destructive">{customerForm.formState.errors.email.message}</p>}
-                </div>
+        {isShop && (
+          <>
+            <p className="flex items-center gap-1.5 border-t border-border pt-3.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Building2 className="h-3.5 w-3.5" /> Shop details
+            </p>
+            <Field label="Shop name" error={errors.shopName?.message}>
+              <Input placeholder="e.g. TechHub Zambia" className={inputClass} {...register("shopName", { required: "Required" })} />
+            </Field>
+            <Field label="Market" error={errors.locationId?.message}>
+              <IconInput icon={MapPin}>
+                <select {...register("locationId", { required: "Choose a market" })} className="h-11 w-full rounded-xl border border-input bg-background pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="">Select a market</option>
+                  {locations.map((loc) => <option key={loc.id} value={loc.id}>{loc.name}</option>)}
+                </select>
+              </IconInput>
+            </Field>
+            <Field label="What do you sell?" error={errors.shopDescription?.message}>
+              <textarea {...register("shopDescription", { required: "Required" })} rows={2} placeholder="A short description of your shop" className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </Field>
+            <Field label="Specialties">
+              <SpecialtyPicker value={selectedSpecialties} onChange={setSelectedSpecialties} />
+            </Field>
+          </>
+        )}
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Phone (optional)</Label>
-                  <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="tel" {...customerForm.register("phone")} placeholder="+260 9X XXX XXXX" className="pl-10 h-10" />
-                  </div>
-                </div>
+        <PasswordFields form={form} show={showPassword} onToggle={() => setShowPassword(!showPassword)} />
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Password</Label>
-                  <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type={showPassword ? "text" : "password"} {...customerForm.register("password", { required: "Required", minLength: { value: 6, message: "Min 6 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</></button>
-                  </div>
-                  {customerForm.formState.errors.password && <p className="text-[10px] text-destructive">{customerForm.formState.errors.password.message}</p>}
-                </div>
+        {isShop && (
+          <p className="rounded-xl bg-muted/60 p-3 text-xs text-muted-foreground">
+            Our team reviews new shops before they go live. We&apos;ll let you know once you&apos;re verified.
+          </p>
+        )}
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Confirm Password</Label>
-                  <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="password" {...customerForm.register("confirmPassword", { required: "Required" })} placeholder="••••••••" className="pl-10 h-10" />
-                  </div>
-                </div>
+        <Button type="submit" disabled={isLoading || (isShop && selectedSpecialties.length === 0)} className="h-11 w-full rounded-full text-sm font-semibold">
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{isShop ? "Create shop account" : "Create account"} <ArrowRight className="ml-1 h-4 w-4" /></>}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
 
-                <Button type="submit" disabled={isLoading} className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90">
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create Account <ArrowRight className="h-4 w-4 ml-1" /></>}
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={shopForm.handleSubmit(onShopOwnerSubmit)} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">First Name</Label>
-                    <Input {...shopForm.register("firstName", { required: "Required" })} placeholder="John" className="h-10" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Last Name</Label>
-                    <Input {...shopForm.register("lastName", { required: "Required" })} placeholder="Doe" className="h-10" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
-                  <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="email" {...shopForm.register("email", { required: "Required" })} placeholder="you@example.com" className="pl-10 h-10" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Phone</Label>
-                  <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="tel" {...shopForm.register("phone", { required: "Required" })} placeholder="+260 9X XXX XXXX" className="pl-10 h-10" />
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-3 mt-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Building2 className="h-3 w-3" />Shop Details</p>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Shop Name</Label>
-                  <Input {...shopForm.register("shopName", { required: "Required" })} placeholder="e.g. TechHub Zambia" className="h-10" />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Location</Label>
-                  <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <select {...shopForm.register("locationId", { required: "Required" })} className="w-full pl-10 pr-4 h-10 bg-muted border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-                      <option value="">Select a location</option>
-                      {locations.map((loc) => (
-                        <option key={loc.id} value={loc.id}>{loc.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Shop Description</Label>
-                  <textarea {...shopForm.register("shopDescription", { required: "Required" })} placeholder="What does your shop sell?" rows={2} className="w-full px-3 py-2 bg-muted border border-border rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring" />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Specialties</Label>
-                  <SpecialtyPicker value={selectedSpecialties} onChange={setSelectedSpecialties} />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Password</Label>
-                  <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type={showPassword ? "text" : "password"} {...shopForm.register("password", { required: "Required", minLength: { value: 6, message: "Min 6 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</></button>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Confirm Password</Label>
-                  <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type="password" {...shopForm.register("confirmPassword", { required: "Required" })} placeholder="••••••••" className="pl-10 h-10" />
-                  </div>
-                </div>
-
-                <div className="bg-muted/50 rounded-lg p-2.5 text-[11px] text-muted-foreground">
-                  Your shop will be reviewed by our team before going live. You&apos;ll be notified once verified.
-                </div>
-
-                <Button type="submit" disabled={isLoading || selectedSpecialties.length === 0} className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90">
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create Shop Account <ArrowRight className="h-4 w-4 ml-1" /></>}
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-
-        <p className="text-center text-sm text-muted-foreground mt-4">
-          Already have an account?{" "}
-          <Link href="/login" className="text-brand hover:text-brand/80 font-medium">Sign in</Link>
-        </p>
-      </div>
-    </div>
+export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupFlow />
+    </Suspense>
   );
 }

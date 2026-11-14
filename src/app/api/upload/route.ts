@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const maxDuration = 60; // Vercel: allow up to 60s for large uploads
@@ -9,6 +10,9 @@ export const maxDuration = 60; // Vercel: allow up to 60s for large uploads
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireSession(request);
+    if (auth.response) return auth.response;
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string) || "pakalale";

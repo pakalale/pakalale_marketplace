@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { connectToDatabase } from "@/lib/mongodb";
 import Review from "@/models/Review";
 import Shop from "@/models/Shop";
@@ -95,6 +96,8 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
     const { customerId, shopId, productId, dealId, rating, comment } = body;
+    const auth = await requireSession(request, { actingAs: customerId });
+    if (auth.response) return auth.response;
 
     if (!customerId || !shopId || !dealId || !rating) {
       return NextResponse.json(

@@ -35,7 +35,7 @@ export default function CustomerCartPage() {
                 {count === 0 ? "Nothing in your cart yet" : `${count} ${count === 1 ? "item" : "items"} ready to order`}
               </p>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/")}>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/customer/locations")}>
               Continue shopping
             </Button>
           </div>
@@ -47,7 +47,7 @@ export default function CustomerCartPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Add products from the storefront or from a shop and they will show up here.
               </p>
-              <Button className="mt-4 rounded-full" onClick={() => router.push("/")}>
+              <Button className="mt-4 rounded-full" onClick={() => router.push("/customer/locations")}>
                 Browse products
               </Button>
             </div>
@@ -106,7 +106,7 @@ export default function CustomerCartPage() {
                   <p className="text-xs text-muted-foreground">Subtotal</p>
                   <p className="text-xl font-bold text-brand">{formatKwacha(subtotal)}</p>
                 </div>
-                <Button className="h-11 rounded-full px-6 font-semibold" onClick={() => router.push("/checkout")}>
+                <Button className="h-11 rounded-full px-6 font-semibold" onClick={() => router.push("/customer/checkout")}>
                   Checkout
                 </Button>
               </div>

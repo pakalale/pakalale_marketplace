@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireSession } from "@/lib/session";
 import { connectToDatabase } from "@/lib/mongodb";
 import Notification from "@/models/Notification";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
+    const auth = await requireSession(request, { actingAs: userId });
+    if (auth.response) return auth.response;
 
     const cacheKey = `notif:${userId}`;
     const cached = getCached(cacheKey);
@@ -52,6 +55,8 @@ export async function PUT(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
     const { userId, action } = body;
+    const auth = await requireSession(request, { actingAs: userId });
+    if (auth.response) return auth.response;
 
     if (action === "markAllRead" && userId) {
       await Notification.updateMany({ userId, isRead: false }, { isRead: true });
@@ -60,7 +65,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (body.id) {
-      await Notification.findByIdAndUpdate(body.id, { isRead: body.isRead ?? true });
+      // Only the recipient can change a notification.
+      await Notification.updateOne({ _id: body.id, userId: auth.user.id }, { isRead: body.isRead ?? true });
       if (userId) invalidateCache(`notif:${userId}`);
       return NextResponse.json({ success: true });
     }
@@ -77,8 +83,11 @@ export async function DELETE(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
 
+    const auth = await requireSession(request);
+    if (auth.response) return auth.response;
+
     if (body.id) {
-      await Notification.findByIdAndDelete(body.id);
+      await Notification.deleteOne({ _id: body.id, userId: auth.user.id });
       return NextResponse.json({ success: true });
     }
 

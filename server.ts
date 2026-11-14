@@ -3,6 +3,9 @@ import { parse } from "url";
 import next from "next";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
+import { sessionTokenFromCookieHeader, verifySessionToken } from "./src/lib/sessionToken";
+import { connectToDatabase } from "./src/lib/mongodb";
+import { Chat } from "./src/models/Message";
 
 dotenv.config({ path: ".env", override: true });
 
@@ -15,6 +18,17 @@ console.log(`> CWD: ${process.cwd()}`);
 console.log(`> NODE_ENV: ${process.env.NODE_ENV}`);
 
 const app = next({ dev, dir: process.cwd() });
+
+async function isParticipant(chatId: unknown, userId: string) {
+  if (typeof chatId !== "string" || !/^[a-f0-9]{24}$/i.test(chatId)) return false;
+  try {
+    await connectToDatabase();
+    return Boolean(await Chat.exists({ _id: chatId, participants: userId }));
+  } catch (error) {
+    console.error("Socket participant check failed:", error);
+    return false;
+  }
+}
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
@@ -42,10 +56,22 @@ app.prepare().then(() => {
   const onlineUsers = new Map<string, Set<string>>();
   const userSockets = new Map<string, string>();
 
+  // Sockets use the same login cookie as the API, so a client can only act as
+  // itself and only hear chats it belongs to.
+  io.use((socket, nextMiddleware) => {
+    const userId = verifySessionToken(sessionTokenFromCookieHeader(socket.handshake.headers.cookie))?.userId;
+    if (!userId) return nextMiddleware(new Error("unauthorized"));
+    socket.data.userId = userId;
+    nextMiddleware();
+  });
+
   io.on("connection", (socket) => {
     console.log("🔌 Socket connected:", socket.id);
+    const me: string = socket.data.userId;
 
-    socket.on("register", (userId: string) => {
+    socket.on("register", (claimedId: string) => {
+      if (claimedId !== me) return;
+      const userId = me;
       userSockets.set(userId, socket.id);
       // Broadcast this user coming online to ALL connected clients
       io.emit("user_online", { userId });
@@ -55,7 +81,8 @@ app.prepare().then(() => {
       console.log(`👤 User registered: ${userId} -> ${socket.id}`);
     });
 
-    socket.on("join_chat", (chatId: string) => {
+    socket.on("join_chat", async (chatId: string) => {
+      if (!(await isParticipant(chatId, me))) return;
       socket.join(chatId);
       const userId = Array.from(userSockets.entries()).find(([, sid]) => sid === socket.id)?.[0];
       if (userId) {
@@ -86,11 +113,13 @@ app.prepare().then(() => {
       timestamp: string;
       id: string;
     }) => {
+      if (!socket.rooms.has(data.chatId) || data.senderId !== me) return;
       socket.to(data.chatId).emit("new_message", data);
       console.log(`📨 Message in ${data.chatId} from ${data.senderName}: ${data.content.substring(0, 50)}`);
     });
 
     socket.on("typing", (data: { chatId: string; userId: string; userName: string }) => {
+      if (!socket.rooms.has(data.chatId) || data.userId !== me) return;
       // Broadcast to chat room members
       socket.to(data.chatId).emit("user_typing", data);
       // Also broadcast globally so chat list can show typing status
@@ -98,6 +127,7 @@ app.prepare().then(() => {
     });
 
     socket.on("stop_typing", (data: { chatId: string; userId: string }) => {
+      if (!socket.rooms.has(data.chatId) || data.userId !== me) return;
       // Broadcast to chat room members
       socket.to(data.chatId).emit("user_stop_typing", data);
       // Also broadcast globally
@@ -105,6 +135,7 @@ app.prepare().then(() => {
     });
 
     socket.on("deal_status_changed", (data: { chatId: string; dealStatus: string; participantIds: string[] }) => {
+      if (!socket.rooms.has(data.chatId)) return;
       // Broadcast deal status change to all participants so their deal count updates
       if (data.participantIds && Array.isArray(data.participantIds)) {
         for (const pid of data.participantIds) {
@@ -121,6 +152,7 @@ app.prepare().then(() => {
     });
 
     socket.on("get_online_users", (chatId: string) => {
+      if (!socket.rooms.has(chatId)) return;
       const users = Array.from(onlineUsers.get(chatId) || []);
       socket.emit("online_users", { chatId, users });
     });

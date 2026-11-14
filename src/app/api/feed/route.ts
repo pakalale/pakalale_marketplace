@@ -5,7 +5,7 @@ import { FeedPost } from "@/models/FeedPost";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser, requireSession } from "@/lib/session";
 
 function toStr(val: unknown): string {
   if (!val) return "";
@@ -243,6 +243,10 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
     }
+
+    // Likes and comments are made as the signed-in user, never a claimed id.
+    const auth = await requireSession(request, { actingAs: userId });
+    if (auth.response) return auth.response;
 
     if (action === "like") {
       const userIdObj = new mongoose.Types.ObjectId(userId);

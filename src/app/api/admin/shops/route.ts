@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import { requireSession } from "@/lib/session";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 import Product from "@/models/Product";
@@ -19,15 +20,10 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 });
-    }
-
-    const adminUser = await User.findById(userId).select("role").lean();
-    if (!adminUser || adminUser.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    const auth = await requireSession(request, { roles: ["admin"] });
+    if (auth.response) return auth.response;
+    // The admin is whoever is signed in, not an id supplied by the client.
+    const userId = auth.user.id;
 
     const status = searchParams.get("status"); // "pending" | "verified" | "rejected" | null (all)
     const search = searchParams.get("search");
@@ -109,15 +105,14 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { userId, shopId, action, reason } = body;
+    const auth = await requireSession(request, { roles: ["admin"] });
+    if (auth.response) return auth.response;
+    // The admin is whoever is signed in, not an id supplied by the client.
+    const userId = auth.user.id;
 
-    if (!userId || !shopId || !action) {
+    const { shopId, action, reason } = body;
+    if (!shopId || !action) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-    }
-
-    const adminUser = await User.findById(userId).select("role").lean();
-    if (!adminUser || adminUser.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const shop = await Shop.findById(shopId);

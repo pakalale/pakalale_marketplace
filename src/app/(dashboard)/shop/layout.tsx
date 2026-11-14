@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { loginHref } from "@/lib/authRedirect";
 import { Loader2 } from "lucide-react";
 import ShopBottomNav from "@/components/ShopBottomNav";
 
 export default function ShopLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, user, hasCheckedSession } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (hasCheckedSession && !isAuthenticated) {
-      router.replace("/login");
+      router.replace(loginHref(pathname));
     }
-  }, [hasCheckedSession, isAuthenticated, router]);
+  }, [hasCheckedSession, isAuthenticated, router, pathname]);
 
   // Wait for session check
   if (!hasCheckedSession) {

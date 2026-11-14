@@ -80,6 +80,16 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
+# Email (verification and password reset links)
+# Any SMTP provider works: Gmail app password, Brevo, Resend, Zoho...
+# Without these, production skips email verification so sign-up still works.
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your_smtp_login
+SMTP_PASS=your_smtp_password
+EMAIL_FROM="PakalaleMarket <no-reply@your-domain.com>"
+# Links in emails use NEXTAUTH_URL; set APP_URL only if the site lives elsewhere.
+
 # Server
 PORT=3000
 NODE_ENV=production

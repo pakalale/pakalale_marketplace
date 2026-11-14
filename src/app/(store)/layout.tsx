@@ -18,7 +18,8 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const cartItems = useCartStore((state) => state.items);
   const wishlistCount = useWishlistStore((state) => state.items.length);
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, validateSession } = useAuthStore();
+  const [sessionState, setSessionState] = useState<"unknown" | "valid" | "invalid">("unknown");
   const [cartOpen, setCartOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
@@ -26,15 +27,34 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
   const mounted = useHydrated();
   const isShoppingUtility = ["/cart", "/checkout", "/saved"].includes(pathname);
 
+  // Check the saved login with the server before acting on it. An expired
+  // session clears itself here, so the visitor stays on the public store
+  // instead of bouncing between their dashboard and the sign-in page.
   useEffect(() => {
-    if (!mounted || !isAuthenticated || !user || isShoppingUtility) return;
-    const destination = user.role === "admin"
-      ? "/admin"
+    if (!mounted || !isAuthenticated) return;
+    let active = true;
+    validateSession().then((valid) => {
+      if (active) setSessionState(valid ? "valid" : "invalid");
+    });
+    return () => {
+      active = false;
+    };
+  }, [mounted, isAuthenticated, validateSession]);
+
+  // Signed-in people get their own area. Customers keep the same cart,
+  // checkout and saved pages there (/customer/cart ...) instead of the
+  // public storefront versions, so they never drop back into the landing page.
+  const accountPath = user && sessionState === "valid"
+    ? user.role === "admin"
+      ? isShoppingUtility ? null : "/admin"
       : user.role === "shop_owner"
-        ? "/shop/feed"
-        : "/customer";
-    router.replace(destination);
-  }, [isAuthenticated, isShoppingUtility, mounted, router, user]);
+        ? isShoppingUtility ? null : "/shop/feed"
+        : isShoppingUtility ? `/customer${pathname}` : "/customer"
+    : null;
+
+  useEffect(() => {
+    if (mounted && isAuthenticated && accountPath) router.replace(accountPath);
+  }, [accountPath, isAuthenticated, mounted, router]);
 
   // Visitors can browse, search and fill a cart. Only checkout requires an account.
   const handleCheckout = () => {
@@ -47,7 +67,9 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
     router.push("/checkout");
   };
 
-  if (mounted && isAuthenticated && user && !isShoppingUtility) return null;
+  // Render nothing while a saved login is being checked or redirected, so the
+  // public storefront does not flash for signed-in people.
+  if (mounted && isAuthenticated && (sessionState === "unknown" || accountPath)) return null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

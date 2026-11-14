@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { loginHref } from "@/lib/authRedirect";
 import { useGlobalSocket } from "@/hooks/useGlobalSocket";
 import BottomNav from "@/components/BottomNav";
 import { Loader2 } from "lucide-react";
@@ -31,9 +32,8 @@ export default function DashboardLayout({
   // Redirect to login if not authenticated after session check
   useEffect(() => {
     if (hasCheckedSession && !isAuthenticated) {
-      // Store the intended destination for redirect back after login
-      sessionStorage.setItem("redirectAfterLogin", pathname);
-      router.replace("/login");
+      // Come back to this page after signing in.
+      router.replace(loginHref(pathname));
     }
   }, [hasCheckedSession, isAuthenticated, pathname, router]);
 

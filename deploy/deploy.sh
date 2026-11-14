@@ -99,6 +99,11 @@ if [ ! -f .env ]; then
   echo "  CLOUDINARY_CLOUD_NAME=your_cloud_name"
   echo "  CLOUDINARY_API_KEY=your_api_key"
   echo "  CLOUDINARY_API_SECRET=your_api_secret"
+  echo "  SMTP_HOST=smtp-relay.brevo.com   (email verification + password reset)"
+  echo "  SMTP_PORT=587"
+  echo "  SMTP_USER=your_smtp_login"
+  echo "  SMTP_PASS=your_smtp_password"
+  echo "  EMAIL_FROM=\"PakalaleMarket <no-reply@your-domain.com>\""
   echo "  PORT=3000"
   echo ""
   exit 1

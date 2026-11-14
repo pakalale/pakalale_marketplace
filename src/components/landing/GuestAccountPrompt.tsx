@@ -1,5 +1,6 @@
 "use client";
 
+import { loginHref } from "@/lib/authRedirect";
 import { useRouter } from "next/navigation";
 import { Check, Heart, LogIn, MessageSquare, PackageCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,8 @@ export default function GuestAccountPrompt({
 
   // Come back to the checkout that was interrupted once the account is ready.
   const continueTo = (path: string) => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("redirectAfterLogin", "/checkout");
-    }
     onOpenChange(false);
-    router.push(path);
+    router.push(path === "/login" ? loginHref("/checkout") : `${path}?next=${encodeURIComponent("/checkout")}`);
   };
 
   return (

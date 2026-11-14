@@ -6,6 +6,7 @@ import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package,
 import { Skeleton } from "@/components/ui/skeleton";
 import FeedPost from "./FeedPost";
 import { useAuthStore } from "@/store/authStore";
+import { loginHref } from "@/lib/authRedirect";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -158,10 +159,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
 
   // ── Public visitors can read the feed, but interacting needs an account ──
   const requireAuth = useCallback(() => {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
-    }
-    router.push("/login");
+    router.push(loginHref(`${window.location.pathname}${window.location.search}`));
   }, [router]);
 
   // ── Like ──

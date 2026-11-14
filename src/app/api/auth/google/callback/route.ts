@@ -63,8 +63,13 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const saved = readState(request);
 
+  // A popup goes to a page that tells the opening tab and closes itself, so
+  // the main tab's history never includes Google's pages.
   const finish = (query: string) => {
-    const response = NextResponse.redirect(new URL(`/login?${query}`, base));
+    const done = saved?.popup
+      ? `/google-done?${query.startsWith("error=") ? `status=error&${query}` : "status=done"}`
+      : `/login?${query}`;
+    const response = NextResponse.redirect(new URL(done, base), 303);
     response.cookies.set(GOOGLE_STATE_COOKIE, "", { ...cookieOptions(request), path: "/api/auth/google", maxAge: 0 });
     return response;
   };

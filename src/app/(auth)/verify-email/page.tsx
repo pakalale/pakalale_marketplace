@@ -67,7 +67,7 @@ function VerifyEmail() {
       <AuthShell illustration="done" title="You're all set!" subtitle="Your email is confirmed and you're signed in." tagline="Welcome to the market.">
         <div className="space-y-2">
           <ContinueShopping />
-          <Button variant="outline" onClick={() => router.push(destination)} className="h-11 w-full rounded-full font-semibold">
+          <Button variant="outline" onClick={() => router.replace(destination)} className="h-11 w-full rounded-full font-semibold">
             {destination === "/" ? "Go to the store" : "Go where I was heading"} <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
         </div>

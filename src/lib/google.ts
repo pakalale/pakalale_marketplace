@@ -29,10 +29,12 @@ export interface GoogleState {
   nonce: string;
   verifier: string;
   next: string | null;
+  /** Started in a popup: the callback reports back to the opening tab. */
+  popup?: boolean;
 }
 
-export function newGoogleState(next: string | null): GoogleState {
-  return { state: random(), nonce: random(), verifier: random(), next };
+export function newGoogleState(next: string | null, popup = false): GoogleState {
+  return { state: random(), nonce: random(), verifier: random(), next, popup };
 }
 
 export function googleAuthUrl(request: NextRequest, clientId: string, s: GoogleState) {

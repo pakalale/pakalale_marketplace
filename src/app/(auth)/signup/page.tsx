@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell, { ContinueShopping, FormAlert } from "@/components/auth/AuthShell";
 import GoogleButton, { OrDivider } from "@/components/auth/GoogleButton";
-import { destinationAfterLogin, rememberReturnPath, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
+import { destinationAfterLogin, rememberReturnPath, returnTarget, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
 
 type AccountType = "customer" | "shop_owner";
 
@@ -130,7 +130,10 @@ function SignupFlow() {
   const params = useSearchParams();
   // "Sell on Pakalale" links here with ?as=seller to skip straight to the shop form.
   const sellerIntent = params.get("as") === "seller";
-  const { login, logout, isAuthenticated, user } = useAuthStore();
+  const { login, logout, isAuthenticated, user, hasCheckedSession, validateSession } = useAuthStore();
+  // Set once this page signs the new account in and hands off, so the guest
+  // guard below does not race it to the home page.
+  const [leaving, setLeaving] = useState(false);
   const [accountType, setAccountType] = useState<AccountType | null>(sellerIntent ? "shop_owner" : null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -148,12 +151,19 @@ function SignupFlow() {
     if (next) rememberReturnPath(next);
   }, [next]);
 
-  // Signed in (e.g. when email confirmation is off): go where they were heading.
-  // A buyer who came to sell stays here to read why they need a seller account.
+  // These pages sit outside the site layout, so confirm the session here.
+  useEffect(() => {
+    validateSession();
+  }, [validateSession]);
+
+  // Guests only: someone already signed in goes to the store, replacing this
+  // entry so Back cannot return here. A buyer who came to sell stays to read
+  // why they need a seller account.
   const buyerWantsToSell = sellerIntent && isAuthenticated && user?.role === "customer";
   useEffect(() => {
-    if (isAuthenticated && user && !buyerWantsToSell) router.replace(destinationAfterLogin(user.role, takeReturnPath()));
-  }, [isAuthenticated, user, router, buyerWantsToSell]);
+    if (leaving || !hasCheckedSession || buyerWantsToSell) return;
+    if (isAuthenticated && user) router.replace("/");
+  }, [leaving, hasCheckedSession, isAuthenticated, user, router, buyerWantsToSell]);
 
   useEffect(() => {
     fetch("/api/locations")
@@ -207,7 +217,14 @@ function SignupFlow() {
         body: JSON.stringify({ email: data.email, password: data.password }),
       });
       const loginData = await loginRes.json();
-      if (loginRes.ok && loginData.user) login(loginData.user);
+      if (loginRes.ok && loginData.user) {
+        // Replace, not push: Back from the next page must not return here.
+        setLeaving(true);
+        const target = returnTarget(next);
+        takeReturnPath();
+        login(loginData.user);
+        router.replace(destinationAfterLogin(loginData.user.role, target));
+      }
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -287,7 +304,7 @@ function SignupFlow() {
 
         {!isShop && (
           <>
-            <GoogleButton next={next} label="Sign up with Google" />
+            <GoogleButton next={next} label="Sign up with Google" onError={setError} />
             <OrDivider text="or use your email" />
           </>
         )}

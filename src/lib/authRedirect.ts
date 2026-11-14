@@ -5,20 +5,24 @@ export function homeForRole(role?: string) {
   return "/customer";
 }
 
+/** Sign-in steps and endpoints are never a place to return to. */
+const NOT_A_DESTINATION = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/google-done", "/api/"];
+
 /** Only same-site paths, so a crafted ?next= cannot send people off-site. */
 export function safeNextPath(value: string | null | undefined) {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
-  if (value.startsWith("/login") || value.startsWith("/signup")) return null;
+  if (NOT_A_DESTINATION.some((prefix) => value.startsWith(prefix))) return null;
   return value;
 }
 
 /**
- * Where to go after sign-in: the page the person was heading to, unless it
- * belongs to another role's area, in which case their own home.
+ * Where to go after sign-in: the page the person came from, or the store if
+ * none was recorded. A page in another role's area (e.g. a buyer heading to
+ * /shop) sends them to their own area instead.
  */
 export function destinationAfterLogin(role: string, requested: string | null | undefined) {
   const next = safeNextPath(requested);
-  if (!next) return homeForRole(role);
+  if (!next) return "/";
   const area = next.startsWith("/admin") ? "admin" : next.startsWith("/shop") ? "shop_owner" : next.startsWith("/customer") ? "customer" : null;
   if (area && area !== role) return homeForRole(role);
   return next;
@@ -30,6 +34,15 @@ export function rememberReturnPath(path: string) {
     sessionStorage.setItem("redirectAfterLogin", path);
   } catch {
     /* storage unavailable: the person lands on their home page instead */
+  }
+}
+
+/** Reads the saved destination without clearing it. */
+export function peekReturnPath() {
+  try {
+    return safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
+  } catch {
+    return null;
   }
 }
 
@@ -66,4 +79,12 @@ export function lastSitePage() {
   } catch {
     return null;
   }
+}
+
+/**
+ * The page to return to after signing in: an explicit ?next=, then a page a
+ * "sign in to continue" button saved, then the last store page this tab saw.
+ */
+export function returnTarget(next: string | null | undefined) {
+  return safeNextPath(next) ?? peekReturnPath() ?? lastSitePage();
 }

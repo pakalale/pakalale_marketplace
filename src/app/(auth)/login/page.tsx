@@ -11,20 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell, { FormAlert } from "@/components/auth/AuthShell";
-import GoogleButton, { OrDivider } from "@/components/auth/GoogleButton";
-import { destinationAfterLogin, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
-
-const GOOGLE_ERRORS: Record<string, string> = {
-  google_unavailable: "Google sign-in isn't available right now. Please use your email and password.",
-  google_cancelled: "Google sign-in was cancelled.",
-  google_unverified: "Your Google account's email isn't verified, so we can't use it to sign you in.",
-  google_failed: "We couldn't sign you in with Google. Please try again.",
-};
+import GoogleButton, { GOOGLE_ERRORS, OrDivider } from "@/components/auth/GoogleButton";
+import { destinationAfterLogin, returnTarget, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { login } = useAuthStore();
+  const { login, user, isAuthenticated, hasCheckedSession, validateSession } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,8 +27,23 @@ function LoginForm() {
   const next = safeNextPath(params.get("next"));
   const googleDone = params.get("google") === "done";
   const finishing = useRef(false);
+  // Set once this page is handing off to the next one, so the guard below
+  // does not race it to the home page.
+  const [leaving, setLeaving] = useState(false);
 
-  // Back from Google with a session cookie: load the account, then carry on.
+  // These pages sit outside the site layout, so confirm the session here.
+  useEffect(() => {
+    validateSession();
+  }, [validateSession]);
+
+  // Guests only: someone already signed in (e.g. pressing Back into this page)
+  // goes to the store, replacing this entry so Back cannot return here.
+  useEffect(() => {
+    if (googleDone || leaving || !hasCheckedSession) return;
+    if (isAuthenticated && user) router.replace("/");
+  }, [googleDone, leaving, hasCheckedSession, isAuthenticated, user, router]);
+
+  // Back from a full-page Google redirect (used when popups are blocked).
   useEffect(() => {
     if (!googleDone || finishing.current) return;
     finishing.current = true;
@@ -44,7 +52,8 @@ function LoginForm() {
         const data = await res.json();
         if (!res.ok || !data.user) throw new Error();
         login(data.user);
-        router.replace(destinationAfterLogin(data.user.role, next ?? takeReturnPath()));
+        takeReturnPath();
+        router.replace(destinationAfterLogin(data.user.role, next));
       })
       .catch(() => {
         finishing.current = false;
@@ -84,9 +93,12 @@ function LoginForm() {
         return;
       }
 
+      // Replace, not push: Back from the next page must not return to /login.
+      setLeaving(true);
+      const target = returnTarget(next);
+      takeReturnPath();
       login(result.user);
-      // ?next= wins; otherwise a destination saved by a "sign in to continue" button.
-      router.push(destinationAfterLogin(result.user.role, next ?? takeReturnPath()));
+      router.replace(destinationAfterLogin(result.user.role, target));
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -131,7 +143,7 @@ function LoginForm() {
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {banner && !error && !notice && <FormAlert tone={banner.tone}>{banner.text}</FormAlert>}
-        <GoogleButton next={next} />
+        <GoogleButton next={next} onError={setError} />
         <OrDivider text="or sign in with email" />
         {error && (
           <FormAlert tone="error">

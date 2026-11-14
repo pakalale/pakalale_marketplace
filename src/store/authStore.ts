@@ -52,6 +52,18 @@ export const useAuthStore = create<AuthState>()(
       validateSession: async () => {
         const state = get();
         if (!state.user?.id) {
+          // Nothing saved here, but the cookie may hold a session started in
+          // another window (the Google popup) or by a redirect.
+          try {
+            const res = await fetch("/api/auth/me");
+            const data = res.ok ? await res.json() : null;
+            if (data?.user?.id) {
+              set({ user: data.user, isAuthenticated: true, isLoading: false, hasCheckedSession: true });
+              return true;
+            }
+          } catch {
+            /* offline: treat as signed out */
+          }
           set({ isAuthenticated: false, isLoading: false, hasCheckedSession: true });
           return false;
         }

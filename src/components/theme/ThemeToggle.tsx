@@ -3,6 +3,7 @@
 import { Check, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/theme/ThemeProvider";
+import { useHydrated } from "@/hooks/useHydrated";
 import type { Theme } from "@/lib/theme";
 
 const OPTIONS: Array<{
@@ -115,5 +116,24 @@ export function ThemeToggleRow() {
         })}
       </div>
     </div>
+  );
+}
+
+/** One-tap light/dark switch for the site header. */
+export function ThemeIconButton({ className }: { className?: string }) {
+  const { theme, toggleTheme } = useTheme();
+  // The saved theme is only known in the browser, so the icon waits for it.
+  const mounted = useHydrated();
+  const dark = mounted && theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      title={dark ? "Light theme" : "Dark theme"}
+      className={className}
+    >
+      {dark ? <Sun className="h-[22px] w-[22px]" /> : <Moon className="h-[22px] w-[22px]" />}
+    </button>
   );
 }

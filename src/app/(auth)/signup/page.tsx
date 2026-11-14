@@ -128,8 +128,10 @@ function CheckYourEmail({ email, onBack }: { email: string; onBack: () => void }
 function SignupFlow() {
   const router = useRouter();
   const params = useSearchParams();
-  const { login, isAuthenticated, user } = useAuthStore();
-  const [accountType, setAccountType] = useState<AccountType | null>(null);
+  // "Sell on Pakalale" links here with ?as=seller to skip straight to the shop form.
+  const sellerIntent = params.get("as") === "seller";
+  const { login, logout, isAuthenticated, user } = useAuthStore();
+  const [accountType, setAccountType] = useState<AccountType | null>(sellerIntent ? "shop_owner" : null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -147,9 +149,11 @@ function SignupFlow() {
   }, [next]);
 
   // Signed in (e.g. when email confirmation is off): go where they were heading.
+  // A buyer who came to sell stays here to read why they need a seller account.
+  const buyerWantsToSell = sellerIntent && isAuthenticated && user?.role === "customer";
   useEffect(() => {
-    if (isAuthenticated && user) router.replace(destinationAfterLogin(user.role, takeReturnPath()));
-  }, [isAuthenticated, user, router]);
+    if (isAuthenticated && user && !buyerWantsToSell) router.replace(destinationAfterLogin(user.role, takeReturnPath()));
+  }, [isAuthenticated, user, router, buyerWantsToSell]);
 
   useEffect(() => {
     fetch("/api/locations")
@@ -210,6 +214,24 @@ function SignupFlow() {
       setIsLoading(false);
     }
   };
+
+  if (buyerWantsToSell) {
+    return (
+      <AuthShell
+        illustration="shop"
+        title="Open a shop on Pakalale"
+        tagline="Reach buyers across Zambia."
+        subtitle={<>You&apos;re signed in as <strong className="text-foreground">{user?.email}</strong>, a buyer account. Shops use a separate seller account, so register your shop with a different email address.</>}
+      >
+        <div className="space-y-2">
+          <Button onClick={() => logout()} className="h-11 w-full rounded-full font-semibold">
+            Sign out and register a shop
+          </Button>
+          <ContinueShopping variant="outline" />
+        </div>
+      </AuthShell>
+    );
+  }
 
   if (sentTo) return <CheckYourEmail email={sentTo} onBack={() => { setSentTo(""); form.reset(); }} />;
 

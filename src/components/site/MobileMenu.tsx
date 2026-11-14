@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Heart, LayoutGrid, LogIn, LogOut, MapPin, UserPlus } from "lucide-react";
+import { Heart, LayoutGrid, LogIn, LogOut, MapPin, Store, UserPlus } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useHydrated } from "@/hooks/useHydrated";
 import { ACCOUNT_LINKS, PRIMARY_LINKS, accountHome, isAccountLinkActive } from "@/lib/siteNav";
@@ -73,6 +73,15 @@ export default function MobileMenu({
             <Suspense>
               <ShopLinks close={close} />
             </Suspense>
+            {user?.role === "shop_owner" && signedIn ? (
+              <Link href="/shop/feed" onClick={close} className={cn(row, idle)}>
+                <Store className="h-4 w-4 text-brand" /> Seller dashboard
+              </Link>
+            ) : (
+              <Link href="/signup?as=seller" onClick={close} className={cn(row, idle)}>
+                <Store className="h-4 w-4 text-brand" /> Sell on Pakalale
+              </Link>
+            )}
           </div>
 
           <Section title="Categories">

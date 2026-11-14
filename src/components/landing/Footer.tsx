@@ -26,7 +26,7 @@ const FOOTER_COLUMNS = [
       { label: "Orders", href: "/customer/orders" },
       { label: "Cart", href: "/cart" },
       { label: "Saved Items", href: "/saved" },
-      { label: "Sell on Pakalale", href: "/signup" },
+      { label: "Sell on Pakalale", href: "/signup?as=seller" },
       { label: "About & Contact", href: "/about" },
     ],
   },

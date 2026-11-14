@@ -13,6 +13,7 @@ import {
   Menu,
   Search,
   ShoppingCart,
+  Store,
   UserPlus,
   UserRound,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { cartItemCount, useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { ThemeIconButton } from "@/components/theme/ThemeToggle";
 import MobileMenu from "./MobileMenu";
 
 function CountBadge({ count }: { count: number }) {
@@ -187,6 +189,9 @@ export default function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const signedInCustomer = mounted && isAuthenticated && user?.role === "customer";
   const savedHref = signedInCustomer ? "/customer/saved" : "/saved";
+  const isSeller = mounted && isAuthenticated && user?.role === "shop_owner";
+  const sellerHref = isSeller ? "/shop/feed" : "/signup?as=seller";
+  const sellerLabel = isSeller ? "Seller dashboard" : "Sell on Pakalale";
 
   return (
     <>
@@ -215,6 +220,7 @@ export default function SiteHeader() {
             <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search" className={cn(iconButton, "md:hidden")}>
               <Search className="h-[22px] w-[22px]" />
             </button>
+            <ThemeIconButton className={iconButton} />
             <AccountMenu />
             <Link
               href={savedHref}
@@ -239,10 +245,18 @@ export default function SiteHeader() {
       </header>
 
       <nav aria-label="Main" className="hidden bg-[#002583] lg:block">
-        <Container className="flex h-12 max-w-[1440px] items-stretch justify-center gap-2 xl:gap-4">
+        <Container className="flex h-12 max-w-[1440px] items-stretch gap-2 xl:gap-4">
           <Suspense fallback={<PrimaryNavLinks pathname={pathname} params={null} />}>
             <PrimaryNav />
           </Suspense>
+
+          {/* Sellers get their dashboard; everyone else is invited to open a shop. */}
+          <Link
+            href={sellerHref}
+            className="ml-auto flex shrink-0 items-center gap-2 self-center rounded-full bg-[#ffb800] px-4 py-1.5 text-sm font-semibold text-[#002583] transition-colors hover:bg-[#ffc733]"
+          >
+            <Store className="h-4 w-4" /> {sellerLabel}
+          </Link>
         </Container>
       </nav>
 

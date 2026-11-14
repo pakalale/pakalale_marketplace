@@ -47,3 +47,23 @@ export function takeReturnPath() {
 export function loginHref(path: string) {
   return `/login?next=${encodeURIComponent(path)}`;
 }
+
+const SITE_PAGE_KEY = "lastSitePage";
+
+/** Called by the site layout on every page, so sign-in's Back knows where to go. */
+export function rememberSitePage(path: string) {
+  try {
+    sessionStorage.setItem(SITE_PAGE_KEY, path);
+  } catch {
+    /* storage unavailable: Back falls back to the home page */
+  }
+}
+
+/** The last store or account page visited in this tab, if any. */
+export function lastSitePage() {
+  try {
+    return safeNextPath(sessionStorage.getItem(SITE_PAGE_KEY));
+  } catch {
+    return null;
+  }
+}

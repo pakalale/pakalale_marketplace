@@ -1,19 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ArrowRight } from "lucide-react";
-import Container from "@/components/landing/Container";
-import Breadcrumbs from "@/components/site/Breadcrumbs";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { lastSitePage } from "@/lib/authRedirect";
 import AuthIllustration, { type IllustrationName } from "./AuthIllustration";
-
-const PAGE_NAMES: Record<string, string> = {
-  "/login": "Sign in",
-  "/signup": "Create account",
-  "/forgot-password": "Forgot password",
-  "/reset-password": "Reset password",
-  "/verify-email": "Confirm email",
-};
 
 /** Primary way back to the store from confirmation screens. */
 export function ContinueShopping({ variant = "primary" }: { variant?: "primary" | "outline" }) {
@@ -31,6 +23,23 @@ export function ContinueShopping({ variant = "primary" }: { variant?: "primary" 
   );
 }
 
+/**
+ * Returns to the page the person was on before they started signing in,
+ * skipping any sign-in pages in between (e.g. login -> signup -> back).
+ */
+function BackButton({ className }: { className?: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={() => router.push(lastSitePage() ?? "/")}
+      className={className}
+    >
+      <ArrowLeft className="h-4 w-4" /> Back
+    </button>
+  );
+}
+
 interface AuthShellProps {
   illustration: IllustrationName;
   title: string;
@@ -44,7 +53,7 @@ interface AuthShellProps {
 /**
  * Shared frame for sign-in, sign-up and email pages: a brand panel with an
  * illustration on large screens, and a compact illustration above the form
- * on phones. The site header and breadcrumbs sit above it.
+ * on phones. These pages stand alone: no site header or footer, just Back.
  */
 export default function AuthShell({
   illustration,
@@ -54,11 +63,8 @@ export default function AuthShell({
   children,
   footer,
 }: AuthShellProps) {
-  const pathname = usePathname();
   return (
-    <Container className="max-w-6xl py-5 sm:py-8">
-      <Breadcrumbs items={[{ label: PAGE_NAMES[pathname] ?? title }]} className="mb-4" />
-    <div className="flex overflow-hidden rounded-3xl border border-border bg-card shadow-[0_2px_16px_rgba(0,37,131,0.06)] lg:min-h-[36rem]">
+    <div className="flex min-h-screen bg-background">
       <aside className="relative hidden w-[44%] max-w-xl flex-col justify-between overflow-hidden bg-[#002583] p-10 text-white lg:flex">
         <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#ffb800]/15" />
         <div className="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-white/5" />
@@ -75,17 +81,24 @@ export default function AuthShell({
         <p className="relative text-xs text-white/60">&copy; {new Date().getFullYear()} PakalaleMarket.com</p>
       </aside>
 
-      <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-8 sm:py-10">
-        <div className="w-full max-w-sm">
-          <AuthIllustration name={illustration} className="mb-4 h-24 w-24 lg:hidden" />
-          <h1 className="text-2xl font-bold tracking-tight text-brand">{title}</h1>
-          {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
-          <div className="mt-6">{children}</div>
-          {footer && <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>}
+      <main className="flex flex-1 flex-col px-4 py-5 sm:px-8 sm:py-6">
+        <div className="flex items-center justify-between">
+          <BackButton className="inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-brand transition-colors hover:bg-muted -ml-3" />
+          <Link href="/" aria-label="PakalaleMarket home" className="lg:hidden">
+            <Image src="/logo.jpeg" alt="PakalaleMarket" className="h-10 w-auto" width={320} height={112} priority />
+          </Link>
         </div>
-      </div>
+        <div className="flex flex-1 items-center justify-center py-6">
+          <div className="w-full max-w-sm">
+            <AuthIllustration name={illustration} className="mb-4 h-24 w-24 lg:hidden" />
+            <h1 className="text-2xl font-bold tracking-tight text-brand">{title}</h1>
+            {subtitle && <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>}
+            <div className="mt-6">{children}</div>
+            {footer && <div className="mt-6 text-center text-sm text-muted-foreground">{footer}</div>}
+          </div>
+        </div>
+      </main>
     </div>
-    </Container>
   );
 }
 

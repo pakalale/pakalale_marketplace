@@ -257,7 +257,7 @@ function SignupFlow() {
       footer={signInLink}
     >
       <button onClick={() => { setAccountType(null); setError(""); }} className="-mt-2 mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back
+        <ArrowLeft className="h-4 w-4" /> Change account type
       </button>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>

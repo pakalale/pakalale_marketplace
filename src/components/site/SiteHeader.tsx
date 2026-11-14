@@ -10,7 +10,6 @@ import {
   LayoutGrid,
   LogIn,
   LogOut,
-  MapPin,
   Menu,
   Search,
   ShoppingCart,
@@ -29,7 +28,6 @@ import StoreSearch from "@/components/landing/StoreSearch";
 import { useHydrated } from "@/hooks/useHydrated";
 import { loginHref } from "@/lib/authRedirect";
 import { ACCOUNT_LINKS, PRIMARY_LINKS, accountHome } from "@/lib/siteNav";
-import { STORE_CATEGORIES, categoryHref } from "@/lib/storeCategories";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 import { cartItemCount, useCartStore } from "@/store/cartStore";
@@ -180,7 +178,6 @@ function AccountMenu() {
  * cart in the top row, and the same primary links underneath.
  */
 export default function SiteHeader() {
-  const router = useRouter();
   const pathname = usePathname();
   const mounted = useHydrated();
   const { user, isAuthenticated } = useAuthStore();
@@ -242,27 +239,7 @@ export default function SiteHeader() {
       </header>
 
       <nav aria-label="Main" className="hidden bg-[#002583] lg:block">
-        <Container className="flex h-12 max-w-[1440px] items-stretch">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="mr-4 flex shrink-0 items-center gap-2 pr-4 text-sm font-semibold text-white outline-none xl:mr-8">
-              <Menu className="h-5 w-5" /> All Categories <ChevronDown className="h-4 w-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent sideOffset={6} className="w-60 p-1.5">
-              {STORE_CATEGORIES.map((group) => (
-                <DropdownMenuItem key={group.label} className="py-2" onClick={() => router.push(categoryHref(group.label))}>
-                  {group.label}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="py-2" onClick={() => router.push("/#products")}>
-                <LayoutGrid /> All products
-              </DropdownMenuItem>
-              <DropdownMenuItem className="py-2" onClick={() => router.push("/customer/locations")}>
-                <MapPin /> Browse by market
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
+        <Container className="flex h-12 max-w-[1440px] items-stretch justify-center gap-2 xl:gap-4">
           <Suspense fallback={<PrimaryNavLinks pathname={pathname} params={null} />}>
             <PrimaryNav />
           </Suspense>

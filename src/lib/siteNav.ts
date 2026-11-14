@@ -1,5 +1,4 @@
 import { Bell, Heart, LayoutDashboard, MapPin, MessageSquare, Package, Settings, UserRound } from "lucide-react";
-import { categoryHref } from "@/lib/storeCategories";
 
 /**
  * Site-wide navigation. The header, mobile menu and footer all read from here
@@ -19,25 +18,19 @@ export const PRIMARY_LINKS: PrimaryLink[] = [
   {
     label: "Shop",
     href: "/",
-    isActive: (pathname, params) => onHome(pathname) && !params.get("category") && params.get("sale") !== "1",
+    isActive: (pathname, params) => onHome(pathname) && params.get("sale") !== "1" && params.get("sort") !== "newest",
   },
-  {
-    label: "Electronics",
-    href: categoryHref("Electronics"),
-    isActive: (pathname, params) => onHome(pathname) && params.getAll("category").includes("Electronics"),
-  },
-  {
-    label: "Fashion",
-    href: categoryHref("Fashion & Footwear"),
-    isActive: (pathname, params) => onHome(pathname) && params.getAll("category").includes("Fashion & Footwear"),
-  },
+  { label: "Feed", href: "/feed", isActive: (pathname) => pathname.startsWith("/feed") },
   {
     label: "Deals",
     href: "/?sale=1#products",
     isActive: (pathname, params) => onHome(pathname) && params.get("sale") === "1",
   },
-  { label: "Feed", href: "/feed", isActive: (pathname) => pathname.startsWith("/feed") },
-  { label: "About & Contact", href: "/about", isActive: (pathname) => pathname.startsWith("/about") },
+  {
+    label: "New Arrivals",
+    href: "/?sort=newest#products",
+    isActive: (pathname, params) => onHome(pathname) && params.get("sort") === "newest" && params.get("sale") !== "1",
+  },
 ];
 
 export const ACCOUNT_LINKS = [

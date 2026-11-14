@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Heart, LayoutGrid, LogIn, LogOut, MapPin, Store, UserPlus } from "lucide-react";
+import { Heart, LayoutGrid, LogIn, LogOut, Store, UserPlus } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useHydrated } from "@/hooks/useHydrated";
 import { ACCOUNT_LINKS, PRIMARY_LINKS, accountHome, isAccountLinkActive } from "@/lib/siteNav";
@@ -92,9 +92,6 @@ export default function MobileMenu({
             ))}
             <Link href="/#products" onClick={close} className={cn(row, idle)}>
               <LayoutGrid className="h-4 w-4 text-brand" /> All products
-            </Link>
-            <Link href="/customer/locations" onClick={close} className={cn(row, idle)}>
-              <MapPin className="h-4 w-4 text-brand" /> Browse by market
             </Link>
           </Section>
 

@@ -15,7 +15,7 @@ const FOOTER_COLUMNS = [
       { label: "Electronics", href: categoryHref("Electronics") },
       { label: "Fashion", href: categoryHref("Fashion & Footwear") },
       { label: "Deals", href: "/?sale=1#products" },
-      { label: "Markets", href: "/customer/locations" },
+      { label: "Markets", href: "/markets" },
       { label: "Community Feed", href: "/feed" },
     ],
   },

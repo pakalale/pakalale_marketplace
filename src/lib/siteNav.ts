@@ -20,6 +20,7 @@ export const PRIMARY_LINKS: PrimaryLink[] = [
     href: "/",
     isActive: (pathname, params) => onHome(pathname) && params.get("sale") !== "1" && params.get("sort") !== "newest",
   },
+  { label: "Markets", href: "/markets", isActive: (pathname) => pathname.startsWith("/markets") },
   { label: "Feed", href: "/feed", isActive: (pathname) => pathname.startsWith("/feed") },
   {
     label: "Deals",

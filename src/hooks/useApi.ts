@@ -214,8 +214,12 @@ export interface ProductFacets {
 }
 
 /** Counts for the storefront filter panel. */
-export function useProductFacets() {
-  return useFetch<ProductFacets>("/api/products/facets", []);
+export function useProductFacets(scope?: { locationId?: string; shopId?: string }) {
+  const query = new URLSearchParams();
+  if (scope?.shopId) query.set("shopId", scope.shopId);
+  else if (scope?.locationId) query.set("locationId", scope.locationId);
+  const qs = query.toString();
+  return useFetch<ProductFacets>(`/api/products/facets${qs ? `?${qs}` : ""}`, [qs]);
 }
 
 export interface ProductData {

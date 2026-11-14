@@ -11,6 +11,7 @@ export interface FilterState {
   categories: string[];
   brands: string[];
   market: string;
+  shop: string;
   inStock: boolean;
   onSale: boolean;
   min: number | null;
@@ -21,6 +22,8 @@ interface FilterPanelProps {
   filters: FilterState;
   facets: ProductFacets | null;
   markets: Array<{ id: string; name: string }>;
+  /** On a market page: that market's shops, instead of the market picker. */
+  shops?: Array<{ id: string; name: string }>;
   onChange: (patch: Partial<FilterState>) => void;
   onClear: () => void;
   className?: string;
@@ -116,7 +119,7 @@ function PriceRange({ bounds, min, max, onCommit }: {
 }
 
 /** "Filter Products" panel: categories, price, brand, market and availability. */
-export default function FilterPanel({ filters, facets, markets, onChange, onClear, className }: FilterPanelProps) {
+export default function FilterPanel({ filters, facets, markets, shops = [], onChange, onClear, className }: FilterPanelProps) {
   const [moreCategories, setMoreCategories] = useState(false);
   const [moreBrands, setMoreBrands] = useState(false);
 
@@ -132,6 +135,11 @@ export default function FilterPanel({ filters, facets, markets, onChange, onClea
       .sort((a, b) => b.count - a.count)
       .map((item) => ({ value: item.name, count: item.count })),
   ].filter((row) => row.count > 0 || filters.categories.includes(row.value));
+  // A category picked from a link (e.g. "Mobile Phones") may sit inside a
+  // department row; list it too, so it can be unticked.
+  filters.categories
+    .filter((value) => !categoryRows.some((row) => row.value === value))
+    .forEach((value) => categoryRows.unshift({ value, count: counts.get(value) || 0 }));
   const visibleCategories = moreCategories ? categoryRows : categoryRows.slice(0, LIST_LIMIT);
 
   const brandRows = facets?.brands || [];
@@ -139,7 +147,7 @@ export default function FilterPanel({ filters, facets, markets, onChange, onClea
   const priceBounds = facets && facets.price.max > facets.price.min ? facets.price : null;
   const active =
     filters.categories.length + filters.brands.length > 0 ||
-    filters.market !== "all" || filters.inStock || filters.onSale || filters.min !== null || filters.max !== null;
+    filters.market !== "all" || filters.shop !== "all" || filters.inStock || filters.onSale || filters.min !== null || filters.max !== null;
 
   return (
     <div className={cn("space-y-5 rounded-2xl border border-border bg-card p-4", className)}>
@@ -204,6 +212,26 @@ export default function FilterPanel({ filters, facets, markets, onChange, onClea
               <option value="all">All markets</option>
               {markets.map((market) => (
                 <option key={market.id} value={market.id}>{market.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        </section>
+      )}
+
+      {shops.length > 0 && (
+        <section>
+          <Heading>Shop</Heading>
+          <div className="relative">
+            <select
+              value={filters.shop}
+              aria-label="Filter by shop"
+              onChange={(event) => onChange({ shop: event.target.value })}
+              className="h-10 w-full appearance-none rounded-xl border border-border bg-card pl-3 pr-9 text-sm outline-none focus:border-brand/40"
+            >
+              <option value="all">All shops</option>
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>{shop.name}</option>
               ))}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

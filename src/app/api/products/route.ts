@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { requireSession, forbidden } from "@/lib/session";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
-import { Location } from "@/models/FeedPost";
+import { shopIdsInMarket } from "@/lib/marketShops";
 
 // Keep the populated shop reference on public product cards so the storefront
 // can show "Sold by <shop>" without a second request per product.
@@ -101,16 +101,10 @@ export async function GET(request: NextRequest) {
       query.isAvailable = true;
     }
 
-    // Market filter: products do not store a location, so resolve the shops in
-    // that market (by id or slug) and filter products by those shop ids.
+    // Market filter: products only know their shop, so match the market's shops.
     const locationId = searchParams.get("locationId");
     if (locationId && !shopIdParam) {
-      const locationQuery: Record<string, unknown>[] = [{ slug: locationId }];
-      if (mongoose.isValidObjectId(locationId)) locationQuery.push({ _id: locationId });
-      const location = await Location.findOne({ $or: locationQuery }).lean();
-      const locationIds = [locationId, location?._id?.toString(), location?.slug].filter(Boolean) as string[];
-      const shopsInLocation = await Shop.find({ locationId: { $in: locationIds } }).select("_id").lean();
-      query.shopId = { $in: shopsInLocation.map((shop) => shop._id) };
+      query.shopId = { $in: await shopIdsInMarket(locationId) };
     }
 
     const sort = searchParams.get("sort") || "createdAt";

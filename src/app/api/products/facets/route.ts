@@ -1,5 +1,7 @@
-import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import { NextRequest, NextResponse } from "next/server";
 import { getCached, setCache } from "@/lib/cache";
+import { shopIdsInMarket } from "@/lib/marketShops";
 import { connectToDatabase } from "@/lib/mongodb";
 import Product from "@/models/Product";
 
@@ -12,18 +14,26 @@ interface Facets {
 }
 
 /**
- * Counts for the storefront filter panel ("Electronics (124)"), over every
- * product the storefront lists. Cached briefly: they change slowly.
+ * Counts for the filter panel ("Electronics (124)"). With ?locationId= or
+ * ?shopId= they cover only that market or shop, so a market page counts its
+ * own products. Cached briefly: they change slowly.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cached = getCached<Facets>("products:facets");
+    const market = request.nextUrl.searchParams.get("locationId") || "";
+    const shop = request.nextUrl.searchParams.get("shopId") || "";
+    if (shop && !mongoose.isValidObjectId(shop)) return NextResponse.json({ error: "Invalid shop" }, { status: 400 });
+    const cacheKey = `products:facets:${market}:${shop}`;
+    const cached = getCached<Facets>(cacheKey);
     if (cached) return NextResponse.json(cached);
 
     await connectToDatabase();
-    // Same base set as the storefront grid: every available product.
+    const match: Record<string, unknown> = { isAvailable: true };
+    if (shop) match.shopId = new mongoose.Types.ObjectId(shop);
+    else if (market) match.shopId = { $in: await shopIdsInMarket(market) };
+
     const [result] = await Product.aggregate([
-      { $match: { isAvailable: true } },
+      { $match: match },
       {
         $facet: {
           categories: [{ $group: { _id: "$category", count: { $sum: 1 } } }],
@@ -49,7 +59,7 @@ export async function GET() {
       onSale: result.onSale[0]?.count ?? 0,
       price: { min: Math.floor(result.price[0]?.min ?? 0), max: Math.ceil(result.price[0]?.max ?? 0) },
     };
-    setCache("products:facets", facets, 60_000);
+    setCache(cacheKey, facets, 60_000);
     return NextResponse.json(facets);
   } catch (error) {
     console.error("Product facets error:", error);

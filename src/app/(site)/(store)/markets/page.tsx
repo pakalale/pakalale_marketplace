@@ -1,111 +1,145 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Clock, MapPin, Package, Star, Store } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
 import Container from "@/components/landing/Container";
+import ProductCard from "@/components/landing/ProductCard";
+import ProductDetailModal from "@/components/ProductDetailModal";
 import { PageHeading } from "@/components/site/Breadcrumbs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLocations, useProducts, type LocationData } from "@/hooks/useApi";
-import { formatKwacha, productImages } from "@/lib/product";
-import { productPlaceholder } from "@/lib/placeholders";
+import { useLocations, useProducts, type LocationData, type ProductData } from "@/hooks/useApi";
+import { cartLineFromProduct } from "@/lib/cart";
+import { productShopName } from "@/lib/product";
+import { useCartStore } from "@/store/cartStore";
 
-function marketHref(market: LocationData) {
-  return `/markets/${market.slug || market.id}`;
-}
+const ROW_LIMIT = 12;
+const cardWidth = "w-[11.5rem] shrink-0 snap-start sm:w-[13.5rem]";
 
-/** A market and a peek at what its shops sell. */
-function MarketCard({ market }: { market: LocationData }) {
-  const { data, loading } = useProducts({ locationId: market.id, available: true, sort: "views", order: "desc", limit: 4 });
+/** One market: its name (the way in) and a scrollable row of its products. */
+function MarketRow({ market, onOpen, onAddToCart }: {
+  market: LocationData;
+  onOpen: (product: ProductData) => void;
+  onAddToCart: (product: ProductData) => void;
+}) {
+  const href = `/markets/${market.slug || market.id}`;
+  const scroller = useRef<HTMLDivElement>(null);
+  const { data, loading } = useProducts({ locationId: market.id, available: true, sort: "views", order: "desc", limit: ROW_LIMIT });
   const products = data?.products || [];
   const total = data?.total ?? market.productCount ?? 0;
 
+  const scroll = (direction: 1 | -1) => {
+    const element = scroller.current;
+    if (element) element.scrollBy({ left: direction * element.clientWidth * 0.9, behavior: "smooth" });
+  };
+  const arrow = "absolute top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card text-brand shadow-md transition-colors hover:bg-muted md:flex";
+
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_2px_12px_rgba(0,37,131,0.05)]">
-      <div className="bg-[#002583] p-5 text-white">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-xl font-bold">{market.name}</h2>
-          {market.rating > 0 && (
-            <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
-              <Star className="h-3.5 w-3.5 fill-[#ffb800] text-[#ffb800]" /> {market.rating.toFixed(1)}
-            </span>
-          )}
+    <section aria-labelledby={`market-${market.id}`} className="py-6 first:pt-2">
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <Link href={href} className="group inline-flex items-center gap-1">
+            <h2 id={`market-${market.id}`} className="truncate text-xl font-bold text-brand group-hover:underline sm:text-2xl">{market.name}</h2>
+            <ChevronRight className="h-5 w-5 shrink-0 text-brand transition-transform group-hover:translate-x-0.5" />
+          </Link>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {market.shopCount} {market.shopCount === 1 ? "shop" : "shops"} · {total} {total === 1 ? "product" : "products"}
+            {market.hours && <span className="hidden sm:inline"> · {market.hours}</span>}
+          </p>
         </div>
-        {market.description && <p className="mt-1 line-clamp-2 text-sm text-white/80">{market.description}</p>}
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/85">
-          <span className="flex items-center gap-1"><Store className="h-3.5 w-3.5" /> {market.shopCount} {market.shopCount === 1 ? "shop" : "shops"}</span>
-          <span className="flex items-center gap-1"><Package className="h-3.5 w-3.5" /> {total} {total === 1 ? "product" : "products"}</span>
-          {market.hours && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {market.hours}</span>}
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        {market.specialties?.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            {market.specialties.slice(0, 5).map((item) => (
-              <span key={item} className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand dark:bg-muted">{item}</span>
-            ))}
-          </div>
-        )}
-
-        {loading && !data ? (
-          <div className="grid grid-cols-4 gap-2">{[0, 1, 2, 3].map((key) => <Skeleton key={key} className="aspect-square rounded-xl" />)}</div>
-        ) : products.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">No products listed yet.</p>
-        ) : (
-          <ul className="grid grid-cols-4 gap-2">
-            {products.map((product) => (
-              <li key={product.id}>
-                <Link href={`${marketHref(market)}?product=${product.id}`} className="group block">
-                  <span className="block aspect-square overflow-hidden rounded-xl bg-[#f4f6fb] dark:bg-muted">
-                    <img
-                      src={productImages(product)[0] || productPlaceholder(product.category, product.id)}
-                      alt=""
-                      loading="lazy"
-                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  </span>
-                  <span className="mt-1 block truncate text-xs font-medium">{product.name}</span>
-                  <span className="block text-xs font-bold text-brand">{formatKwacha(product.price)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <Link
-          href={marketHref(market)}
-          className="mt-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-brand font-semibold text-brand-foreground transition-colors hover:bg-brand/90"
-        >
-          Visit {market.name} <ArrowRight className="h-4 w-4" />
+        <Link href={href} className="flex shrink-0 items-center gap-1 text-sm font-semibold text-brand hover:underline">
+          See all <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
-    </article>
+
+      {loading && !data ? (
+        <div className="flex gap-3 overflow-hidden">
+          {[0, 1, 2, 3, 4].map((key) => <Skeleton key={key} className={`${cardWidth} h-80 rounded-2xl`} />)}
+        </div>
+      ) : products.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
+          No products listed in this market yet.
+        </p>
+      ) : (
+        <div className="relative">
+          <button type="button" onClick={() => scroll(-1)} aria-label={`Scroll ${market.name} left`} className={`${arrow} -left-4`}>
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div ref={scroller} className="-mx-1 flex snap-x gap-3 overflow-x-auto scroll-smooth px-1 pb-2 [scrollbar-width:none] sm:gap-4">
+            {products.map((product) => (
+              <div key={product.id} className={cardWidth}>
+                <ProductCard product={product} onOpen={onOpen} onAddToCart={onAddToCart} />
+              </div>
+            ))}
+            {total > products.length && (
+              <Link
+                href={href}
+                className={`${cardWidth} flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-brand/30 bg-card text-center font-semibold text-brand hover:bg-brand/5`}
+              >
+                <ArrowRight className="h-6 w-6" />
+                See all {total} products
+              </Link>
+            )}
+          </div>
+          <button type="button" onClick={() => scroll(1)} aria-label={`Scroll ${market.name} right`} className={`${arrow} -right-4`}>
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 
 export default function MarketsPage() {
   const { data, loading, error, refetch } = useLocations();
   const markets = data?.locations || [];
+  const addItem = useCartStore((state) => state.addItem);
+  const [selected, setSelected] = useState<ProductData | null>(null);
+
+  const addToCart = (product: ProductData) => {
+    const line = cartLineFromProduct(product);
+    if (!line) {
+      toast.error("This product is not available to order right now.");
+      return;
+    }
+    addItem(line);
+    toast.success(`${product.name} added to cart`);
+  };
 
   return (
     <Container className="max-w-[1440px] py-6 sm:py-8">
       <PageHeading crumbs={[{ label: "Markets" }]} title="Markets">
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="h-4 w-4" /> Shop by the market you know</p>
+        <p className="text-sm text-muted-foreground">Tap a market to see everything it sells.</p>
       </PageHeading>
 
       {loading && !data ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2].map((key) => <Skeleton key={key} className="h-96 rounded-2xl" />)}
-        </div>
+        <div className="space-y-8">{[0, 1].map((key) => <Skeleton key={key} className="h-96 w-full rounded-2xl" />)}</div>
       ) : error && !data ? (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
           <p className="font-semibold">We could not load the markets</p>
           <button onClick={refetch} className="mt-2 text-sm font-semibold text-brand hover:underline">Try again</button>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {markets.map((market) => <MarketCard key={market.id} market={market} />)}
+        <div className="divide-y divide-border">
+          {markets.map((market) => (
+            <MarketRow key={market.id} market={market} onOpen={setSelected} onAddToCart={addToCart} />
+          ))}
         </div>
+      )}
+
+      {selected && (
+        <ProductDetailModal
+          isOpen
+          onClose={() => setSelected(null)}
+          product={selected}
+          shopName={productShopName(selected)}
+          primaryActionLabel="Add to Cart"
+          onPrimaryAction={(product) => {
+            addToCart(product);
+            setSelected(null);
+          }}
+        />
       )}
     </Container>
   );

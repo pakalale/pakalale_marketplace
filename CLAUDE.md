@@ -30,6 +30,7 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
 - `NEXTAUTH_URL` / `APP_URL` are the base URL for email links.
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` for uploads.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` are optional. Without SMTP, dev prints email links to the server log, and production skips email verification (`src/lib/email.ts`).
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` turn on "Continue with Google". Without them, the button sends people back to `/login` with a message.
 - `PORT`, `HOSTNAME`
 
 ## Architecture
@@ -38,7 +39,7 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
 
 `server.ts` is the entry point in every environment. It wraps Next's request handler in a Node HTTP server and attaches Socket.IO on the same port. Socket auth reuses the session cookie. Events: `register`, `join_chat` (participants only), `send_message`, `typing`/`stop_typing`, `deal_status_changed`, plus online presence. Online state is held in memory, so the app must run as **one process** (PM2 `instances: 1`, single Docker container). The rate limiter (`src/lib/rateLimit.ts`) and API cache (`src/lib/cache.ts`) also rely on that. Vercel cannot run `server.ts`, so realtime does not work there.
 
-### Auth (custom, not NextAuth)
+### Auth (custom; NextAuth has been removed)
 
 - `src/lib/sessionToken.ts`: HS256 JWT in the httpOnly cookie `pakalale-session` (30 days). It does not touch the DB, so it is safe to import from the proxy and the socket server.
 - `src/lib/session.ts`: `setSessionCookie` / `clearSessionCookie`, `getSessionUser` (re-reads role from DB and rejects tokens issued before `passwordChangedAt`), and `requireSession(request, { roles?, actingAs? })`. That last one is the guard every protected API route uses:
@@ -50,7 +51,7 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
   `actingAs` exists because older clients send their own user id. It must match the session (admins are exempt). Never trust a user id from the request body or query by itself.
 - `src/proxy.ts` redirects signed-out visitors away from `/customer`, `/shop` and `/admin` to `/login?next=…`. It checks the cookie only. API routes still enforce auth themselves.
 - Email verification and password reset use `src/lib/authTokens.ts`: random tokens, only the SHA-256 hash is stored. Routes are under `src/app/api/auth/*`.
-- `src/lib/auth.ts` and `api/auth/[...nextauth]` are leftover NextAuth wiring and nothing else uses them. Do not build on them.
+- Google sign-in (`src/lib/google.ts`) is a server-side OAuth code flow with state, PKCE and a nonce. `GET /api/auth/google?next=` stores those values in the `pakalale-google` cookie and redirects to Google. Google sends the user back to `GET /api/auth/google/callback`, the callback URI registered with Google. The callback links the Google account by `googleId` or by email; if that address was never verified, it drops the existing password. A new user becomes a `customer`. Then it sets the session cookie and redirects to `/login?google=done`, which loads the user from `/api/auth/me` into the store. Google-only users have no `password`.
 - Client side: `src/store/authStore.ts` (Zustand, persisted as `auth-storage`) holds the client user (`toClientUser` in `src/lib/authUser.ts`). `validateSession()` checks `/api/auth/me`. `logout()` calls `/api/auth/logout`, because only the server can clear the cookie.
 - Roles: `customer`, `shop_owner`, `admin`. After login, customers go to `/customer`, shop owners to `/shop/feed`, admins to `/admin`. `src/lib/authRedirect.ts` builds `next=` links.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -11,7 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell, { FormAlert } from "@/components/auth/AuthShell";
+import GoogleButton, { OrDivider } from "@/components/auth/GoogleButton";
 import { destinationAfterLogin, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
+
+const GOOGLE_ERRORS: Record<string, string> = {
+  google_unavailable: "Google sign-in isn't available right now. Please use your email and password.",
+  google_cancelled: "Google sign-in was cancelled.",
+  google_unverified: "Your Google account's email isn't verified, so we can't use it to sign you in.",
+  google_failed: "We couldn't sign you in with Google. Please try again.",
+};
 
 function LoginForm() {
   const router = useRouter();
@@ -24,9 +32,32 @@ function LoginForm() {
   const [notice, setNotice] = useState("");
 
   const next = safeNextPath(params.get("next"));
+  const googleDone = params.get("google") === "done";
+  const finishing = useRef(false);
+
+  // Back from Google with a session cookie: load the account, then carry on.
+  useEffect(() => {
+    if (!googleDone || finishing.current) return;
+    finishing.current = true;
+    fetch("/api/auth/me")
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.user) throw new Error();
+        login(data.user);
+        router.replace(destinationAfterLogin(data.user.role, next ?? takeReturnPath()));
+      })
+      .catch(() => {
+        finishing.current = false;
+        setError(GOOGLE_ERRORS.google_failed);
+        router.replace("/login");
+      });
+  }, [googleDone, next, login, router]);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginCredentials>();
 
-  const banner = params.get("reset")
+  const googleError = GOOGLE_ERRORS[params.get("error") || ""];
+  const banner = googleError
+    ? { tone: "error" as const, text: googleError }
+    : params.get("reset")
     ? { tone: "success" as const, text: "Your password was changed. Sign in with your new password." }
     : params.get("expired")
       ? { tone: "info" as const, text: "Your session ended. Please sign in again to continue." }
@@ -75,6 +106,14 @@ function LoginForm() {
     setNotice(res.ok ? "We sent a new confirmation link. Check your inbox (and spam folder)." : result.error || "Could not send the email.");
   };
 
+  if (googleDone && !error) {
+    return (
+      <AuthShell illustration="welcome" title="Signing you in" subtitle="Just a moment...">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell
       illustration="welcome"
@@ -92,6 +131,8 @@ function LoginForm() {
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {banner && !error && !notice && <FormAlert tone={banner.tone}>{banner.text}</FormAlert>}
+        <GoogleButton next={next} />
+        <OrDivider text="or sign in with email" />
         {error && (
           <FormAlert tone="error">
             {error}

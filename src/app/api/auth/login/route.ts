@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
 
     await connectToDatabase();
     const user = await User.findOne({ email }).lean();
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (user && !user.password) {
+      return NextResponse.json(
+        { error: "This account signs in with Google. Use \"Continue with Google\", or reset your password to add one.", code: "USE_GOOGLE" },
+        { status: 401 }
+      );
+    }
+    if (!user || !(await bcrypt.compare(password, user.password!))) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
     }
 

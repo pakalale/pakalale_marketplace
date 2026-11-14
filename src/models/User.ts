@@ -3,7 +3,9 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   email: string;
-  password: string;
+  /** Missing for accounts that only sign in with Google. */
+  password?: string;
+  googleId?: string;
   firstName: string;
   lastName: string;
   avatar?: string;
@@ -31,9 +33,11 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true },
+    password: { type: String },
+    googleId: { type: String, select: false },
     firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
+    // Optional because some Google profiles have no family name.
+    lastName: { type: String, trim: true, default: "" },
     avatar: { type: String },
     role: { type: String, enum: ["customer", "shop_owner", "admin"], default: "customer" },
     isVerified: { type: Boolean, default: false },

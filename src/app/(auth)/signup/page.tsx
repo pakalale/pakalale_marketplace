@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AuthShell, { FormAlert } from "@/components/auth/AuthShell";
+import GoogleButton, { OrDivider } from "@/components/auth/GoogleButton";
 import { destinationAfterLogin, rememberReturnPath, safeNextPath, takeReturnPath } from "@/lib/authRedirect";
 
 type AccountType = "customer" | "shop_owner";
@@ -260,6 +261,13 @@ function SignupFlow() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5" noValidate>
         {error && <FormAlert tone="error">{error}</FormAlert>}
+
+        {!isShop && (
+          <>
+            <GoogleButton next={next} label="Sign up with Google" />
+            <OrDivider text="or use your email" />
+          </>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="First name" error={errors.firstName?.message}>

@@ -6,14 +6,36 @@ export interface IOrderItem {
   price: number;
 }
 
+export type OrderStatus =
+  | "order_received"
+  | "in_store"
+  | "out_for_delivery"
+  | "ready_for_pickup"
+  | "delivered"
+  | "received"
+  | "cancelled"
+  | "pending"
+  | "confirmed"
+  | "preparing"
+  | "ready"
+  | "completed";
+
+export type OrderDeliveryMethod = "yango" | "indrive" | "pickup";
+export type OrderPaymentMethod = "airtel_money" | "cash";
+
 export interface IOrder extends Document {
   _id: mongoose.Types.ObjectId;
   customerId: mongoose.Types.ObjectId;
   shopId: mongoose.Types.ObjectId;
   items: IOrderItem[];
-  status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+  status: OrderStatus;
   total: number;
-  paymentMethod?: string;
+  subtotal?: number;
+  deliveryMethod?: OrderDeliveryMethod;
+  deliveryFee?: number;
+  paymentMethod?: OrderPaymentMethod | string;
+  customerPhone?: string;
+  deliveryAddress?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +58,11 @@ const OrderSchema = new Schema<IOrder>(
       default: "pending",
     },
     total: { type: Number, required: true },
+    subtotal: { type: Number },
+    deliveryMethod: { type: String, enum: ["yango", "indrive", "pickup"] },
+    deliveryFee: { type: Number, min: 0, default: 0 },
+    customerPhone: { type: String, trim: true },
+    deliveryAddress: { type: String, trim: true },
     paymentMethod: { type: String, default: "Cash" },
     notes: { type: String },
   },

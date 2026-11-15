@@ -39,7 +39,7 @@ export default function GuestAccountPrompt({
       <DialogContent className="overflow-hidden p-0 sm:max-w-md">
         <div className="relative bg-gradient-to-br from-[#002583] via-[#002583] to-[#0b3bb8] px-6 pb-7 pt-6 text-white">
           <img
-            src="/logo.jpeg"
+            src="/logo.png"
             alt="Pakalale Market"
             className="h-9 w-auto rounded-md bg-white px-1.5 py-1"
           />

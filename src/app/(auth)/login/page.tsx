@@ -94,7 +94,7 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
-            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-12 w-auto" width={320} height={112} priority />
+            <Image src="/logo.png" alt="Pakalale Market" className="h-12 w-auto" width={320} height={112} priority />
           </Link>
           <h1 className="text-xl font-bold mt-4">Welcome Back</h1>
           <p className="text-sm text-muted-foreground mt-1">

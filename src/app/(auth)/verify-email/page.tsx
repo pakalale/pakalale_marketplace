@@ -58,7 +58,7 @@ function VerifyEmailForm() {
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <section className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center">
         <Link href="/" aria-label="Pakalale Market home" className="mb-5 inline-flex">
-          <Image src="/logo.jpeg" alt="Pakalale Market" width={320} height={112} className="h-10 w-auto" priority />
+          <Image src="/logo.png" alt="Pakalale Market" width={320} height={112} className="h-10 w-auto" priority />
         </Link>
         {status === "checking" ? (
           <><Loader2 className="mx-auto h-7 w-7 animate-spin text-brand" /><p className="mt-3 text-sm text-muted-foreground">Confirming your email...</p></>

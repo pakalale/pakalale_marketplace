@@ -14,7 +14,7 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <Link href="/" aria-label="Pakalale Market home" className="mb-4 inline-flex items-center">
-            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto" width={320} height={112} priority />
+            <Image src="/logo.png" alt="Pakalale Market" className="h-11 w-auto" width={320} height={112} priority />
           </Link>
           <h1 className="text-2xl font-bold">Reset Password</h1>
           <p className="text-sm text-muted-foreground mt-1">

@@ -123,7 +123,7 @@ export default function Header({ activeTab = "home", userId, title }: HeaderProp
           <SheetContent side="left" className="w-80 max-w-[88vw] gap-0 overflow-hidden p-0 duration-300 ease-out">
             <SheetTitle className="flex items-center border-b border-border px-4 py-4 pr-12 text-left">
               <Link href="/customer" onClick={() => setOpen(false)} aria-label="Pakalale home" className="flex items-center gap-2">
-                <Image src="/logo.jpeg" alt="Pakalale Market" width={320} height={112} className="h-8 w-auto" priority />
+                <Image src="/logo.png" alt="Pakalale Market" width={320} height={112} className="h-8 w-auto" priority />
               </Link>
             </SheetTitle>
 

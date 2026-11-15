@@ -117,7 +117,7 @@ export default function StoreHeader({
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-card/95 backdrop-blur-lg">
         <Container className="flex h-16 items-center justify-between gap-3 sm:h-[72px] lg:gap-8">
-          <Image src="/logo.jpeg" alt="Pakalale Market" className="h-8 w-auto shrink-0 sm:h-9" width={320} height={112} priority />
+          <Image src="/logo.png" alt="Pakalale Market" className="h-8 w-auto shrink-0 sm:h-9" width={320} height={112} priority />
 
           <div className="hidden max-w-xl flex-1 md:block">
             <HeaderSearch onOpen={() => setSearchOpen(true)} />

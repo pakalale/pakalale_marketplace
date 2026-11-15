@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession } from "@/lib/session";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 
@@ -18,10 +17,15 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
-    const auth = await requireSession(request, { roles: ["admin"] });
-    if (auth.response) return auth.response;
-    // The admin is whoever is signed in, not an id supplied by the client.
-    const userId = auth.user.id;
+    const userId = searchParams.get("userId");
+    if (!userId) {
+      return NextResponse.json({ error: "userId required" }, { status: 400 });
+    }
+
+    const adminUser = await User.findById(userId).select("role").lean();
+    if (!adminUser || adminUser.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
 
     const role = searchParams.get("role");
     const search = searchParams.get("search");
@@ -88,14 +92,15 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const auth = await requireSession(request, { roles: ["admin"] });
-    if (auth.response) return auth.response;
-    // The admin is whoever is signed in, not an id supplied by the client.
-    const adminId = auth.user.id;
+    const { adminId, targetUserId, action, value } = body;
 
-    const { targetUserId, action, value } = body;
-    if (!targetUserId || !action) {
+    if (!adminId || !targetUserId || !action) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const adminUser = await User.findById(adminId).select("role").lean();
+    if (!adminUser || adminUser.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     // Prevent self-modification

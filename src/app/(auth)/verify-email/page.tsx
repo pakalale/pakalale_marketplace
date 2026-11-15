@@ -1,100 +1,87 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Loader2 } from "lucide-react";
-import AuthShell, { ContinueShopping, FormAlert } from "@/components/auth/AuthShell";
+import { Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { destinationAfterLogin, takeReturnPath } from "@/lib/authRedirect";
 import { useAuthStore } from "@/store/authStore";
+import { destinationAfterLogin, safeNextPath } from "@/lib/authRedirect";
 
-type State = "checking" | "done" | "invalid";
-
-function VerifyEmail() {
-  const router = useRouter();
+function VerifyEmailForm() {
   const params = useSearchParams();
-  const { login } = useAuthStore();
+  const router = useRouter();
+  const login = useAuthStore((state) => state.login);
   const token = params.get("token");
-  const [state, setState] = useState<State>(token ? "checking" : "invalid");
-  const [destination, setDestination] = useState("/");
-  const [email, setEmail] = useState("");
-  const [resent, setResent] = useState("");
+  const [email, setEmail] = useState(params.get("email") || "");
+  const [status, setStatus] = useState(token ? "checking" : "waiting");
+  const [message, setMessage] = useState("");
   const started = useRef(false);
 
   useEffect(() => {
-    // Tokens are single use, so never send the same one twice (e.g. strict-mode remount).
-    if (started.current || !token) return;
+    if (!token || started.current) return;
     started.current = true;
     fetch("/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     })
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        login(data.user);
-        const to = destinationAfterLogin(data.user.role, params.get("next") ?? takeReturnPath());
-        setDestination(to);
-        setState("done");
-        // Stay here so people can choose: shop, or go where they were heading.
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok || !result.user) throw new Error(result.error || "This link has expired or was already used.");
+        login(result.user);
+        const next = safeNextPath(params.get("next")) || safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.replace(destinationAfterLogin(result.user.role, next));
       })
-      .catch(() => setState("invalid"));
-  }, [token, params, login, router]);
+      .catch((error: unknown) => {
+        setMessage(error instanceof Error ? error.message : "Could not verify this email.");
+        setStatus("waiting");
+      });
+  }, [login, params, router, token]);
 
   const resend = async (event: React.FormEvent) => {
     event.preventDefault();
-    const res = await fetch("/api/auth/resend-verification", {
+    setStatus("sending");
+    const response = await fetch("/api/auth/resend-verification", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     }).catch(() => null);
-    setResent(res?.ok ? "If that account still needs confirming, a new link is on its way." : "Could not send the email. Try again shortly.");
+    setMessage(response?.ok ? "If the account needs confirmation, a new link is on its way." : "Could not send a new link. Try again shortly.");
+    setStatus("waiting");
   };
 
-  if (state === "checking") {
-    return (
-      <AuthShell illustration="mail" title="Confirming your email" subtitle="Just a moment...">
-        <Loader2 className="h-6 w-6 animate-spin text-brand" />
-      </AuthShell>
-    );
-  }
-
-  if (state === "done") {
-    return (
-      <AuthShell illustration="done" title="You're all set!" subtitle="Your email is confirmed and you're signed in." tagline="Welcome to the market.">
-        <div className="space-y-2">
-          <ContinueShopping />
-          <Button variant="outline" onClick={() => router.replace(destination)} className="h-11 w-full rounded-full font-semibold">
-            {destination === "/" ? "Go to the store" : "Go where I was heading"} <ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
-      </AuthShell>
-    );
-  }
-
   return (
-    <AuthShell
-      illustration="mail"
-      title="This link has expired"
-      subtitle="Confirmation links work once and last 24 hours. Enter your email and we'll send a fresh one."
-      footer={<>Already confirmed? <Link href="/login" className="font-semibold text-brand hover:underline">Sign in</Link></>}
-    >
-      <form onSubmit={resend} className="space-y-3">
-        {resent && <FormAlert tone="info">{resent}</FormAlert>}
-        <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="h-11 rounded-xl" aria-label="Email" />
-        <Button type="submit" className="h-11 w-full rounded-full font-semibold">Send a new link</Button>
-      </form>
-    </AuthShell>
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <section className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center">
+        <Link href="/" aria-label="Pakalale Market home" className="mb-5 inline-flex">
+          <Image src="/logo.png" alt="Pakalale Market" width={320} height={112} className="h-10 w-auto" priority />
+        </Link>
+        {status === "checking" ? (
+          <><Loader2 className="mx-auto h-7 w-7 animate-spin text-brand" /><p className="mt-3 text-sm text-muted-foreground">Confirming your email...</p></>
+        ) : (
+          <>
+            <Mail className="mx-auto h-8 w-8 text-brand" />
+            <h1 className="mt-3 text-xl font-bold">Confirm your email</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Enter the address used to create your account and we&apos;ll send a fresh confirmation link.</p>
+            {message && <p role="status" className="mt-3 text-sm text-muted-foreground">{message}</p>}
+            <form onSubmit={resend} className="mt-5 space-y-3 text-left">
+              <Input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" aria-label="Email address" />
+              <Button type="submit" disabled={status === "sending"} className="w-full">
+                {status === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend confirmation email"}
+              </Button>
+            </form>
+            <Link href="/login" className="mt-4 inline-block text-sm font-medium text-brand hover:underline">Back to sign in</Link>
+          </>
+        )}
+      </section>
+    </main>
   );
 }
 
 export default function VerifyEmailPage() {
-  return (
-    <Suspense>
-      <VerifyEmail />
-    </Suspense>
-  );
+  return <Suspense><VerifyEmailForm /></Suspense>;
 }

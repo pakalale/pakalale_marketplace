@@ -4,30 +4,25 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { categoryHref } from "@/lib/storeCategories";
 import Container from "./Container";
 
 const FOOTER_COLUMNS = [
   {
-    title: "Shop",
+    title: "Quick Links",
     links: [
-      { label: "All Products", href: "/#products" },
-      { label: "Electronics", href: categoryHref("Electronics") },
-      { label: "Fashion", href: categoryHref("Fashion & Footwear") },
+      { label: "Shop", href: "/" },
+      { label: "Feed", href: "/feed" },
+      { label: "Categories", href: "/#products" },
       { label: "Deals", href: "/?sale=1#products" },
-      { label: "Markets", href: "/markets" },
-      { label: "Community Feed", href: "/feed" },
     ],
   },
   {
     title: "Your Account",
     links: [
-      { label: "My Account", href: "/customer" },
-      { label: "Orders", href: "/customer/orders" },
-      { label: "Cart", href: "/cart" },
-      { label: "Saved Items", href: "/saved" },
-      { label: "Sell on Pakalale", href: "/signup?as=seller" },
-      { label: "About & Contact", href: "/about" },
+      { label: "Sign In", href: "/login" },
+      { label: "Create Account", href: "/signup" },
+      { label: "Checkout", href: "/customer/checkout" },
+      { label: "Sell on Pakalale", href: "/signup" },
     ],
   },
 ];
@@ -95,11 +90,9 @@ export default function Footer() {
 
   return (
     <footer className="mt-auto border-t border-border/60 bg-card">
-      <Container className="max-w-[1440px] grid grid-cols-[minmax(0,1fr)] gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-0">
+      <Container className="grid grid-cols-[minmax(0,1fr)] gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-0">
         <div className="sm:col-span-2 lg:col-span-1 lg:pr-4">
-          <Link href="/" aria-label="PakalaleMarket home" className="inline-block">
-            <Image src="/logo.jpeg" alt="Pakalale Market" className="h-11 w-auto sm:h-12" width={320} height={112} />
-          </Link>
+          <Image src="/logo.png" alt="Pakalale Market" className="h-11 w-auto sm:h-12" width={320} height={112} />
           <p className="mt-1 text-sm text-foreground/80 lg:pl-[52px]">Shop Smart. Live Better.</p>
         </div>
 
@@ -160,7 +153,7 @@ export default function Footer() {
       </Container>
 
       <div className="bg-[#002583] text-white">
-        <Container className="max-w-[1440px] flex flex-col items-center justify-between gap-1 py-4 text-xs sm:flex-row sm:text-[13px]">
+        <Container className="flex flex-col items-center justify-between gap-1 py-4 text-xs sm:flex-row sm:text-[13px]">
           <p>&copy; {new Date().getFullYear()} PakalaleMarket.com. All rights reserved.</p>
           <p className="text-white/85">Secure Payments &bull; Trusted Store &bull; Zambia</p>
         </Container>

@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { DEFAULT_DELIVERY, deliveryOption, type DeliveryId } from "@/lib/delivery";
 
 export interface CartItem {
   productId: string;
@@ -18,9 +17,6 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
-  /** Chosen in the cart panel and carried into checkout. */
-  delivery: DeliveryId;
-  setDelivery: (delivery: DeliveryId) => void;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (productId: string) => void;
   setQuantity: (productId: string, quantity: number) => void;
@@ -39,9 +35,6 @@ export const useCartStore = create<CartState>()(
   persist(
     (set) => ({
       items: [],
-      delivery: DEFAULT_DELIVERY,
-
-      setDelivery: (delivery) => set({ delivery }),
 
       addItem: (item, quantity = 1) =>
         set((state) => {
@@ -90,16 +83,7 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: "pakalale-cart",
-      partialize: (state) => ({ items: state.items, delivery: state.delivery }),
-      // A saved choice that no longer exists falls back to the default.
-      merge: (persisted, current) => {
-        const saved = (persisted || {}) as Partial<CartState>;
-        return {
-          ...current,
-          ...saved,
-          delivery: deliveryOption(saved.delivery) ? (saved.delivery as DeliveryId) : DEFAULT_DELIVERY,
-        };
-      },
+      partialize: (state) => ({ items: state.items }),
     }
   )
 );
@@ -109,6 +93,3 @@ export const cartItemCount = (items: CartItem[]) =>
 
 export const cartSubtotal = (items: CartItem[]) =>
   items.reduce((total, line) => total + line.price * line.quantity, 0);
-
-/** Each shop fulfils its own order, so delivery is charged per shop. */
-export const cartShopCount = (items: CartItem[]) => new Set(items.map((line) => line.shopId)).size;

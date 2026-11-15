@@ -15,88 +15,84 @@ function readState(request: NextRequest): GoogleState | null {
   }
 }
 
-/** Finds the account for this Google login, linking or creating one as needed. */
-async function accountFor(profile: GoogleProfile) {
+async function accountFor(profile: GoogleProfile, intent: GoogleState["intent"]) {
   const byGoogle = await User.findOne({ googleId: profile.sub });
-  if (byGoogle) return byGoogle;
+  if (byGoogle) {
+    if (intent === "signup" && byGoogle.role !== "customer") throw new Error("google_account_type_exists");
+    return byGoogle;
+  }
 
   const byEmail = await User.findOne({ email: profile.email });
   if (byEmail) {
-    // Google has proved this person owns the inbox, so link the accounts.
-    const unset: Record<string, 1> = { emailVerificationTokenHash: 1, emailVerificationExpires: 1, emailVerificationSentAt: 1 };
-    const set: Record<string, unknown> = { googleId: profile.sub, emailVerified: true };
-    if (byEmail.emailVerified === false) {
-      // Nobody ever confirmed this address, so whoever chose that password may
-      // not be the owner. Drop it; the owner can set one via "Forgot password".
-      unset.password = 1;
-      set.passwordChangedAt = new Date();
-    }
-    if (!byEmail.avatar && profile.picture) set.avatar = profile.picture;
-    await User.updateOne({ _id: byEmail._id }, { $set: set, $unset: unset });
-    return User.findById(byEmail._id);
+    if (byEmail.emailVerified === false) throw new Error("google_email_needs_verification");
+    if (intent === "signup" && byEmail.role !== "customer") throw new Error("google_account_type_exists");
+    const update: { $set: Record<string, unknown>; $unset?: Record<string, 1> } = {
+      $set: { googleId: profile.sub, emailVerified: true, authProvider: "google" },
+    };
+    if (!byEmail.avatar && profile.picture) update.$set.avatar = profile.picture;
+    const linked = await User.findByIdAndUpdate(byEmail._id, update, { new: true });
+    return linked;
   }
 
-  const [first, ...rest] = (profile.name || profile.email.split("@")[0]).split(" ");
+  const [firstName, ...lastParts] = (profile.name || profile.email.split("@")[0]).split(" ");
   const user = await User.create({
     email: profile.email,
     googleId: profile.sub,
-    firstName: profile.givenName || first,
-    lastName: profile.familyName || rest.join(" "),
+    authProvider: "google",
+    firstName: profile.givenName || firstName,
+    lastName: profile.familyName || lastParts.join(" "),
     avatar: profile.picture,
-    role: "customer", // Shop accounts need shop details, so they sign up with the form.
+    role: "customer",
     isVerified: false,
     emailVerified: true,
   });
   await createNotification({
     userId: user._id.toString(),
     type: "system",
-    title: "Welcome to Pakalale! 🎉",
-    message: `Hey ${user.firstName}! Start by browsing shops near you or searching for products.`,
+    title: "Welcome to Pakalale!",
+    message: `Hey ${user.firstName}! Start by browsing shops and products.`,
     actionUrl: "/customer",
   }).catch((error) => console.error("Welcome notification failed:", error));
   return user;
 }
 
-/** Google sends the browser back here after the user picks an account. */
 export async function GET(request: NextRequest) {
   const base = appUrl(request);
   const params = request.nextUrl.searchParams;
-  const saved = readState(request);
-
-  // A popup goes to a page that tells the opening tab and closes itself, so
-  // the main tab's history never includes Google's pages.
+  const state = readState(request);
   const finish = (query: string) => {
-    const done = saved?.popup
-      ? `/google-done?${query.startsWith("error=") ? `status=error&${query}` : "status=done"}`
+    const isError = query.startsWith("error=");
+    const destination = state?.popup
+      ? `/google-done?${isError ? `status=error&${query}` : "status=done"}`
       : `/login?${query}`;
-    const response = NextResponse.redirect(new URL(done, base), 303);
+    const response = NextResponse.redirect(new URL(destination, base), 303);
     response.cookies.set(GOOGLE_STATE_COOKIE, "", { ...cookieOptions(request), path: "/api/auth/google", maxAge: 0 });
     return response;
   };
 
   if (params.get("error")) return finish("error=google_cancelled");
-
   const config = googleConfig();
   const code = params.get("code");
   if (!config) return finish("error=google_unavailable");
-  // The state must match the cookie set when this browser started the flow.
-  if (!saved || !code || params.get("state") !== saved.state) return finish("error=google_failed");
+  if (!state || !code || params.get("state") !== state.state) return finish("error=google_failed");
 
   try {
-    const profile = await exchangeGoogleCode(request, config, code, saved);
+    const profile = await exchangeGoogleCode(request, config, code, state);
     if (!profile.emailVerified) return finish("error=google_unverified");
-
     await connectToDatabase();
-    const user = await accountFor(profile);
+    const user = await accountFor(profile, state.intent || "signin");
     if (!user) return finish("error=google_failed");
 
     const query = new URLSearchParams({ google: "done" });
-    if (saved.next) query.set("next", saved.next);
+    if (state.next) query.set("next", state.next);
     const response = finish(query.toString());
     setSessionCookie(request, response, user._id.toString());
     return response;
   } catch (error) {
     console.error("Google sign-in error:", error);
-    return finish("error=google_failed");
+    const code = error instanceof Error && ["google_email_needs_verification", "google_account_type_exists"].includes(error.message)
+      ? error.message
+      : "google_failed";
+    return finish(`error=${code}`);
   }
 }

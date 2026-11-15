@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { getSessionUser } from "@/lib/session";
 import ProductView from "@/models/ProductView";
 import Product from "@/models/Product";
 
@@ -9,8 +8,7 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { productId, source } = body;
-    const viewer = await getSessionUser(request);
+    const { productId, userId, source } = body;
 
     if (!productId) {
       return NextResponse.json({ error: "productId is required" }, { status: 400 });
@@ -19,8 +17,7 @@ export async function POST(request: NextRequest) {
     // Record the view
     await ProductView.create({
       productId: new mongoose.Types.ObjectId(productId),
-      // Attribute the view only to the signed-in viewer, never to a claimed id.
-      userId: viewer ? new mongoose.Types.ObjectId(viewer.id) : undefined,
+      userId: userId ? new mongoose.Types.ObjectId(userId) : undefined,
       source: source || "direct",
     });
 

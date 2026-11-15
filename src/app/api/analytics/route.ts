@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession, forbidden } from "@/lib/session";
 import Shop from "@/models/Shop";
 import ShopView from "@/models/ShopView";
 import Product from "@/models/Product";
@@ -25,17 +24,6 @@ export async function GET(request: NextRequest) {
 
     if (!shopIdParam) {
       return NextResponse.json({ error: "shopId is required" }, { status: 400 });
-    }
-
-    // Shop analytics are for the shop's owner and admins only.
-    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
-    if (auth.response) return auth.response;
-    if (auth.user.role !== "admin") {
-      const owns = await Shop.exists({
-        ownerId: auth.user.id,
-        ...(mongoose.isValidObjectId(shopIdParam) ? { $or: [{ _id: shopIdParam }, { ownerId: shopIdParam }] } : { _id: null }),
-      });
-      if (!owns) return forbidden();
     }
 
     const cacheKey = `analytics:v2:${shopIdParam}`;

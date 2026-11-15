@@ -4,10 +4,12 @@ export interface User {
   firstName: string;
   lastName: string;
   avatar?: string;
+  authProvider?: "email" | "google";
   role: "customer" | "shop_owner" | "admin";
   isVerified: boolean;
   location?: string;
   phone?: string;
+  defaultAddress?: string;
   bio?: string;
   interestedCategories?: string[];
   lastActiveAt?: string;

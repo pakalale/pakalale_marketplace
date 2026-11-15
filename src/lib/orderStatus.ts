@@ -1,37 +1,28 @@
-import type { OrderData } from "@/hooks/useApi";
-import { deliveryOption } from "@/lib/delivery";
-
-type Status = OrderData["status"];
-
-/** The path an order normally takes, in order. */
-export const ORDER_STEPS: Array<{ status: Status; label: string }> = [
-  { status: "pending", label: "Placed" },
-  { status: "confirmed", label: "Confirmed" },
-  { status: "preparing", label: "Preparing" },
-  { status: "ready", label: "Ready" },
-  { status: "completed", label: "Completed" },
-];
-
-export const STATUS_STYLES: Record<Status, { label: string; className: string }> = {
-  pending: { label: "Placed", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  confirmed: { label: "Confirmed", className: "bg-sky-500/15 text-sky-700 dark:text-sky-400" },
-  preparing: { label: "Preparing", className: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400" },
-  ready: { label: "Ready", className: "bg-teal-500/15 text-teal-700 dark:text-teal-400" },
-  completed: { label: "Completed", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  cancelled: { label: "Cancelled", className: "bg-destructive/15 text-destructive" },
+export const ORDER_STATUS_LABELS: Record<string, string> = {
+  order_received: "Order received",
+  in_store: "In store",
+  out_for_delivery: "Out for delivery",
+  ready_for_pickup: "Ready for pickup",
+  delivered: "Delivered",
+  received: "Received",
+  cancelled: "Cancelled",
+  pending: "Order received",
+  confirmed: "In store",
+  preparing: "In store",
+  ready: "Ready for pickup",
+  completed: "Received",
 };
 
-export const orderNumber = (id: string) => `#${id.slice(-6).toUpperCase()}`;
-
-export function orderShopName(order: OrderData) {
-  return typeof order.shopId === "object" ? order.shopId.name : "Shop";
+export function orderStatusLabel(status: string) {
+  return ORDER_STATUS_LABELS[status] || "Order received";
 }
 
-export function orderDeliveryLabel(order: OrderData) {
-  return deliveryOption(order.deliveryMethod)?.label ?? "Arranged with the shop";
+export function sellerOrderStatuses(deliveryMethod?: string) {
+  return deliveryMethod === "pickup"
+    ? ["in_store", "ready_for_pickup", "cancelled"]
+    : ["in_store", "out_for_delivery", "delivered", "cancelled"];
 }
 
-/** Older orders have no subtotal: their total is items only. */
-export function orderSubtotal(order: OrderData) {
-  return order.subtotal ?? order.total - (order.deliveryFee ?? 0);
+export function customerCanConfirmReceived(status: string) {
+  return status === "delivered" || status === "ready_for_pickup";
 }

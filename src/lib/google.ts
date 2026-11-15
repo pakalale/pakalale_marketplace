@@ -1,15 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { NextRequest } from "next/server";
 import { appUrl } from "@/lib/email";
 
-/**
- * "Sign in with Google" using the server-side authorization code flow.
- * Docs: https://developers.google.com/identity/openid-connect/openid-connect
- */
-
-/** Short-lived cookie that ties Google's redirect back to the browser that started it. */
 export const GOOGLE_STATE_COOKIE = "pakalale-google";
-export const GOOGLE_STATE_MAX_AGE = 10 * 60; // seconds
+export const GOOGLE_STATE_MAX_AGE = 10 * 60;
 
 export function googleConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -17,37 +12,36 @@ export function googleConfig() {
   return clientId && clientSecret ? { clientId, clientSecret } : null;
 }
 
-/** Must match an "Authorized redirect URI" in Google Cloud Console exactly. */
 export function googleRedirectUri(request: NextRequest) {
   return `${appUrl(request)}/api/auth/google/callback`;
 }
 
 const random = () => randomBytes(32).toString("base64url");
+const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
 export interface GoogleState {
   state: string;
   nonce: string;
   verifier: string;
   next: string | null;
-  /** Started in a popup: the callback reports back to the opening tab. */
   popup?: boolean;
+  intent: "signin" | "signup";
 }
 
-export function newGoogleState(next: string | null, popup = false): GoogleState {
-  return { state: random(), nonce: random(), verifier: random(), next, popup };
+export function newGoogleState(next: string | null, popup = false, intent: "signin" | "signup" = "signin"): GoogleState {
+  return { state: random(), nonce: random(), verifier: random(), next, popup, intent };
 }
 
-export function googleAuthUrl(request: NextRequest, clientId: string, s: GoogleState) {
+export function googleAuthUrl(request: NextRequest, clientId: string, state: GoogleState) {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.search = new URLSearchParams({
     client_id: clientId,
     redirect_uri: googleRedirectUri(request),
     response_type: "code",
     scope: "openid email profile",
-    state: s.state,
-    nonce: s.nonce,
-    // PKCE: a stolen authorization code is useless without the verifier we keep.
-    code_challenge: createHash("sha256").update(s.verifier).digest("base64url"),
+    state: state.state,
+    nonce: state.nonce,
+    code_challenge: createHash("sha256").update(state.verifier).digest("base64url"),
     code_challenge_method: "S256",
     prompt: "select_account",
   }).toString();
@@ -64,14 +58,13 @@ export interface GoogleProfile {
   picture?: string;
 }
 
-/** Swaps the authorization code for the user's verified profile, or throws. */
 export async function exchangeGoogleCode(
   request: NextRequest,
   config: { clientId: string; clientSecret: string },
   code: string,
-  s: GoogleState
+  state: GoogleState
 ): Promise<GoogleProfile> {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
+  const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -80,25 +73,20 @@ export async function exchangeGoogleCode(
       client_secret: config.clientSecret,
       redirect_uri: googleRedirectUri(request),
       grant_type: "authorization_code",
-      code_verifier: s.verifier,
+      code_verifier: state.verifier,
     }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || typeof data.id_token !== "string") {
-    throw new Error(`Google token exchange failed: ${data.error || res.status}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || typeof data.id_token !== "string") {
+    throw new Error(`Google token exchange failed: ${data.error || response.status}`);
   }
 
-  // The ID token came straight from Google over TLS, so Google's docs allow
-  // reading it without checking the signature. The claims are still checked.
-  const claims = JSON.parse(Buffer.from(data.id_token.split(".")[1] ?? "", "base64url").toString("utf8"));
+  const { payload: claims } = await jwtVerify(data.id_token, googleKeys, {
+    issuer: ["https://accounts.google.com", "accounts.google.com"],
+    audience: config.clientId,
+  });
   if (
-    !["https://accounts.google.com", "accounts.google.com"].includes(claims.iss) ||
-    claims.aud !== config.clientId ||
-    typeof claims.exp !== "number" ||
-    claims.exp * 1000 < Date.now() ||
-    claims.nonce !== s.nonce ||
-    typeof claims.sub !== "string" ||
-    typeof claims.email !== "string"
+    claims.nonce !== state.nonce || typeof claims.sub !== "string" || typeof claims.email !== "string"
   ) {
     throw new Error("Google ID token failed validation");
   }
@@ -106,10 +94,10 @@ export async function exchangeGoogleCode(
   return {
     sub: claims.sub,
     email: claims.email.trim().toLowerCase(),
-    emailVerified: claims.email_verified === true || claims.email_verified === "true",
-    givenName: claims.given_name,
-    familyName: claims.family_name,
-    name: claims.name,
-    picture: claims.picture,
+    emailVerified: claims.email_verified === true,
+    givenName: typeof claims.given_name === "string" ? claims.given_name : undefined,
+    familyName: typeof claims.family_name === "string" ? claims.family_name : undefined,
+    name: typeof claims.name === "string" ? claims.name : undefined,
+    picture: typeof claims.picture === "string" ? claims.picture : undefined,
   };
 }

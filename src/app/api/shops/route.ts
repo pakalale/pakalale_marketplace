@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession, forbidden } from "@/lib/session";
 import Shop from "@/models/Shop";
 import Product from "@/models/Product";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
@@ -224,17 +223,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
-    if (auth.response) return auth.response;
-
     await connectToDatabase();
-    // Verification, ownership and ratings are set by admins and customers, not the shop.
-    /* eslint-disable @typescript-eslint/no-unused-vars */
-    const {
-      id, ownerId, status, rating, totalReviews, totalViews,
-      verifiedAt, verifiedBy, rejectionReason, ...updateData
-    } = await request.json();
-    /* eslint-enable @typescript-eslint/no-unused-vars */
+    const body = await request.json();
+    const { id, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Shop ID is required" }, { status: 400 });
@@ -247,9 +238,6 @@ export async function PUT(request: NextRequest) {
     }
     if (!shop) {
       return NextResponse.json({ error: "Shop not found" }, { status: 404 });
-    }
-    if (auth.user.role !== "admin" && String(shop.ownerId) !== auth.user.id) {
-      return forbidden("You can only edit your own shop");
     }
 
     // Update using the actual shop _id

@@ -5,24 +5,33 @@ export function homeForRole(role?: string) {
   return "/customer";
 }
 
-/** Sign-in steps and endpoints are never a place to return to. */
-const NOT_A_DESTINATION = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/google-done", "/api/"];
+/**
+ * Pages that make no sense as a destination after auth. The landing page is
+ * exact-match only: every real path starts with "/", so a prefix check here
+ * would reject all of them.
+ */
+const NOT_A_DESTINATION = ["", "/"];
+const NOT_A_DESTINATION_PREFIXES = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/google-done", "/api/"];
 
 /** Only same-site paths, so a crafted ?next= cannot send people off-site. */
 export function safeNextPath(value: string | null | undefined) {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return null;
-  if (NOT_A_DESTINATION.some((prefix) => value.startsWith(prefix))) return null;
+  const path = value.split(/[?#]/)[0];
+  if (NOT_A_DESTINATION.includes(path)) return null;
+  if (NOT_A_DESTINATION_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return null;
   return value;
 }
 
 /**
- * Where to go after sign-in: the page the person came from, or the store if
- * none was recorded. A page in another role's area (e.g. a buyer heading to
- * /shop) sends them to their own area instead.
+ * Where to go after sign-in: the page the person came from, or their own
+ * dashboard if none was recorded. A page in another role's area (e.g. a buyer
+ * heading to /shop) sends them to their own area instead, and the landing page
+ * is never a destination — every account has its own dashboard.
  */
 export function destinationAfterLogin(role: string, requested: string | null | undefined) {
   const next = safeNextPath(requested);
-  if (!next) return "/";
+  if (!next) return homeForRole(role);
+  if (next === "/checkout" || next === "/customer/checkout") return homeForRole(role);
   const area = next.startsWith("/admin") ? "admin" : next.startsWith("/shop") ? "shop_owner" : next.startsWith("/customer") ? "customer" : null;
   if (area && area !== role) return homeForRole(role);
   return next;
@@ -66,6 +75,8 @@ const SITE_PAGE_KEY = "lastSitePage";
 /** Called by the site layout on every page, so sign-in's Back knows where to go. */
 export function rememberSitePage(path: string) {
   try {
+    // Don't remember the landing page - it's only for account creation
+    if (path === "/") return;
     sessionStorage.setItem(SITE_PAGE_KEY, path);
   } catch {
     /* storage unavailable: Back falls back to the home page */
@@ -82,9 +93,9 @@ export function lastSitePage() {
 }
 
 /**
- * The page to return to after signing in: an explicit ?next=, then a page a
- * "sign in to continue" button saved, then the last store page this tab saw.
+ * An intentional post-sign-in destination: an explicit ?next=, then a page a
+ * "sign in to continue" button saved. Browsing history is not a login target.
  */
 export function returnTarget(next: string | null | undefined) {
-  return safeNextPath(next) ?? peekReturnPath() ?? lastSitePage();
+  return safeNextPath(next) ?? peekReturnPath();
 }

@@ -1,10 +1,9 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession, forbidden } from "@/lib/session";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
-import { shopIdsInMarket } from "@/lib/marketShops";
+import { Location } from "@/models/FeedPost";
 
 // Keep the populated shop reference on public product cards so the storefront
 // can show "Sold by <shop>" without a second request per product.
@@ -62,25 +61,6 @@ export async function GET(request: NextRequest) {
       query.$expr = { $gt: ["$originalPrice", "$price"] };
     }
 
-    // Price range from the filter panel; ignore blank or invalid bounds.
-    const bound = (name: string) => {
-      const value = Number(searchParams.get(name));
-      return searchParams.get(name) && Number.isFinite(value) && value >= 0 ? value : null;
-    };
-    const minPrice = bound("minPrice");
-    const maxPrice = bound("maxPrice");
-    if (minPrice !== null || maxPrice !== null) {
-      query.price = {
-        ...(minPrice !== null && { $gte: minPrice }),
-        ...(maxPrice !== null && { $lte: maxPrice }),
-      };
-    }
-
-    const brands = searchParams.getAll("brand").filter(Boolean).slice(0, 20);
-    if (brands.length > 0) query.brand = { $in: brands };
-
-    if (searchParams.get("inStock") === "true") query.stock = { $gt: 0 };
-
     const shopIdParam = searchParams.get("shopId");
     if (shopIdParam) {
       // Resolve ownerId to Shop._id if needed
@@ -101,10 +81,16 @@ export async function GET(request: NextRequest) {
       query.isAvailable = true;
     }
 
-    // Market filter: products only know their shop, so match the market's shops.
+    // Market filter: products do not store a location, so resolve the shops in
+    // that market (by id or slug) and filter products by those shop ids.
     const locationId = searchParams.get("locationId");
     if (locationId && !shopIdParam) {
-      query.shopId = { $in: await shopIdsInMarket(locationId) };
+      const locationQuery: Record<string, unknown>[] = [{ slug: locationId }];
+      if (mongoose.isValidObjectId(locationId)) locationQuery.push({ _id: locationId });
+      const location = await Location.findOne({ $or: locationQuery }).lean();
+      const locationIds = [locationId, location?._id?.toString(), location?.slug].filter(Boolean) as string[];
+      const shopsInLocation = await Shop.find({ locationId: { $in: locationIds } }).select("_id").lean();
+      query.shopId = { $in: shopsInLocation.map((shop) => shop._id) };
     }
 
     const sort = searchParams.get("sort") || "createdAt";
@@ -142,24 +128,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** True when the caller owns the product's shop, or is an admin. */
-async function canManageProduct(user: { id: string; role: string }, productId: string) {
-  if (user.role === "admin") return true;
-  if (!mongoose.isValidObjectId(productId)) return false;
-  const product = await Product.findById(productId).select("shopId").lean();
-  if (!product) return false;
-  return Boolean(await Shop.exists({ _id: product.shopId, ownerId: user.id }));
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
-    if (auth.response) return auth.response;
-
     await connectToDatabase();
-    // Ratings, reviews and views are earned, not set by the seller.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { views, rating, reviews, demandScore, ...body } = await request.json();
+    const body = await request.json();
 
     if (typeof body.description !== "string" || !body.description.trim()) {
       return NextResponse.json({ error: "Product description is required" }, { status: 400 });
@@ -175,16 +147,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "At least one product photo is required" }, { status: 400 });
     }
 
-    // Sellers can only add to their own shop. Admins may name any shop.
-    if (auth.user.role === "admin" && body.shopId) {
+    // Resolve ownerId to Shop._id if the shopId is actually a user ID
+    if (body.shopId) {
       const existingShop = await Shop.findById(body.shopId).select("_id").lean();
-      const shop = existingShop || (await Shop.findOne({ ownerId: body.shopId }).select("_id").lean());
-      if (!shop) return NextResponse.json({ error: "Shop not found" }, { status: 404 });
-      body.shopId = shop._id;
-    } else {
-      const ownShop = await Shop.findOne({ ownerId: auth.user.id }).select("_id").lean();
-      if (!ownShop) return NextResponse.json({ error: "Create your shop first" }, { status: 400 });
-      body.shopId = ownShop._id;
+      if (!existingShop) {
+        const shopByOwner = await Shop.findOne({ ownerId: body.shopId }).select("_id").lean();
+        if (shopByOwner) {
+          body.shopId = shopByOwner._id;
+        }
+      }
     }
 
     const product = await Product.create(body);
@@ -197,18 +168,13 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
-    if (auth.response) return auth.response;
-
     await connectToDatabase();
-    // A product cannot be moved to another shop or given ratings or views.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, shopId, views, rating, reviews, demandScore, ...updateData } = await request.json();
+    const body = await request.json();
+    const { id, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
     }
-    if (!(await canManageProduct(auth.user, id))) return forbidden("You can only edit your own products");
 
     if (updateData.description !== undefined && (typeof updateData.description !== "string" || !updateData.description.trim())) {
       return NextResponse.json({ error: "Product description is required" }, { status: 400 });
@@ -235,10 +201,6 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
     }
-
-    const auth = await requireSession(request, { roles: ["shop_owner", "admin"] });
-    if (auth.response) return auth.response;
-    if (!(await canManageProduct(auth.user, id))) return forbidden("You can only delete your own products");
 
     await Product.findByIdAndDelete(id);
     return NextResponse.json({ success: true });

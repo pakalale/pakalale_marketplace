@@ -24,12 +24,22 @@ Install Docker, then create a `.env` file in the project directory with the sett
 ```env
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>/<database>
 NEXTAUTH_SECRET=replace-with-a-random-secret
+APP_URL=https://your-domain.example
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+SMTP_HOST=smtp.your-provider.example
+SMTP_PORT=587
+SMTP_USER=your-smtp-username
+SMTP_PASS=your-smtp-password
+EMAIL_FROM=Pakalale <no-reply@your-domain.example>
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 ```
 
 Cloudinary settings are needed for image uploads. Keep `.env` private; do not commit credentials. Build and run the container:
+
+For Google sign-in, register `${APP_URL}/api/auth/google/callback` as an authorized redirect URI in Google Cloud Console. SMTP sends account confirmation links. Without SMTP, development prints the link in the server log; production skips email confirmation if SMTP is not configured.
 
 ```bash
 docker build -t pakalale .

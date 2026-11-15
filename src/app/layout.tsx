@@ -4,7 +4,6 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import SuppressExtensionErrors from "@/components/SuppressExtensionErrors";
 import ContextMenuBlocker from "@/components/ContextMenuBlocker";
-import SessionWatcher from "@/components/auth/SessionWatcher";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { themeInitScript } from "@/lib/theme";
 
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   title: "Pakalale — Your Local Trading Platform",
   description:
     "Connect with local shops across Lusaka's major trading areas. Find products, compare prices, and support your community.",
-  icons: { icon: "/logo.jpeg", apple: "/logo.jpeg" },
+  icons: { icon: "/logo.png", apple: "/logo.png" },
 };
 
 export const viewport = {
@@ -46,7 +45,6 @@ export default function RootLayout({
         <ThemeProvider>
           <SuppressExtensionErrors />
           <ContextMenuBlocker />
-          <SessionWatcher />
           {children}
           <Toaster
             position="top-right"

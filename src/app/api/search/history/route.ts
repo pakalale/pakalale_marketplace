@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession } from "@/lib/session";
 import SearchHistory from "@/models/SearchHistory";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
 
@@ -15,8 +14,6 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
-    const auth = await requireSession(request, { actingAs: userId });
-    if (auth.response) return auth.response;
 
     const cacheKey = `searchhistory:${userId}:${limit}`;
     const cached = getCached(cacheKey);
@@ -53,8 +50,6 @@ export async function POST(request: NextRequest) {
     if (!userId || !query) {
       return NextResponse.json({ error: "userId and query are required" }, { status: 400 });
     }
-    const auth = await requireSession(request, { actingAs: userId });
-    if (auth.response) return auth.response;
 
     const record = await SearchHistory.create({
       userId: new mongoose.Types.ObjectId(userId),
@@ -82,8 +77,6 @@ export async function DELETE(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
-    const auth = await requireSession(request, { actingAs: userId });
-    if (auth.response) return auth.response;
 
     await SearchHistory.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
     return NextResponse.json({ success: true });

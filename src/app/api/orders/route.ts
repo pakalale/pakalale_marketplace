@@ -2,14 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { createNotification } from "@/lib/notifications";
-import { deliveryOption } from "@/lib/delivery";
 import { getSessionUser } from "@/lib/session";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
+import User from "@/models/User";
 import { FeedPost } from "@/models/FeedPost";
+import { sellerOrderStatuses } from "@/lib/orderStatus";
 
-const ORDER_STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"];
+const DELIVERY_FEES = { yango: 60, indrive: 60, pickup: 0 } as const;
+const ORDER_STATUSES = ["order_received", "in_store", "out_for_delivery", "ready_for_pickup", "delivered", "received", "cancelled", "pending", "confirmed", "preparing", "ready", "completed"];
+
+function allowedSellerTransition(current: string, next: string, deliveryMethod?: string) {
+  if (next === "cancelled") return !["delivered", "received", "completed", "cancelled"].includes(current);
+  if (current === "order_received" || ["pending", "confirmed", "preparing"].includes(current)) return next === "in_store";
+  if (current === "in_store") return deliveryMethod === "pickup" ? next === "ready_for_pickup" : next === "out_for_delivery";
+  if (current === "out_for_delivery") return next === "delivered";
+  return false;
+}
 
 const notSignedIn = () => NextResponse.json({ error: "Please sign in" }, { status: 401 });
 const forbidden = () => NextResponse.json({ error: "You cannot access this order" }, { status: 403 });
@@ -33,11 +43,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const query: Record<string, unknown> = {};
-    const idParam = searchParams.get("id");
-    if (idParam) {
-      if (!mongoose.isValidObjectId(idParam)) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-      query._id = idParam;
-    }
     const customerParam = searchParams.get("customerId");
     if (customerParam) query.customerId = customerParam;
 
@@ -71,7 +76,7 @@ export async function GET(request: NextRequest) {
     const orders = await Order.find(query)
       .sort({ [sort]: order })
       .populate("customerId", "firstName lastName email")
-      .populate("shopId", "name")
+      .populate("shopId", "name ownerId profileImage locationId")
       .populate("items.productId", "name images")
       .lean();
 
@@ -80,7 +85,11 @@ export async function GET(request: NextRequest) {
         ...o,
         id: o._id.toString(),
         customerId: populateToStr(o.customerId),
-        shopId: populateToStr(o.shopId),
+        shopId: (() => {
+          const shop = o.shopId as unknown as Record<string, unknown>;
+          if (!shop || typeof shop !== "object" || !("_id" in shop)) return populateToStr(o.shopId);
+          return { ...shop, id: String(shop._id), ownerId: String(shop.ownerId) };
+        })(),
         items: o.items.map((item) => ({
           ...item,
           productId: populateToStr(item.productId),
@@ -103,25 +112,15 @@ export async function POST(request: NextRequest) {
     // The order belongs to the signed-in caller, never to an ID in the request.
     const session = await getSessionUser(request);
     if (!session) return notSignedIn();
+    if (session.role !== "customer") return forbidden();
     const customerId = session.id;
 
     await connectToDatabase();
-    const { shopId, items, subtotal, total, notes, paymentMethod, deliveryMethod, address, phone } = await request.json();
-    // Older clients sent the item total as `total`.
-    const clientSubtotal = typeof subtotal === "number" ? subtotal : total;
-
-    const delivery = deliveryOption(deliveryMethod);
-    if (!delivery) {
-      return NextResponse.json({ error: "Choose a delivery option" }, { status: 400 });
-    }
-    const cleanPhone = typeof phone === "string" ? phone.trim().slice(0, 40) : "";
-    const cleanAddress = typeof address === "string" ? address.trim().slice(0, 300) : "";
-    if (!cleanPhone) {
-      return NextResponse.json({ error: "Add a phone number so the shop can reach you" }, { status: 400 });
-    }
-    if (delivery.needsAddress && !cleanAddress) {
-      return NextResponse.json({ error: "Add a delivery address" }, { status: 400 });
-    }
+    const body = await request.json();
+    const { shopId, items, notes } = body;
+    const deliveryMethod = body.deliveryMethod as keyof typeof DELIVERY_FEES;
+    const paymentMethod = body.paymentMethod;
+    const subtotalInput = Number(body.subtotal ?? body.total);
 
     const lines: OrderLineInput[] = Array.isArray(items) ? items : [];
     const validLines = lines.every(
@@ -133,7 +132,14 @@ export async function POST(request: NextRequest) {
     if (
       !mongoose.isValidObjectId(shopId) ||
       lines.length === 0 ||
-      !validLines
+      !validLines ||
+      !Object.hasOwn(DELIVERY_FEES, deliveryMethod) ||
+      !["airtel_money", "cash"].includes(paymentMethod) ||
+      (deliveryMethod !== "pickup" && paymentMethod !== "airtel_money") ||
+      !Number.isFinite(subtotalInput) ||
+      typeof body.customerPhone !== "string" ||
+      !body.customerPhone.trim() ||
+      (deliveryMethod !== "pickup" && (typeof body.deliveryAddress !== "string" || !body.deliveryAddress.trim()))
     ) {
       return NextResponse.json({ error: "Invalid order details" }, { status: 400 });
     }
@@ -150,9 +156,6 @@ export async function POST(request: NextRequest) {
 
     const promotionPosts = products.length > 0
       ? await FeedPost.find({
-          // Only the selling shop's owner can set a promotion price. Anyone can
-          // post to the feed, so other people's "promotions" must not count.
-          authorId: shop.ownerId,
           relatedShopId: shop._id,
           relatedProductId: { $in: products.map((product) => product._id) },
           isPromotion: true,
@@ -205,44 +208,39 @@ export async function POST(request: NextRequest) {
     if (problems.length > 0) {
       return NextResponse.json({ error: problems.join(". "), current }, { status: 409 });
     }
-    if (serverTotal !== clientSubtotal) {
+    if (serverTotal !== subtotalInput) {
       return NextResponse.json(
         { error: "Prices have changed. Please review your order and try again.", current },
         { status: 409 }
       );
     }
 
-    // Each shop delivers its own order, so each order carries one delivery fee.
-    const orderTotal = serverTotal + delivery.fee;
-    const customerNote = typeof notes === "string" ? notes.trim().slice(0, 1000) : "";
+    const customer = await User.findById(customerId).select("firstName lastName").lean();
+    const customerName = [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || "Customer";
+    const customerPhone = body.customerPhone.trim().slice(0, 40);
     const order = await Order.create({
       customerId,
       shopId,
       items: orderItems,
+      status: "order_received",
       subtotal: serverTotal,
-      total: orderTotal,
-      deliveryMethod: delivery.id,
-      deliveryFee: delivery.fee,
-      deliveryAddress: delivery.needsAddress ? cleanAddress : undefined,
-      phone: cleanPhone,
-      paymentMethod: typeof paymentMethod === "string" ? paymentMethod.slice(0, 40) : undefined,
-      // The seller's order screen shows notes, so delivery details go there too.
-      notes: [
-        `Delivery: ${delivery.label}${delivery.fee ? ` (K${delivery.fee})` : ""}`,
-        `Phone: ${cleanPhone}`,
-        delivery.needsAddress && `Deliver to: ${cleanAddress}`,
-        customerNote && `Note: ${customerNote}`,
-      ].filter(Boolean).join("\n"),
+      deliveryMethod,
+      deliveryFee: DELIVERY_FEES[deliveryMethod],
+      total: serverTotal + DELIVERY_FEES[deliveryMethod],
+      paymentMethod,
+      customerPhone,
+      deliveryAddress: typeof body.deliveryAddress === "string" ? body.deliveryAddress.trim().slice(0, 500) : "",
+      notes: typeof notes === "string" ? notes.slice(0, 1000) : undefined,
     });
 
     await createNotification({
       userId: shop.ownerId.toString(),
       type: "order",
       title: "New order",
-      message: `New order worth K${orderTotal.toLocaleString()} (${delivery.label}) is waiting for you.`,
+      message: `${customerName} (${customerPhone}) placed a ${deliveryMethod === "pickup" ? "pickup" : "delivery"} order worth K${(serverTotal + DELIVERY_FEES[deliveryMethod]).toLocaleString()}.`,
       actionUrl: "/shop/orders",
       relatedId: order._id.toString(),
-    });
+    }).catch((error) => console.error("New order notification failed:", error));
 
     return NextResponse.json({ order: { ...order.toObject(), id: order._id.toString() } }, { status: 201 });
   } catch (error) {
@@ -266,20 +264,43 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invalid order status" }, { status: 400 });
     }
 
-    const existing = await Order.findById(id).select("shopId").lean();
+    const existing = await Order.findById(id).select("shopId customerId status deliveryMethod").lean();
     if (!existing) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Only the selling shop's owner (or an admin) moves an order along.
     if (session.role !== "admin") {
-      const ownsShop = await Shop.exists({ _id: existing.shopId, ownerId: session.id });
-      if (!ownsShop) return forbidden();
+      if (status === "received") {
+        const isCustomer = existing.customerId.toString() === session.id;
+        if (!isCustomer || !["delivered", "ready_for_pickup"].includes(existing.status)) return forbidden();
+      } else {
+        const ownsShop = await Shop.exists({ _id: existing.shopId, ownerId: session.id });
+        if (!ownsShop || !sellerOrderStatuses(existing.deliveryMethod).includes(status) || !allowedSellerTransition(existing.status, status, existing.deliveryMethod)) {
+          return forbidden();
+        }
+      }
     }
 
     const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).lean();
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const recipientId = status === "received" ? existing.shopId.toString() : existing.customerId.toString();
+    const notification = status === "received"
+      ? { title: "Order received", message: "The customer confirmed receiving this order." }
+      : { title: "Order update", message: `Your order status is now ${status.replaceAll("_", " ")}.` };
+    if (status !== "cancelled") {
+      await createNotification({
+        userId: status === "received"
+          ? (await Shop.findById(existing.shopId).select("ownerId").lean())?.ownerId.toString() || recipientId
+          : recipientId,
+        type: "order",
+        title: notification.title,
+        message: notification.message,
+        actionUrl: status === "received" ? "/shop/orders" : "/customer/orders",
+        relatedId: order._id.toString(),
+      });
     }
 
     return NextResponse.json({ order: { ...order, id: order._id.toString() } });

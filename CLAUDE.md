@@ -4,7 +4,7 @@
 
 Local-market trading platform: a public storefront (products, cart, wishlist, checkout), a community feed, buyer–seller chat with "deals", and dashboards for customers, shop owners and admins. Next.js 16 App Router + React 19, MongoDB via Mongoose, Socket.IO for realtime, Cloudinary for media, Tailwind v4 + shadcn (`base-nova` style on `@base-ui/react`).
 
-Next.js 16 differs from older versions. Read `node_modules/next/dist/docs/` before using a Next API you are unsure of. One example: route middleware lives in `src/proxy.ts` and exports `proxy`, not `middleware`.
+Next.js 16 differs from older versions. Read `node_modules/next/dist/docs/` before using a Next API you are unsure of. There is no route middleware file (`proxy.ts`); auth gating is done in the route-group layouts and in each API route via `requireSession`.
 
 ## Commands
 
@@ -41,7 +41,7 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
 
 ### Auth (custom; NextAuth has been removed)
 
-- `src/lib/sessionToken.ts`: HS256 JWT in the httpOnly cookie `pakalale-session` (30 days). It does not touch the DB, so it is safe to import from the proxy and the socket server.
+- `src/lib/sessionToken.ts`: HS256 JWT in the httpOnly cookie `pakalale-session` (30 days). It does not touch the DB, so it is safe to import from layouts and the socket server.
 - `src/lib/session.ts`: `setSessionCookie` / `clearSessionCookie`, `getSessionUser` (re-reads role from DB and rejects tokens issued before `passwordChangedAt`), and `requireSession(request, { roles?, actingAs? })`. That last one is the guard every protected API route uses:
   ```ts
   const auth = await requireSession(request, { roles: ["shop_owner"], actingAs: body.userId });
@@ -49,10 +49,10 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
   const { user } = auth;
   ```
   `actingAs` exists because older clients send their own user id. It must match the session (admins are exempt). Never trust a user id from the request body or query by itself.
-- `src/proxy.ts` redirects signed-out visitors away from `/customer`, `/shop` and `/admin` to `/login?next=…`. It checks the cookie only. API routes still enforce auth themselves.
+- There is no `src/proxy.ts`. Signed-out visitors are redirected to `/login` by the route-group layouts (`(dashboard)`, and the nested `customer`/`shop` layouts, plus `(admin)`), which check the session store; API routes still enforce auth themselves with `requireSession`.
 - Email verification and password reset use `src/lib/authTokens.ts`: random tokens, only the SHA-256 hash is stored. Routes are under `src/app/api/auth/*`.
 - Google sign-in (`src/lib/google.ts`) is a server-side OAuth code flow with state, PKCE and a nonce. `components/auth/GoogleButton` opens `GET /api/auth/google?mode=popup&next=` in a **popup**, so the main tab's history never contains Google's pages. The callback (`/api/auth/google/callback`, the URI registered with Google) links the Google account by `googleId` or by email; if that address was never verified, it drops the existing password. A new user becomes a `customer`. The callback then sets the session cookie and sends the popup to `/google-done`, which reports to the opening tab over a `BroadcastChannel` (plus `postMessage`) and closes. The opening tab loads the user from `/api/auth/me` and calls `router.replace` to the return page. If popups are blocked, the button falls back to a full-page redirect, and the callback lands on `/login?google=done`. Google-only users have no `password`.
-- After any sign-in, people return to where they came from: `returnTarget(next)` in `src/lib/authRedirect.ts` picks `?next=`, then a page saved by a "sign in to continue" button, then the last `(site)` page this tab visited, and finally `/`. `safeNextPath` allows only internal paths and rejects sign-in pages and `/api/`. Every hand-off uses `router.replace`, so Back never returns to `/login`. `/login` and `/signup` are guest-only and send signed-in people to `/`. `validateSession()` also restores a session from the cookie when nothing is stored in the browser.
+- After any sign-in, `returnTarget(next)` in `src/lib/authRedirect.ts` uses an explicit `?next=` or a page saved by a "sign in to continue" button; otherwise the user goes to their role's dashboard (`homeForRole`). The last public/customer page is used only by the auth Back button, not as an implicit login destination. `safeNextPath` allows only internal paths and rejects sign-in pages, `/api/` and the account landing page `/` (exact match, never a prefix). Every hand-off uses `router.replace`, so Back never returns to `/login`. `/login` and `/signup` are guest-only and send signed-in people to their role's dashboard. `validateSession()` also restores a session from the cookie when nothing is stored in the browser.
 - Client side: `src/store/authStore.ts` (Zustand, persisted as `auth-storage`) holds the client user (`toClientUser` in `src/lib/authUser.ts`). `validateSession()` checks `/api/auth/me`. `logout()` calls `/api/auth/logout`, because only the server can clear the cookie.
 - Roles: `customer`, `shop_owner`, `admin`. After login, customers go to `/customer`, shop owners to `/shop/feed`, admins to `/admin`. `src/lib/authRedirect.ts` builds `next=` links.
 
@@ -60,11 +60,12 @@ There is no test suite. CI (`.github/workflows/test.yml`) runs type check and bu
 
 Route groups in parentheses do not appear in URLs.
 
-- `(site)`: the store and the customer account. `(site)/layout.tsx` renders `components/site/SiteHeader` (logo → `/`, search, account menu, saved, cart, navy primary nav; a hamburger `MobileMenu` on phones) and the footer, and validates the saved login once. **No dead ends:** every interior page shows `Breadcrumbs` / `PageHeading`, and confirmation screens have a "Continue Shopping" button (`ContinueShopping` in `AuthShell`, `OrderComplete` in `CheckoutView`). Nav links live in `src/lib/siteNav.ts`; the header, mobile menu and account sidebar all read them from there.
-  - `(store)`: `/` (`Storefront`: hero, `FilterPanel`, product grid, live `CartPanel`; filters are URL params), `/markets` and `/markets/[slug]` (public market pages with their shops and products; `?shop=` narrows to one shop), `/cart`, `/checkout`, `/saved`, `/feed`, `/about`. Everyone, signed in or not, uses these. There are no separate `/customer/cart` or `/customer/checkout` pages; `next.config.ts` redirects the old URLs.
-  - `customer/`: customers only. `layout.tsx` gates on the session, sends other roles to their own area, and opens the global socket. `customer/(account)/` pages (overview, profile, orders, `orders/[orderId]`, addresses, chat, notifications, saved, settings) render inside `components/site/AccountShell`: "← Back to Shop", breadcrumbs taken from the URL, a sidebar on desktop and a scrollable tab bar on phones. `locations`, `search` and `profile/[userId]` are browse pages, with breadcrumbs but no sidebar.
-- `(auth)`: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`. These stand alone, with no site header or footer, inside `components/auth/AuthShell`. Its Back button returns to the last `(site)` page, which the site layout saves in sessionStorage (`rememberSitePage` / `lastSitePage` in `src/lib/authRedirect.ts`).
-- `(dashboard)`: `/shop/*` seller dashboard (`ShopNav`). `(admin)`: `/admin/*`. Both keep their own tool navigation; their logo and "View store" link go to `/`.
+- `(landing)`: public marketplace. `/` (`Storefront`: hero, `FilterPanel`, product grid, live `CartPanel`; filters are URL params), `/cart`, `/saved`, `/feed`. Everyone, signed in or not, uses these. Layout is `StoreLayout` (`components/landing/StoreHeader`, `Footer`, cart/wishlist sheets). Store UI and assets live in `src/components/landing/`. The public checkout lives at `/customer/checkout` (account area); guests are prompted to sign in first and then land on their account. Authenticated visitors are redirected to their own account area, so the landing frame never hosts a checkout.
+- `(auth)`: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`, `/google-done`. These stand alone, with no site header or footer, inside `components/auth/AuthShell`. Its Back button returns to the last landing page, which the landing layout saves in sessionStorage (`rememberSitePage` / `lastSitePage` in `src/lib/authRedirect.ts`).
+- `(dashboard)`: shared layout (`DashboardLayout`) handles session validation and role redirects for both customers and shop owners.
+  - `/customer/*`: customer area. Nested `customer/layout.tsx` gates on the session. Pages: overview, `cart`, `checkout`, `orders`, `orders/[orderId]`, `saved`, `settings`, `chat`, `notifications`, `locations`, `locations/[locationId]`, `search`, `profile/[userId]`. Account pages use `components/customer/CustomerTopBar` (hidden on home/account pages) plus page-level headers; there is no shared `AccountShell`.
+  - `/shop/*`: seller dashboard (`ShopNav`/`ShopBottomNav`). Nested `shop/layout.tsx` gates on `shop_owner`/`admin`. Pages: `feed`, `overview`, `products`, `orders`, `analytics`, `sales`, `history`, `chat`, `notifications`, `settings`, `profile/[userId]`, `virtual-shop`.
+- `(admin)`: `/admin/*` (dashboard, shops, users). Its own layout with sidebar; logo and "View store" link go to `/`.
 - `api/`: REST route handlers (`route.ts`). `feed/v2` and `search/v2` are the versions current clients use. The v1 routes remain. `api/products/facets` returns the filter-panel counts; `api/user/addresses` manages saved addresses.
 
 `PROJECT_DOCUMENTATION.md` has a page-by-page table, but parts of it are outdated.
@@ -79,7 +80,7 @@ API conventions: return `NextResponse.json({ error, code? }, { status })` on fai
 
 - Data fetching: `src/hooks/useApi.ts` (in-memory stale-while-revalidate cache with request dedupe) and `useCountPolling`. Realtime goes through `useSocket` / `useGlobalSocket`.
 - State: Zustand stores in `src/store/` (auth, cart with the chosen `delivery`, wishlist, deals, notifications, online presence, typing).
-- UI: shadcn primitives in `src/components/ui/`, storefront pieces in `src/components/landing/`, feature components at the top of `src/components/`. Icons come from lucide-react, animation from framer-motion, toasts from react-hot-toast, and forms use react-hook-form + zod.
+- UI: shadcn primitives in `src/components/ui/`, public-storefront pieces in `src/components/landing/`, customer area pieces in `src/components/customer/`, feature components at the top of `src/components/`. Icons come from lucide-react, animation from framer-motion, toasts from react-hot-toast, and forms use react-hook-form + zod.
 - Theme: light is the default. Dark mode uses the `.dark` class. `src/lib/theme.ts` holds the storage key `pakalale-theme` and an inline init script loaded in `app/layout.tsx`. Colour tokens live in `src/app/globals.css`. Use the existing palette: mustard `#ffb800` and brand blue `#002583`.
 - Path alias: `@/*` → `src/*`.
 

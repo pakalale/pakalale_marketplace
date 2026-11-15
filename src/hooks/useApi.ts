@@ -152,10 +152,6 @@ export function useProducts(params?: {
   hasMedia?: boolean;
   onSale?: boolean;
   locationId?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  brands?: string[];
-  inStock?: boolean;
   sort?: string;
   order?: "asc" | "desc";
   page?: number;
@@ -172,10 +168,6 @@ export function useProducts(params?: {
   if (params?.hasMedia) searchParams.set("hasMedia", "true");
   if (params?.onSale) searchParams.set("onSale", "true");
   if (params?.locationId && params.locationId !== "all") searchParams.set("locationId", params.locationId);
-  if (params?.minPrice !== undefined) searchParams.set("minPrice", String(params.minPrice));
-  if (params?.maxPrice !== undefined) searchParams.set("maxPrice", String(params.maxPrice));
-  params?.brands?.forEach((brand) => searchParams.append("brand", brand));
-  if (params?.inStock) searchParams.set("inStock", "true");
   if (params?.sort) searchParams.set("sort", params.sort);
   if (params?.order) searchParams.set("order", params.order);
   if (params?.page) searchParams.set("page", String(params.page));
@@ -205,23 +197,6 @@ export function useProducts(params?: {
   ]);
 }
 
-export interface ProductFacets {
-  categories: Array<{ name: string; count: number }>;
-  brands: Array<{ name: string; count: number }>;
-  inStock: number;
-  onSale: number;
-  price: { min: number; max: number };
-}
-
-/** Counts for the storefront filter panel. */
-export function useProductFacets(scope?: { locationId?: string; shopId?: string }) {
-  const query = new URLSearchParams();
-  if (scope?.shopId) query.set("shopId", scope.shopId);
-  else if (scope?.locationId) query.set("locationId", scope.locationId);
-  const qs = query.toString();
-  return useFetch<ProductFacets>(`/api/products/facets${qs ? `?${qs}` : ""}`, [qs]);
-}
-
 export interface ProductData {
   id: string;
   name: string;
@@ -238,7 +213,6 @@ export interface ProductData {
   rating: number;
   reviews: number;
   tags?: string[];
-  brand?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -329,9 +303,8 @@ export async function updateShop(id: string, data: Record<string, unknown>) {
 }
 
 // ── Orders ──
-export function useOrders(params?: { shopId?: string; customerId?: string; status?: string; id?: string }) {
+export function useOrders(params?: { shopId?: string; customerId?: string; status?: string }) {
   const searchParams = new URLSearchParams();
-  if (params?.id) searchParams.set("id", params.id);
   if (params?.shopId) searchParams.set("shopId", params.shopId);
   if (params?.customerId) searchParams.set("customerId", params.customerId);
   if (params?.status && params.status !== "all") searchParams.set("status", params.status);
@@ -339,7 +312,7 @@ export function useOrders(params?: { shopId?: string; customerId?: string; statu
   const qs = searchParams.toString();
   const url = `/api/orders${qs ? `?${qs}` : ""}`;
 
-  return useFetch<{ orders: OrderData[] }>(url, [params?.shopId, params?.customerId, params?.status, params?.id]);
+  return useFetch<{ orders: OrderData[] }>(url, [params?.shopId, params?.customerId, params?.status]);
 }
 
 export interface OrderData {
@@ -352,12 +325,7 @@ export interface OrderData {
     price: number;
   }>;
   status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
-  subtotal?: number;
   total: number;
-  deliveryMethod?: string;
-  deliveryFee?: number;
-  deliveryAddress?: string;
-  phone?: string;
   paymentMethod?: string;
   notes?: string;
   createdAt: string;

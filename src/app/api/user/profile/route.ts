@@ -1,26 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { getSessionUser, requireSession } from "@/lib/session";
 import User from "@/models/User";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
-
-type ProfileResult = { user: { email?: string; phone?: string; role: string } & Record<string, unknown> };
-
-/**
- * Profiles are public, but a person's email and phone are only for them and
- * admins. A shop owner's phone stays visible because customers call shops.
- */
-async function visibleProfile(request: NextRequest, userId: string, result: ProfileResult) {
-  const viewer = await getSessionUser(request);
-  if (viewer && (viewer.id === userId || viewer.role === "admin")) return result;
-  return {
-    user: {
-      ...result.user,
-      email: undefined,
-      phone: result.user.role === "shop_owner" ? result.user.phone : undefined,
-    },
-  };
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,10 +14,10 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = `profile:${userId}`;
     const cached = getCached(cacheKey);
-    if (cached) return NextResponse.json(await visibleProfile(request, userId, cached as ProfileResult));
+    if (cached) return NextResponse.json(cached);
 
     const user = await User.findById(userId)
-      .select("-password")
+      .select("-password +googleId")
       .lean();
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -53,6 +34,8 @@ export async function GET(request: NextRequest) {
         isVerified: user.isVerified,
         location: user.location,
         phone: user.phone,
+        defaultAddress: user.defaultAddress,
+        authProvider: user.authProvider || (user.googleId ? "google" : "email"),
         bio: user.bio,
         lastActiveAt: user.lastActiveAt?.toISOString?.() || null,
         createdAt: user.createdAt?.toISOString?.() || "",
@@ -60,7 +43,7 @@ export async function GET(request: NextRequest) {
       },
     };
     setCache(cacheKey, result, 30_000); // 30s cache
-    return NextResponse.json(await visibleProfile(request, userId, result));
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Profile GET error:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
@@ -76,11 +59,9 @@ export async function PUT(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
-    const auth = await requireSession(request, { actingAs: userId });
-    if (auth.response) return auth.response;
 
     // Only allow updating certain fields
-    const allowedFields = ["firstName", "lastName", "phone", "location", "bio", "avatar", "lastActiveAt"];
+    const allowedFields = ["firstName", "lastName", "phone", "location", "defaultAddress", "bio", "avatar", "lastActiveAt"];
     const safeUpdate: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
@@ -89,7 +70,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const user = await User.findByIdAndUpdate(userId, safeUpdate, { new: true })
-      .select("-password")
+      .select("-password +googleId")
       .lean();
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -107,6 +88,8 @@ export async function PUT(request: NextRequest) {
         isVerified: user.isVerified,
         location: user.location,
         phone: user.phone,
+        defaultAddress: user.defaultAddress,
+        authProvider: user.authProvider || (user.googleId ? "google" : "email"),
         bio: user.bio,
         lastActiveAt: user.lastActiveAt?.toISOString?.() || null,
         createdAt: user.createdAt?.toISOString?.() || "",

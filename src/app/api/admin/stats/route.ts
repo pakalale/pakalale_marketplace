@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
-import { requireSession } from "@/lib/session";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 import Product from "@/models/Product";
@@ -11,10 +10,15 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
 
     const { searchParams } = new URL(request.url);
-    const auth = await requireSession(request, { roles: ["admin"] });
-    if (auth.response) return auth.response;
-    // The admin is whoever is signed in, not an id supplied by the client.
-    const userId = auth.user.id;
+    const userId = searchParams.get("userId");
+    if (!userId) {
+      return NextResponse.json({ error: "userId required" }, { status: 400 });
+    }
+
+    const adminUser = await User.findById(userId).select("role").lean();
+    if (!adminUser || adminUser.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
 
     const [
       totalUsers,

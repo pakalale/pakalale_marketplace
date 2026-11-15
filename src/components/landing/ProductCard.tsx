@@ -18,6 +18,21 @@ interface ProductCardProps {
   imageOverride?: string | null;
 }
 
+function Stars({ rating }: { rating: number }) {
+  const row = (className: string) =>
+    Array.from({ length: 5 }).map((_, index) => (
+      <Star key={index} className={cn("h-3.5 w-3.5 shrink-0", className)} />
+    ));
+  return (
+    <span className="relative inline-flex" role="img" aria-label={`Rated ${rating} out of 5`}>
+      <span className="flex">{row("fill-muted text-muted")}</span>
+      <span className="absolute inset-0 flex overflow-hidden" style={{ width: `${(rating / 5) * 100}%` }}>
+        {row("fill-primary text-primary")}
+      </span>
+    </span>
+  );
+}
+
 function compactCount(count: number) {
   return count >= 1000 ? `${(count / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(count);
 }
@@ -53,7 +68,7 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
           }}
           aria-label={`View ${product.name}${isVideo ? " video" : ""}`}
           className={cn(
-            "relative block w-full overflow-hidden rounded-xl bg-[#f4f6fb] dark:bg-muted",
+            "relative block w-full overflow-hidden rounded-xl bg-white",
             compact ? "h-16" : "aspect-square"
           )}
         >
@@ -95,8 +110,8 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
         </button>
 
         {discount > 0 && (
-          <span className="absolute left-2 top-2 rounded-md bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground sm:text-xs">
-            {discount}% OFF
+          <span className="absolute left-0 top-0 rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground">
+            -{discount}%
           </span>
         )}
 
@@ -108,7 +123,7 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
             event.stopPropagation();
             toggleSaved(product);
           }}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 text-brand shadow-sm transition-colors hover:text-rose-500"
+          className="absolute right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 text-muted-foreground shadow-sm transition-colors hover:text-rose-500"
         >
           <Heart className={cn("h-4 w-4", saved && "fill-rose-500 text-rose-500")} />
         </button>
@@ -116,7 +131,7 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
 
       <div className={cn("flex flex-1 flex-col", compact ? "mt-1.5" : "mt-3")}>
         {!compact && <p className="h-4 truncate text-xs leading-4 text-muted-foreground">
-          {[product.category, shopName].filter(Boolean).join(" · ") || <span aria-hidden="true">&nbsp;</span>}
+          {shopName || <span aria-hidden="true">&nbsp;</span>}
         </p>}
         <button
           type="button"
@@ -125,7 +140,7 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
             onOpen(product);
           }}
           className={cn(
-            "line-clamp-2 text-left font-bold leading-5 text-brand hover:underline",
+            "line-clamp-2 text-left font-semibold leading-5 text-foreground hover:text-brand",
             compact ? "min-h-9 text-xs" : "min-h-10 text-sm sm:text-[15px]"
           )}
         >
@@ -145,26 +160,15 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
         {!compact && <div className="mt-1 flex h-5 shrink-0 flex-wrap items-center gap-1 overflow-hidden text-xs text-muted-foreground">
           {product.reviews > 0 ? (
             <>
-              <Star aria-hidden="true" className="h-3.5 w-3.5 fill-primary text-primary" />
+              <Stars rating={product.rating} />
               <span>
-                <strong className="font-semibold text-foreground">{product.rating.toFixed(1)}</strong>{" "}
-                ({compactCount(product.reviews)} {product.reviews === 1 ? "review" : "reviews"})
+                {product.rating} ({compactCount(product.reviews)})
               </span>
             </>
           ) : (
             <span>No reviews yet</span>
           )}
         </div>}
-
-        {!compact && (
-          <p className={cn(
-            "mt-1.5 flex items-center gap-1.5 text-xs font-medium",
-            outOfStock ? "text-destructive" : product.stock <= 3 ? "text-amber-600" : "text-emerald-600"
-          )}>
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-current" />
-            {outOfStock ? "Out of Stock" : product.stock <= 3 ? `Only ${product.stock} left` : "In Stock"}
-          </p>
-        )}
 
         <button
           type="button"
@@ -174,7 +178,7 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
             onAddToCart(product);
           }}
           className={cn(
-            "mt-auto flex w-full shrink-0 items-center justify-center gap-1.5 rounded-xl bg-brand font-semibold text-brand-foreground transition-colors hover:bg-brand/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
+            "mt-auto flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
             compact ? "h-8 text-[10px]" : "mt-3 h-10 gap-2 text-sm"
           )}
         >

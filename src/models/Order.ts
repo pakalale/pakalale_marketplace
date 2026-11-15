@@ -6,21 +6,36 @@ export interface IOrderItem {
   price: number;
 }
 
+export type OrderStatus =
+  | "order_received"
+  | "in_store"
+  | "out_for_delivery"
+  | "ready_for_pickup"
+  | "delivered"
+  | "received"
+  | "cancelled"
+  | "pending"
+  | "confirmed"
+  | "preparing"
+  | "ready"
+  | "completed";
+
+export type OrderDeliveryMethod = "yango" | "indrive" | "pickup";
+export type OrderPaymentMethod = "airtel_money" | "cash";
+
 export interface IOrder extends Document {
   _id: mongoose.Types.ObjectId;
   customerId: mongoose.Types.ObjectId;
   shopId: mongoose.Types.ObjectId;
   items: IOrderItem[];
-  status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
-  /** Items only. Older orders have no subtotal: their total had no delivery. */
-  subtotal?: number;
-  /** subtotal + deliveryFee, charged by the server. */
+  status: OrderStatus;
   total: number;
-  deliveryMethod?: string;
+  subtotal?: number;
+  deliveryMethod?: OrderDeliveryMethod;
   deliveryFee?: number;
+  paymentMethod?: OrderPaymentMethod | string;
+  customerPhone?: string;
   deliveryAddress?: string;
-  phone?: string;
-  paymentMethod?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -39,15 +54,15 @@ const OrderSchema = new Schema<IOrder>(
     items: [OrderItemSchema],
     status: {
       type: String,
-      enum: ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"],
-      default: "pending",
+      enum: ["order_received", "in_store", "out_for_delivery", "ready_for_pickup", "delivered", "received", "cancelled", "pending", "confirmed", "preparing", "ready", "completed"],
+      default: "order_received",
     },
-    subtotal: { type: Number },
     total: { type: Number, required: true },
-    deliveryMethod: { type: String },
-    deliveryFee: { type: Number, default: 0 },
-    deliveryAddress: { type: String },
-    phone: { type: String },
+    subtotal: { type: Number },
+    deliveryMethod: { type: String, enum: ["yango", "indrive", "pickup"] },
+    deliveryFee: { type: Number, min: 0, default: 0 },
+    customerPhone: { type: String, trim: true },
+    deliveryAddress: { type: String, trim: true },
     paymentMethod: { type: String, default: "Cash" },
     notes: { type: String },
   },

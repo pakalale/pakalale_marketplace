@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
 
-/** A random single-use token for an email link. Only its hash is stored. */
 export function createEmailToken() {
   const token = randomBytes(32).toString("hex");
   return { token, hash: hashEmailToken(token) };

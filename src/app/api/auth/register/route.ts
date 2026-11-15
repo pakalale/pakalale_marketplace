@@ -4,19 +4,23 @@ import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 import { invalidateCache } from "@/lib/cache";
+import { createEmailToken, normalizeEmail, MIN_PASSWORD_LENGTH } from "@/lib/authTokens";
+import { appUrl, emailVerificationEnabled, sendVerificationEmail } from "@/lib/email";
+import { safeNextPath } from "@/lib/authRedirect";
 
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { email, password, firstName, lastName, role, phone, location, shop } = body;
+    const { password, firstName, lastName, role, phone, location, shop } = body;
+    const email = normalizeEmail(body.email);
 
-    if (!email || !password || !firstName || !lastName || !role) {
+    if (!email || typeof password !== "string" || !firstName || !lastName || !["customer", "shop_owner"].includes(role)) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
     }
 
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return NextResponse.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }, { status: 400 });
     }
 
     const existingUser = await User.findOne({ email });
@@ -26,6 +30,8 @@ export async function POST(request: NextRequest) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    const verificationRequired = emailVerificationEnabled();
+    const verification = verificationRequired ? createEmailToken() : null;
     const user = await User.create({
       email,
       password: hashedPassword,
@@ -35,6 +41,12 @@ export async function POST(request: NextRequest) {
       phone: phone || "",
       location: location || "",
       isVerified: false,
+      emailVerified: !verificationRequired,
+      ...(verification && {
+        emailVerificationTokenHash: verification.hash,
+        emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60_000),
+        emailVerificationSentAt: new Date(),
+      }),
     });
 
     // If shop owner, create the shop (not verified by default)
@@ -86,10 +98,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (verification) {
+      const verifyUrl = new URL(`${appUrl(request)}/verify-email`);
+      verifyUrl.searchParams.set("token", verification.token);
+      const next = safeNextPath(body.next);
+      if (next) verifyUrl.searchParams.set("next", next);
+      await sendVerificationEmail(user.email, user.firstName, verifyUrl.toString());
+    }
+
 
     return NextResponse.json(
       {
         message: "Account created successfully",
+        verificationRequired,
         user: {
           id: user._id.toString(),
           email: user.email,

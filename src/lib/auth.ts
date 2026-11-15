@@ -25,7 +25,7 @@ export const {
         await connectToDatabase();
         const user = await User.findOne({ email: credentials.email }).lean();
 
-        if (!user) {
+        if (!user?.password || user.emailVerified === false) {
           return null;
         }
 

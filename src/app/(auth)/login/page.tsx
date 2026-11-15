@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -12,16 +12,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import GoogleButton, { GOOGLE_ERRORS } from "@/components/auth/GoogleButton";
+import { destinationAfterLogin, safeNextPath } from "@/lib/authRedirect";
 
-export default function LoginPage() {
+function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resendMessage, setResendMessage] = useState("");
+  const googleFinishing = useRef(false);
   const router = useRouter();
+  const params = useSearchParams();
   const { login } = useAuthStore();
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginCredentials>();
+  const googleError = params.get("error");
+  const visibleError = error || (googleError ? GOOGLE_ERRORS[googleError] || GOOGLE_ERRORS.google_failed : "");
+
+  useEffect(() => {
+    if (params.get("google") !== "done" || googleFinishing.current) return;
+    googleFinishing.current = true;
+    fetch("/api/auth/me")
+      .then(async (res) => {
+        const result = await res.json();
+        if (!res.ok || !result.user) throw new Error("Could not load Google account");
+        login(result.user);
+        const next = safeNextPath(params.get("next")) || safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
+        sessionStorage.removeItem("redirectAfterLogin");
+        router.replace(destinationAfterLogin(result.user.role, next));
+      })
+      .catch(() => {
+        googleFinishing.current = false;
+        setError(GOOGLE_ERRORS.google_failed);
+      });
+  }, [login, params, router]);
 
   const onSubmit = async (data: LoginCredentials) => {
     setIsLoading(true);
@@ -36,50 +62,30 @@ export default function LoginPage() {
       const result = await res.json();
 
       if (!res.ok) {
+        if (result.code === "EMAIL_NOT_VERIFIED") setUnverifiedEmail(data.email);
         setError(result.error || "Login failed");
         return;
       }
 
       login(result.user);
       setSuccess("Login successful! Redirecting...");
-
-      // Redirect to the page they were trying to visit, or default to their dashboard
-      const redirectUrl = typeof window !== "undefined"
-        ? sessionStorage.getItem("redirectAfterLogin")
-        : null;
+      const redirectUrl = safeNextPath(params.get("next")) || safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
       sessionStorage.removeItem("redirectAfterLogin");
-
-      // Validate redirect URL matches user role
-      const userRole = result.user.role;
-      const isShopOwner = userRole === "shop_owner";
-      const isAdmin = userRole === "admin";
-      const isCustomerRoute = redirectUrl?.startsWith("/customer");
-      const isShopRoute = redirectUrl?.startsWith("/shop");
-      const isAdminRoute = redirectUrl?.startsWith("/admin");
-
-      // Default destination by role
-      const defaultDest = isAdmin ? "/admin" : isShopOwner ? "/shop/feed" : "/customer";
-
-      if (redirectUrl && redirectUrl !== "/login" && redirectUrl !== "/signup") {
-        // Block cross-role redirects
-        if (
-          (isAdmin && !isAdminRoute) ||
-          (isShopOwner && isCustomerRoute) ||
-          (!isShopOwner && !isAdmin && isShopRoute) ||
-          (!isShopOwner && !isAdmin && isAdminRoute)
-        ) {
-          router.push(defaultDest);
-        } else {
-          router.push(redirectUrl);
-        }
-      } else {
-        router.push(defaultDest);
-      }
+      router.replace(destinationAfterLogin(result.user.role, redirectUrl));
     } catch {
       setError("Network error. Please try again.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resendVerification = async () => {
+    const response = await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: unverifiedEmail }),
+    }).catch(() => null);
+    setResendMessage(response?.ok ? "If this account needs confirmation, a new link is on its way." : "Could not resend the email. Try again shortly.");
   };
 
   return (
@@ -98,15 +104,28 @@ export default function LoginPage() {
 
         <Card className="bg-card border-border">
           <CardContent className="p-5">
+            <div className="mb-4 space-y-3">
+              <GoogleButton onError={setError} />
+              <p className="text-center text-xs text-muted-foreground">or sign in with email</p>
+            </div>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {error && (
+              {visibleError && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                  <p className="text-xs text-destructive">{error}</p>
+                  <p className="text-xs text-destructive">{visibleError}</p>
                 </div>
               )}
               {success && (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
                   <p className="text-xs text-emerald-500 font-medium">✓ {success}</p>
+                </div>
+              )}
+              {unverifiedEmail && (
+                <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                  <p className="text-xs text-muted-foreground">Confirm your email before signing in.</p>
+                  <button type="button" onClick={resendVerification} className="text-xs font-semibold text-brand hover:underline">
+                    Resend confirmation email
+                  </button>
+                  {resendMessage && <p className="text-xs text-muted-foreground">{resendMessage}</p>}
                 </div>
               )}
 
@@ -189,4 +208,8 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense><LoginForm /></Suspense>;
 }

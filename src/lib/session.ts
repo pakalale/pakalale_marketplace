@@ -17,7 +17,7 @@ function sessionSecret() {
   return secret;
 }
 
-function cookieOptions(request: NextRequest) {
+export function cookieOptions(request: NextRequest) {
   // Follow the real scheme (nginx sets the header) so HTTP dev and HTTPS prod both work.
   const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
   return {

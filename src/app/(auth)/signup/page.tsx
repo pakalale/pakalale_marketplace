@@ -5,14 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, User, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
+import { ShoppingBag, ArrowLeft, ArrowRight, Mail, Lock, Phone, MapPin, Loader2, Eye, EyeOff, Building2 } from "lucide-react";
 import SpecialtyPicker from "@/components/SpecialtyPicker";
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 type Step = "type" | "form";
 
@@ -57,6 +56,9 @@ export default function SignupPage() {
   const [selectedType, setSelectedType] = useState<"customer" | "shop_owner" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sentTo, setSentTo] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [locations, setLocations] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
@@ -103,11 +105,16 @@ export default function SignupPage() {
           lastName: data.lastName,
           role: "customer",
           phone: data.phone,
+          next: sessionStorage.getItem("redirectAfterLogin"),
         }),
       });
       const result = await res.json();
       if (!res.ok) {
         setError(result.error || "Registration failed");
+        return;
+      }
+      if (result.verificationRequired) {
+        setSentTo(data.email);
         return;
       }
       // Auto-login after registration
@@ -153,11 +160,16 @@ export default function SignupPage() {
             locationId: data.locationId,
             specialties: selectedSpecialties,
           },
+          next: sessionStorage.getItem("redirectAfterLogin"),
         }),
       });
       const result = await res.json();
       if (!res.ok) {
         setError(result.error || "Registration failed");
+        return;
+      }
+      if (result.verificationRequired) {
+        setSentTo(data.email);
         return;
       }
       // Auto-login
@@ -177,6 +189,36 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   };
+
+  const resendVerification = async () => {
+    setResending(true);
+    const response = await fetch("/api/auth/resend-verification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: sentTo }),
+    }).catch(() => null);
+    setResendMessage(response?.ok ? "If the account needs confirmation, a new link is on its way." : "Could not resend the email. Try again shortly.");
+    setResending(false);
+  };
+
+  if (sentTo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
+        <Card className="w-full max-w-sm bg-card border-border">
+          <CardContent className="space-y-4 p-6 text-center">
+            <Mail className="mx-auto h-9 w-9 text-brand" />
+            <h1 className="text-xl font-bold">Check your email</h1>
+            <p className="text-sm text-muted-foreground">We sent a confirmation link to <strong className="text-foreground">{sentTo}</strong>. It expires in 24 hours.</p>
+            {resendMessage && <p className="text-xs text-muted-foreground">{resendMessage}</p>}
+            <Button type="button" variant="outline" disabled={resending} onClick={resendVerification} className="w-full">
+              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend confirmation email"}
+            </Button>
+            <Link href="/login" className="block text-sm font-medium text-brand hover:underline">Back to sign in</Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Step 1: Choose account type
   if (step === "type") {
@@ -286,7 +328,7 @@ export default function SignupPage() {
                 <div className="space-y-1">
                   <Label className="text-xs">Password</Label>
                   <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type={showPassword ? "text" : "password"} {...customerForm.register("password", { required: "Required", minLength: { value: 6, message: "Min 6 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
+                    <Input type={showPassword ? "text" : "password"} {...customerForm.register("password", { required: "Required", minLength: { value: 8, message: "Min 8 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</></button>
                   </div>
                   {customerForm.formState.errors.password && <p className="text-[10px] text-destructive">{customerForm.formState.errors.password.message}</p>}
@@ -364,7 +406,7 @@ export default function SignupPage() {
                 <div className="space-y-1">
                   <Label className="text-xs">Password</Label>
                   <div className="relative"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input type={showPassword ? "text" : "password"} {...shopForm.register("password", { required: "Required", minLength: { value: 6, message: "Min 6 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
+                    <Input type={showPassword ? "text" : "password"} {...shopForm.register("password", { required: "Required", minLength: { value: 8, message: "Min 8 characters" } })} placeholder="••••••••" className="pl-10 pr-10 h-10" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</></button>
                   </div>
                 </div>

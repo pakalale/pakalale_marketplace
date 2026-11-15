@@ -42,11 +42,7 @@ interface ShopOwnerForm {
 function destinationAfterSignup(role: string) {
   if (role === "admin") return "/admin";
   if (role === "shop_owner") return "/shop/feed";
-  const redirect = sessionStorage.getItem("redirectAfterLogin");
-  if (redirect === "/checkout") {
-    sessionStorage.removeItem("redirectAfterLogin");
-    return redirect;
-  }
+  sessionStorage.removeItem("redirectAfterLogin");
   return "/customer";
 }
 

@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/session";
 import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Shop from "@/models/Shop";
+import User from "@/models/User";
 import { FeedPost } from "@/models/FeedPost";
 import { sellerOrderStatuses } from "@/lib/orderStatus";
 
@@ -214,6 +215,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const customer = await User.findById(customerId).select("firstName lastName").lean();
+    const customerName = [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || "Customer";
+    const customerPhone = body.customerPhone.trim().slice(0, 40);
     const order = await Order.create({
       customerId,
       shopId,
@@ -224,7 +228,7 @@ export async function POST(request: NextRequest) {
       deliveryFee: DELIVERY_FEES[deliveryMethod],
       total: serverTotal + DELIVERY_FEES[deliveryMethod],
       paymentMethod,
-      customerPhone: body.customerPhone.trim().slice(0, 40),
+      customerPhone,
       deliveryAddress: typeof body.deliveryAddress === "string" ? body.deliveryAddress.trim().slice(0, 500) : "",
       notes: typeof notes === "string" ? notes.slice(0, 1000) : undefined,
     });
@@ -233,7 +237,7 @@ export async function POST(request: NextRequest) {
       userId: shop.ownerId.toString(),
       type: "order",
       title: "New order",
-      message: `New ${deliveryMethod === "pickup" ? "pickup" : "delivery"} order worth K${(serverTotal + DELIVERY_FEES[deliveryMethod]).toLocaleString()} is waiting for you.`,
+      message: `${customerName} (${customerPhone}) placed a ${deliveryMethod === "pickup" ? "pickup" : "delivery"} order worth K${(serverTotal + DELIVERY_FEES[deliveryMethod]).toLocaleString()}.`,
       actionUrl: "/shop/orders",
       relatedId: order._id.toString(),
     }).catch((error) => console.error("New order notification failed:", error));

@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
         isVerified: user.isVerified,
         location: user.location,
         phone: user.phone,
+        defaultAddress: user.defaultAddress,
+        authProvider: user.authProvider || "email",
         bio: user.bio,
         avatar: user.avatar,
         createdAt: user.createdAt?.toISOString?.() || "",

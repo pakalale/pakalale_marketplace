@@ -54,6 +54,7 @@ export default function CustomerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const loadOrders = async () => {
     setError("");
@@ -77,6 +78,14 @@ export default function CustomerOrdersPage() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
+
+  const filteredOrders = orders.filter((order) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "active") return !["received", "completed", "cancelled"].includes(order.status);
+    if (statusFilter === "in_store") return ["in_store", "confirmed", "preparing"].includes(order.status);
+    if (statusFilter === "delivered") return ["delivered", "received", "completed"].includes(order.status);
+    return order.status === statusFilter;
+  });
 
   const messageShop = async (order: CustomerOrder) => {
     const shop = shopFields(order.shopId);
@@ -125,6 +134,20 @@ export default function CustomerOrdersPage() {
           <p className="mt-0.5 text-xs text-muted-foreground">Order progress and shop contact details</p>
         </div>
 
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="customer-order-filter" className="text-sm font-medium">Filter orders</label>
+          <select id="customer-order-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 min-w-48 rounded-lg border border-border bg-background px-3 text-sm">
+            <option value="all">All orders</option>
+            <option value="active">Active orders</option>
+            <option value="order_received">Order received</option>
+            <option value="in_store">In store</option>
+            <option value="out_for_delivery">Out for delivery</option>
+            <option value="ready_for_pickup">Ready for pickup</option>
+            <option value="delivered">Delivered / received</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+
         {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-brand" /></div>
@@ -136,7 +159,9 @@ export default function CustomerOrdersPage() {
             <Button className="mt-4" onClick={() => router.push("/customer/locations")}>Browse shops</Button>
           </section>
         ) : (
-          orders.map((order) => {
+          filteredOrders.length === 0 ? (
+            <section className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No orders match this filter.</section>
+          ) : filteredOrders.map((order) => {
             const shop = shopFields(order.shopId);
             const canConfirm = customerCanConfirmReceived(order.status);
             return (

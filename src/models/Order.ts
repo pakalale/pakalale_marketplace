@@ -54,8 +54,8 @@ const OrderSchema = new Schema<IOrder>(
     items: [OrderItemSchema],
     status: {
       type: String,
-      enum: ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"],
-      default: "pending",
+      enum: ["order_received", "in_store", "out_for_delivery", "ready_for_pickup", "delivered", "received", "cancelled", "pending", "confirmed", "preparing", "ready", "completed"],
+      default: "order_received",
     },
     total: { type: Number, required: true },
     subtotal: { type: Number },

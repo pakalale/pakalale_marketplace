@@ -21,7 +21,7 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "Sign In", href: "/login" },
       { label: "Create Account", href: "/signup" },
-      { label: "Checkout", href: "/checkout" },
+      { label: "Checkout", href: "/customer/checkout" },
       { label: "Sell on Pakalale", href: "/signup" },
     ],
   },

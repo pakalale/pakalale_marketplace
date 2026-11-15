@@ -28,7 +28,7 @@ export default function GuestAccountPrompt({
   // Come back to the checkout that was interrupted once the account is ready.
   const continueTo = (path: string) => {
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("redirectAfterLogin", "/checkout");
+      sessionStorage.setItem("redirectAfterLogin", "/customer");
     }
     onOpenChange(false);
     router.push(path);

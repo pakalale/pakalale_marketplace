@@ -27,7 +27,7 @@ async function accountFor(profile: GoogleProfile, intent: GoogleState["intent"])
     if (byEmail.emailVerified === false) throw new Error("google_email_needs_verification");
     if (intent === "signup" && byEmail.role !== "customer") throw new Error("google_account_type_exists");
     const update: { $set: Record<string, unknown>; $unset?: Record<string, 1> } = {
-      $set: { googleId: profile.sub, emailVerified: true },
+      $set: { googleId: profile.sub, emailVerified: true, authProvider: "google" },
     };
     if (!byEmail.avatar && profile.picture) update.$set.avatar = profile.picture;
     const linked = await User.findByIdAndUpdate(byEmail._id, update, { new: true });
@@ -38,6 +38,7 @@ async function accountFor(profile: GoogleProfile, intent: GoogleState["intent"])
   const user = await User.create({
     email: profile.email,
     googleId: profile.sub,
+    authProvider: "google",
     firstName: profile.givenName || firstName,
     lastName: profile.familyName || lastParts.join(" "),
     avatar: profile.picture,

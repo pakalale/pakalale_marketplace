@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
       role,
       phone: phone || "",
       location: location || "",
+      authProvider: "email",
       isVerified: false,
       emailVerified: !verificationRequired,
       ...(verification && {

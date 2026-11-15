@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (cached) return NextResponse.json(cached);
 
     const user = await User.findById(userId)
-      .select("-password")
+      .select("-password +googleId")
       .lean();
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -34,6 +34,8 @@ export async function GET(request: NextRequest) {
         isVerified: user.isVerified,
         location: user.location,
         phone: user.phone,
+        defaultAddress: user.defaultAddress,
+        authProvider: user.authProvider || (user.googleId ? "google" : "email"),
         bio: user.bio,
         lastActiveAt: user.lastActiveAt?.toISOString?.() || null,
         createdAt: user.createdAt?.toISOString?.() || "",
@@ -59,7 +61,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Only allow updating certain fields
-    const allowedFields = ["firstName", "lastName", "phone", "location", "bio", "avatar", "lastActiveAt"];
+    const allowedFields = ["firstName", "lastName", "phone", "location", "defaultAddress", "bio", "avatar", "lastActiveAt"];
     const safeUpdate: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (updateData[field] !== undefined) {
@@ -68,7 +70,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const user = await User.findByIdAndUpdate(userId, safeUpdate, { new: true })
-      .select("-password")
+      .select("-password +googleId")
       .lean();
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -86,6 +88,8 @@ export async function PUT(request: NextRequest) {
         isVerified: user.isVerified,
         location: user.location,
         phone: user.phone,
+        defaultAddress: user.defaultAddress,
+        authProvider: user.authProvider || (user.googleId ? "google" : "email"),
         bio: user.bio,
         lastActiveAt: user.lastActiveAt?.toISOString?.() || null,
         createdAt: user.createdAt?.toISOString?.() || "",

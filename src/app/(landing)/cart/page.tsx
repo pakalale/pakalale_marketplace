@@ -27,7 +27,7 @@ export default function StoreCartPage() {
       setPromptOpen(true);
       return;
     }
-    router.push("/checkout");
+    router.push("/customer/checkout");
   };
 
   return (

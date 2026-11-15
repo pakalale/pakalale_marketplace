@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 import { useRouter } from "next/navigation";
@@ -29,21 +29,15 @@ export default function SettingsPage() {
     email: user?.email || "",
     phone: user?.phone || "",
     location: user?.location || "",
+    defaultAddress: user?.defaultAddress || "",
     bio: user?.bio || "",
   });
   const [interestedCategories, setInterestedCategories] = useState<string[]>(user?.interestedCategories || []);
   const [showCategories, setShowCategories] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => typeof Notification !== "undefined" && Notification.permission === "granted");
   const [locationSharing, setLocationSharing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(user?.location || "");
   const [locationLoading, setLocationLoading] = useState(false);
-
-  // Check notification permission on mount
-  useEffect(() => {
-    if (typeof Notification !== "undefined") {
-      setNotificationsEnabled(Notification.permission === "granted");
-    }
-  }, []);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -209,6 +203,11 @@ export default function SettingsPage() {
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input value={profileData.location} onChange={(e) => setProfileData({ ...profileData, location: e.target.value })} className="pl-10" placeholder="e.g. Soweto Market, Lusaka" />
                     </div>
+                  </div>
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <Label className="text-xs">Default delivery address</Label>
+                    <Input value={profileData.defaultAddress} onChange={(e) => setProfileData({ ...profileData, defaultAddress: e.target.value })} placeholder="Area, street, nearby landmark" />
+                    <p className="text-[10px] text-muted-foreground">Used to prefill checkout for delivery orders.</p>
                   </div>
                   <div className="sm:col-span-2 space-y-1.5">
                     <Label className="text-xs">Bio</Label>

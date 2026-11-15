@@ -5,6 +5,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   googleId?: string;
+  authProvider?: "email" | "google";
   firstName: string;
   lastName: string;
   avatar?: string;
@@ -16,6 +17,7 @@ export interface IUser extends Document {
   emailVerificationSentAt?: Date;
   location?: string;
   phone?: string;
+  defaultAddress?: string;
   bio?: string;
   locationCoordinates?: { lat: number; lng: number };
   interestedCategories?: string[];
@@ -29,6 +31,7 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String },
     googleId: { type: String, select: false, unique: true, sparse: true },
+    authProvider: { type: String, enum: ["email", "google"], default: "email" },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, trim: true, default: "" },
     avatar: { type: String },
@@ -40,6 +43,7 @@ const UserSchema = new Schema<IUser>(
     emailVerificationSentAt: { type: Date, select: false },
     location: { type: String },
     phone: { type: String },
+    defaultAddress: { type: String, trim: true, maxlength: 500 },
     bio: { type: String },
     locationCoordinates: {
       lat: { type: Number },

@@ -31,6 +31,7 @@ export function safeNextPath(value: string | null | undefined) {
 export function destinationAfterLogin(role: string, requested: string | null | undefined) {
   const next = safeNextPath(requested);
   if (!next) return homeForRole(role);
+  if (next === "/checkout" || next === "/customer/checkout") return homeForRole(role);
   const area = next.startsWith("/admin") ? "admin" : next.startsWith("/shop") ? "shop_owner" : next.startsWith("/customer") ? "customer" : null;
   if (area && area !== role) return homeForRole(role);
   return next;

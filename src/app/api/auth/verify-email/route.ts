@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       user: {
         id: user._id.toString(), email: user.email, firstName: user.firstName, lastName: user.lastName,
         role: user.role, isVerified: user.isVerified, location: user.location, phone: user.phone,
+        defaultAddress: user.defaultAddress, authProvider: user.authProvider || "email",
         bio: user.bio, avatar: user.avatar, createdAt: user.createdAt?.toISOString?.() || "",
         updatedAt: user.updatedAt?.toISOString?.() || "",
       },

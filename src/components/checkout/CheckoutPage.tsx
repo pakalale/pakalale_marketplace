@@ -49,7 +49,7 @@ export default function CheckoutPage() {
   const { items, clearShop, syncLine } = useCartStore();
   const [sessionChecked, setSessionChecked] = useState(false);
   const [phoneInput, setPhone] = useState<string | null>(null);
-  const [address, setAddress] = useState("");
+  const [addressInput, setAddressInput] = useState("");
   const [note, setNote] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("yango");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("airtel_money");
@@ -63,6 +63,7 @@ export default function CheckoutPage() {
   }, [validateSession]);
 
   const phone = phoneInput ?? user?.phone ?? "";
+  const address = addressInput || user?.defaultAddress || "";
   const needsDeliveryAddress = deliveryMethod !== "pickup";
 
   // An order belongs to one shop, so the cart splits into one order per shop.
@@ -135,7 +136,7 @@ export default function CheckoutPage() {
   };
 
   const goToAuth = (path: string) => {
-    sessionStorage.setItem("redirectAfterLogin", "/customer/checkout");
+    sessionStorage.setItem("redirectAfterLogin", "/customer");
     router.push(path);
   };
 
@@ -310,7 +311,7 @@ export default function CheckoutPage() {
               {needsDeliveryAddress && (
                 <div className="space-y-1.5">
                   <Label htmlFor="checkout-address"><MapPin className="mr-1 inline h-4 w-4" />Delivery address</Label>
-                  <Input id="checkout-address" required value={address} onChange={(event) => setAddress(event.target.value)} placeholder="Area, street, nearby landmark" />
+                  <Input id="checkout-address" required value={address} onChange={(event) => setAddressInput(event.target.value)} placeholder="Area, street, nearby landmark" />
                 </div>
               )}
               <div className="space-y-1.5">

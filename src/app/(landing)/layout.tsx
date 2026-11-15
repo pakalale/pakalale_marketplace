@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import CartSheet from "@/components/landing/CartSheet";
 import Footer from "@/components/landing/Footer";
 import GuestAccountPrompt from "@/components/landing/GuestAccountPrompt";
@@ -18,25 +19,43 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const cartItems = useCartStore((state) => state.items);
   const wishlistCount = useWishlistStore((state) => state.items.length);
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, login } = useAuthStore();
   const [cartOpen, setCartOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
   // Persisted stores only exist in the browser, so counts wait for hydration.
   const mounted = useHydrated();
-  const isShoppingUtility = ["/cart", "/checkout", "/saved"].includes(pathname);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const accountDestination = user?.role === "admin"
+    ? "/admin"
+    : user?.role === "shop_owner"
+      ? "/shop/feed"
+      : pathname === "/cart"
+        ? "/customer/cart"
+        : pathname === "/saved"
+          ? "/customer/saved"
+          : "/customer";
 
   useEffect(() => {
-    if (!mounted || !isAuthenticated || !user || isShoppingUtility) return;
-    const destination = user.role === "admin"
-      ? "/admin"
-      : user.role === "shop_owner"
-        ? "/shop/feed"
-        : "/customer";
-    router.replace(destination);
-  }, [isAuthenticated, isShoppingUtility, mounted, router, user]);
+    if (!mounted) return;
+    let active = true;
+    fetch("/api/auth/me")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json();
+        if (active && data.user) login(data.user);
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setSessionChecked(true); });
+    return () => { active = false; };
+  }, [login, mounted]);
 
-  // Visitors can browse, search and fill a cart. Only checkout requires an account.
+  useEffect(() => {
+    if (!mounted || !sessionChecked || !isAuthenticated || !user || pathname === accountDestination) return;
+    router.replace(accountDestination);
+  }, [accountDestination, isAuthenticated, mounted, pathname, router, sessionChecked, user]);
+
+  // Visitors can browse, search and fill a cart. Checkout belongs to customer accounts.
   const handleCheckout = () => {
     if (!mounted) return;
     setCartOpen(false);
@@ -44,10 +63,12 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
       setGuestPromptOpen(true);
       return;
     }
-    router.push("/checkout");
+    router.push("/customer/checkout");
   };
 
-  if (mounted && isAuthenticated && user && !isShoppingUtility) return null;
+  if (!mounted || !sessionChecked || (isAuthenticated && user)) {
+    return <main className="flex min-h-screen items-center justify-center"><Loader2 className="h-7 w-7 animate-spin text-brand" /></main>;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

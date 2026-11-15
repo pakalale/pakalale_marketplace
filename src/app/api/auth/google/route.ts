@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(destination, appUrl(request)));
   }
 
-  const state = newGoogleState(safeNextPath(request.nextUrl.searchParams.get("next")), popup);
+  const intent = request.nextUrl.searchParams.get("intent") === "signup" ? "signup" : "signin";
+  const state = newGoogleState(safeNextPath(request.nextUrl.searchParams.get("next")), popup, intent);
   const response = NextResponse.redirect(googleAuthUrl(request, config.clientId, state));
   response.cookies.set(GOOGLE_STATE_COOKIE, JSON.stringify(state), {
     ...cookieOptions(request),

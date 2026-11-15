@@ -15,13 +15,17 @@ function readState(request: NextRequest): GoogleState | null {
   }
 }
 
-async function accountFor(profile: GoogleProfile) {
+async function accountFor(profile: GoogleProfile, intent: GoogleState["intent"]) {
   const byGoogle = await User.findOne({ googleId: profile.sub });
-  if (byGoogle) return byGoogle;
+  if (byGoogle) {
+    if (intent === "signup" && byGoogle.role !== "customer") throw new Error("google_account_type_exists");
+    return byGoogle;
+  }
 
   const byEmail = await User.findOne({ email: profile.email });
   if (byEmail) {
     if (byEmail.emailVerified === false) throw new Error("google_email_needs_verification");
+    if (intent === "signup" && byEmail.role !== "customer") throw new Error("google_account_type_exists");
     const update: { $set: Record<string, unknown>; $unset?: Record<string, 1> } = {
       $set: { googleId: profile.sub, emailVerified: true },
     };
@@ -75,7 +79,7 @@ export async function GET(request: NextRequest) {
     const profile = await exchangeGoogleCode(request, config, code, state);
     if (!profile.emailVerified) return finish("error=google_unverified");
     await connectToDatabase();
-    const user = await accountFor(profile);
+    const user = await accountFor(profile, state.intent || "signin");
     if (!user) return finish("error=google_failed");
 
     const query = new URLSearchParams({ google: "done" });
@@ -85,8 +89,8 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Google sign-in error:", error);
-    const code = error instanceof Error && error.message === "google_email_needs_verification"
-      ? "google_email_needs_verification"
+    const code = error instanceof Error && ["google_email_needs_verification", "google_account_type_exists"].includes(error.message)
+      ? error.message
       : "google_failed";
     return finish(`error=${code}`);
   }

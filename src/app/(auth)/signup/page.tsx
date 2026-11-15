@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import GoogleButton from "@/components/auth/GoogleButton";
 
 type Step = "type" | "form";
 
@@ -296,7 +297,13 @@ export default function SignupPage() {
             )}
 
             {selectedType === "customer" ? (
-              <form onSubmit={customerForm.handleSubmit(onCustomerSubmit)} className="space-y-3">
+              <div className="space-y-3">
+                <div className="rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                  Account type: <span className="font-semibold text-foreground">Customer</span>
+                </div>
+                <GoogleButton intent="signup" onError={setError} />
+                <p className="text-center text-xs text-muted-foreground">or create an account with email</p>
+                <form onSubmit={customerForm.handleSubmit(onCustomerSubmit)} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">First Name</Label>
@@ -344,7 +351,8 @@ export default function SignupPage() {
                 <Button type="submit" disabled={isLoading} className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90">
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Create Account <ArrowRight className="h-4 w-4 ml-1" /></>}
                 </Button>
-              </form>
+                </form>
+              </div>
             ) : (
               <form onSubmit={shopForm.handleSubmit(onShopOwnerSubmit)} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">

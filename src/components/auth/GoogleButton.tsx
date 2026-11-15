@@ -19,6 +19,7 @@ export const GOOGLE_ERRORS: Record<string, string> = {
   google_cancelled: "Google sign-in was cancelled.",
   google_unverified: "Google did not confirm this email address.",
   google_email_needs_verification: "Confirm your email first, then try Google sign-in again.",
+  google_account_type_exists: "This Google account is already linked to a non-customer account. Sign in with that account instead.",
   google_failed: "We could not sign you in with Google. Please try again.",
 };
 
@@ -33,7 +34,15 @@ function GoogleMark() {
   );
 }
 
-export default function GoogleButton({ onError }: { onError?: (message: string) => void }) {
+export default function GoogleButton({
+  onError,
+  intent = "signin",
+  label,
+}: {
+  onError?: (message: string) => void;
+  intent?: "signin" | "signup";
+  label?: string;
+}) {
   const router = useRouter();
   const login = useAuthStore((state) => state.login);
   const [waiting, setWaiting] = useState(false);
@@ -83,18 +92,21 @@ export default function GoogleButton({ onError }: { onError?: (message: string) 
   const start = () => {
     const params = new URLSearchParams(window.location.search);
     targetRef.current = safeNextPath(params.get("next")) || safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
-    const query = targetRef.current ? `&next=${encodeURIComponent(targetRef.current)}` : "";
+    const query = new URLSearchParams({ intent });
+    if (targetRef.current) query.set("next", targetRef.current);
     const width = 480;
     const height = 640;
     const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
     const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
     const popup = window.open(
-      `/api/auth/google?mode=popup${query}`,
+      `/api/auth/google?mode=popup&${query.toString()}`,
       "pakalale-google",
       `popup,width=${width},height=${height},left=${left},top=${top}`
     );
     if (!popup) {
-      window.location.replace(`/api/auth/google${targetRef.current ? `?next=${encodeURIComponent(targetRef.current)}` : ""}`);
+      const redirectQuery = new URLSearchParams({ intent });
+      if (targetRef.current) redirectQuery.set("next", targetRef.current);
+      window.location.replace(`/api/auth/google?${redirectQuery.toString()}`);
       return;
     }
 
@@ -116,7 +128,7 @@ export default function GoogleButton({ onError }: { onError?: (message: string) 
       className="flex h-11 w-full items-center justify-center gap-2.5 rounded-lg border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-70"
     >
       {waiting ? <Loader2 className="h-[18px] w-[18px] animate-spin text-brand" /> : <GoogleMark />}
-      {waiting ? "Waiting for Google..." : "Continue with Google"}
+      {waiting ? "Waiting for Google..." : label || (intent === "signup" ? "Create customer account with Google" : "Sign in with Google")}
     </button>
   );
 }

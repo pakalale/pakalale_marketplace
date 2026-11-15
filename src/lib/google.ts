@@ -25,10 +25,11 @@ export interface GoogleState {
   verifier: string;
   next: string | null;
   popup?: boolean;
+  intent: "signin" | "signup";
 }
 
-export function newGoogleState(next: string | null, popup = false): GoogleState {
-  return { state: random(), nonce: random(), verifier: random(), next, popup };
+export function newGoogleState(next: string | null, popup = false, intent: "signin" | "signup" = "signin"): GoogleState {
+  return { state: random(), nonce: random(), verifier: random(), next, popup, intent };
 }
 
 export function googleAuthUrl(request: NextRequest, clientId: string, state: GoogleState) {

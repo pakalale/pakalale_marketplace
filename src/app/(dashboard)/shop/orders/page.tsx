@@ -187,7 +187,7 @@ export default function ShopOrdersPage() {
                     <h2 className="break-all font-bold">#{order.id}</h2>
                     <p className="mt-1 text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
                   </div>
-                  <span className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-semibold text-brand">{orderStatusLabel(order.status)}</span>
+                  <span className="rounded-full {orderStatusColorClass(order.status)} px-3 py-1.5 text-xs font-semibold text-foreground">{orderStatusLabel(order.status)}</span>
                 </header>
 
                 <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">

@@ -14,12 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const navVisible = useNavScrollVisibility();
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
   const { upload: uploadAvatar, uploading: avatarUploading, progress: avatarProgress } = useUpload({ folder: "pakalale/avatars", type: "image" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +99,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="flex items-center justify-between px-4 h-14">
           <div className="w-16" />
           <h1 className="text-sm font-bold">Settings</h1>

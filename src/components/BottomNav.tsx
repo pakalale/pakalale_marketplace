@@ -6,6 +6,7 @@ import { Home, MessageSquare, MapPin, Bell, Package } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useCountPolling } from "@/hooks/useCountPolling";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -20,6 +21,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const globalUnreadCount = useNotificationStore((s) => s.unreadCount);
+  const navVisible = useNavScrollVisibility();
 
   // Start polling for notification counts
   useCountPolling(user?.id);
@@ -37,7 +39,10 @@ export default function BottomNav() {
   const activeId = getActiveId();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-bottom sm:hidden">
+    <nav className={cn(
+      "fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-bottom sm:hidden transition-transform duration-300",
+      navVisible ? "translate-y-0" : "translate-y-full"
+    )}>
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = activeId === item.id;

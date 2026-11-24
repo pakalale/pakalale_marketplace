@@ -31,6 +31,7 @@ import {
   useFeedPostDetail,
   type FeedCommentData,
 } from "@/hooks/useApi";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 interface PostDetailViewProps {
   postId: string;
@@ -40,6 +41,7 @@ export default function PostDetailView({ postId }: PostDetailViewProps) {
   const router = useRouter();
   const { user } = useAuthStore();
   const { post, setPost, loading, error } = useFeedPostDetail(postId);
+  const navVisible = useNavScrollVisibility();
 
   const [draft, setDraft] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -230,7 +232,10 @@ export default function PostDetailView({ postId }: PostDetailViewProps) {
   };
 
   const header = (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+    <header className={cn(
+      "sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-300",
+      navVisible ? "translate-y-0" : "-translate-y-full"
+    )}>
       <div className="mx-auto flex h-12 w-full max-w-2xl items-center gap-1.5 px-2">
         <button
           type="button"

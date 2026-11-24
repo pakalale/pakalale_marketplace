@@ -14,6 +14,7 @@ import ImageViewerModal from "./ImageViewerModal";
 import VerifiedBadge from "./VerifiedBadge";
 import { cn } from "@/lib/utils";
 import { formatTimeAgo } from "@/lib/formatTime";
+import { rememberFeedPosition } from "@/lib/scrollMemory";
 import { type FeedPostData, type ProductData } from "@/hooks/useApi";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
@@ -99,11 +100,13 @@ export default function FeedPost({
   };
 
   // Comments live on their own full page, so the card only links to it.
+  // Remember the feed position first so Back returns to the same screen.
   const openComments = () => {
     if (!currentUserId) {
       router.push("/login");
       return;
     }
+    rememberFeedPosition();
     router.push(`/post/${post.id}`);
   };
 
@@ -112,6 +115,7 @@ export default function FeedPost({
       router.push("/login");
       return;
     }
+    rememberFeedPosition();
     router.push(`/post/${post.id}/${kind}`);
   };
 

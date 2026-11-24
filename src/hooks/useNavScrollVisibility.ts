@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+let ignoreScrollUntil = 0;
+
+/**
+ * Programmatic jumps (restoring a saved scroll position) are not scroll
+ * gestures, so they must not hide the header or bottom nav.
+ */
+export function ignoreNavScrollFor(durationMs = 1200) {
+  ignoreScrollUntil = Date.now() + durationMs;
+}
+
 export function useNavScrollVisibility() {
   const [visible, setVisible] = useState(true);
 
@@ -15,6 +25,12 @@ export function useNavScrollVisibility() {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY;
       lastScrollY = currentScrollY;
+
+      if (Date.now() < ignoreScrollUntil) {
+        lastDirection = null;
+        directionDistance = 0;
+        return;
+      }
 
       if (currentScrollY <= 24) {
         lastDirection = null;

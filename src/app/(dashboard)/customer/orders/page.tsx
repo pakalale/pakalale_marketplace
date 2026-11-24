@@ -17,7 +17,10 @@ import {
   orderStatusHeaderClass,
   orderStatusLabel,
   orderStatusPillClass,
+  ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
 } from "@/lib/orderStatus";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
 
 interface OrderLine {
@@ -101,6 +104,18 @@ export default function CustomerOrdersPage() {
     return status === statusFilter;
   });
 
+  const statusCounts = orders.reduce<Record<string, number>>((counts, order) => {
+    const status = normalizeOrderStatus(order.status);
+    counts[status] = (counts[status] || 0) + 1;
+    return counts;
+  }, {});
+
+  const filterOptions = [
+    { value: "all", label: "All orders", count: orders.length },
+    { value: "active", label: "Active", count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length },
+    ...ORDER_STATUSES.map((status) => ({ value: status, label: ORDER_STATUS_LABELS[status], count: statusCounts[status] || 0 })),
+  ];
+
   const messageShop = async (order: CustomerOrder) => {
     const shop = shopFields(order.shopId);
     if (!user?.id || !shop.ownerId) return;
@@ -153,18 +168,36 @@ export default function CustomerOrdersPage() {
           <p className="mt-0.5 text-xs text-muted-foreground">Order progress and shop contact details</p>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="customer-order-filter" className="text-sm font-medium">Filter orders</label>
-          <select id="customer-order-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 min-w-48 rounded-lg border border-border bg-background px-3 text-sm">
-            <option value="all">All orders</option>
-            <option value="active">Active orders</option>
-            <option value="order_placed">Order placed</option>
-            <option value="approved">Approved</option>
-            <option value="delivery_in_progress">Delivery in progress</option>
-            <option value="delivered">Delivered</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Filter orders</p>
+          <div
+            role="group"
+            aria-label="Filter orders by status"
+            className="-mx-3 overflow-x-auto px-3 pb-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+          >
+            <div className="flex w-max gap-2">
+              {filterOptions.map((option) => {
+                const active = statusFilter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setStatusFilter(option.value)}
+                    aria-pressed={active}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      active ? "border-brand bg-brand/10 text-brand" : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {option.label}
+                    <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none", active ? "bg-brand text-primary-foreground" : "bg-muted text-foreground")}>
+                      {option.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}

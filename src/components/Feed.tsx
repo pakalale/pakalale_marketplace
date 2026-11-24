@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import FeedPost from "./FeedPost";
@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { useInfiniteFeed, useShops, useProducts, createFeedPost, createChat, type ProductData, type ShopData } from "@/hooks/useApi";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
+import { takeFeedPosition } from "@/lib/scrollMemory";
+import { ignoreNavScrollFor } from "@/hooks/useNavScrollVisibility";
 import toast from "react-hot-toast";
 
 type FilterType = "all" | "promotions" | "nearby";
@@ -37,6 +39,7 @@ interface FeedProps {
 export default function Feed({ authorId, afterComposer }: FeedProps) {
   const { user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const isGuest = !user;
   const isShopOwner = user?.role === "shop_owner";
   const [newPostContent, setNewPostContent] = useState("");
@@ -67,6 +70,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
 
   // Infinite scroll sentinel
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const restoredScrollRef = useRef(false);
 
   // Use the infinite feed hook
   const {
@@ -85,6 +89,30 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
   const { data: inventoryData } = useProducts(isShopOwner && user?.id ? { shopId: user.id } : undefined);
   const inventoryProducts = inventoryData?.products || [];
   const selectedProduct = inventoryProducts.find((product) => product.id === selectedProductId) || selectedProductDraft;
+
+  // Coming back from a post page, land on the screen the reader left off on
+  // instead of the top of the feed. Images load after the first paint, so keep
+  // nudging until the page is tall enough to hold the saved position.
+  useEffect(() => {
+    if (restoredScrollRef.current || loading || feedPosts.length === 0) return;
+    restoredScrollRef.current = true;
+
+    const savedY = takeFeedPosition(pathname);
+    if (savedY === null) return;
+
+    ignoreNavScrollFor(1500);
+    let attempts = 0;
+    const restore = () => {
+      // Stop if the reader has already moved on to another page.
+      if (window.location.pathname !== pathname) return;
+      window.scrollTo(0, savedY);
+      attempts += 1;
+      if (attempts < 10 && Math.abs(window.scrollY - savedY) > 4) {
+        window.setTimeout(restore, 120);
+      }
+    };
+    requestAnimationFrame(restore);
+  }, [loading, feedPosts.length, pathname]);
 
   useEffect(() => {
     if (!isShopOwner) return;

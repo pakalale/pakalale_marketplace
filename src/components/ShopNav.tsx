@@ -6,11 +6,13 @@ import { usePathname } from "next/navigation";
 import { Settings, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { shopNavItems } from "@/components/ShopBottomNav";
 
 export default function ShopNav() {
   const pathname = usePathname();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const navVisible = useNavScrollVisibility();
 
   // Settings and Notifications in top bar. The main sections show here on
   // desktop, where the bottom nav is hidden.
@@ -20,7 +22,10 @@ export default function ShopNav() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
+    <header className={cn(
+      "sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300",
+      navVisible ? "translate-y-0" : "-translate-y-full"
+    )}>
       <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
         <Link href="/shop/overview" aria-label="Pakalale My Shop" className="flex items-center gap-2 min-w-0">
           <Image src="/logo.png" alt="Pakalale Market" className="h-8 w-auto shrink-0" width={320} height={112} priority />

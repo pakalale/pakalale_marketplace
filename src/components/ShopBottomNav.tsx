@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Home, Package, ShoppingBag, Store, MessageSquare } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL = 30_000;
@@ -24,6 +25,7 @@ export default function ShopBottomNav() {
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const [chatUnread, setChatUnread] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
+  const navVisible = useNavScrollVisibility();
 
   // Poll for all counts
   useEffect(() => {
@@ -89,7 +91,10 @@ export default function ShopBottomNav() {
   const activeId = getActiveId();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden">
+    <nav className={cn(
+      "fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden transition-transform duration-300",
+      navVisible ? "translate-y-0" : "translate-y-full"
+    )}>
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {shopNavItems.map((item) => {
           const isActive = activeId === item.id;

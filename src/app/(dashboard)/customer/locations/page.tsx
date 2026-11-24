@@ -15,6 +15,7 @@ import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import ProductPreviewStrip from "@/components/ProductPreview";
 import SavedItemsButton from "@/components/customer/SavedItemsButton";
 import CartButton from "@/components/customer/CartButton";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 export default function LocationsPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function LocationsPage() {
   const [selectedSpecialty, setSelectedSpecialty] = useState("all");
   const onlineUserIds = useOnlineStore((s) => s.onlineUserIds);
   const addItem = useCartStore((state) => state.addItem);
+  const navVisible = useNavScrollVisibility();
 
   const { data, loading } = useLocations({ search: searchQuery || undefined, specialty: selectedSpecialty });
 
@@ -48,7 +50,7 @@ export default function LocationsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="flex items-center justify-between px-4 h-14">
           <div className="w-20" />
           <h1 className="text-sm font-bold">Locations</h1>

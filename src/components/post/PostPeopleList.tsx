@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useAuthStore } from "@/store/authStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { useFeedPostDetail, type FeedPersonData } from "@/hooks/useApi";
 
 interface PostPeopleListProps {
@@ -18,6 +19,7 @@ export default function PostPeopleList({ postId, kind }: PostPeopleListProps) {
   const router = useRouter();
   const { user } = useAuthStore();
   const { post, loading, error } = useFeedPostDetail(postId);
+  const navVisible = useNavScrollVisibility();
 
   const profileBase = user?.role === "shop_owner" ? "/shop/profile" : "/customer/profile";
   const people: FeedPersonData[] = kind === "likes" ? post?.likers || [] : post?.sharedBy || [];
@@ -34,7 +36,7 @@ export default function PostPeopleList({ postId, kind }: PostPeopleListProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+      <header className={`sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-2 px-3">
           <button
             type="button"

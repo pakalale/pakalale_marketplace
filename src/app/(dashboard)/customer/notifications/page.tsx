@@ -10,6 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useNotifications, markNotificationsRead, type NotificationData } from "@/hooks/useApi";
 import { formatTimeAgo } from "@/lib/formatTime";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 const iconMap: Record<string, React.ElementType> = {
   message: MessageSquare,
@@ -35,6 +36,7 @@ export default function NotificationsPage() {
   const { user } = useAuthStore();
   const { data, loading, refetch } = useNotifications(user?.id || null);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const navVisible = useNavScrollVisibility();
 
   // Deals were removed from the app; hide any deal notifications left in old accounts.
   const notifications = (data?.notifications || []).filter((n) => n.type !== "deal");
@@ -78,7 +80,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="flex items-center justify-between px-4 h-14">
           <div className="w-16" />
           <h1 className="text-sm font-bold">Notifications</h1>

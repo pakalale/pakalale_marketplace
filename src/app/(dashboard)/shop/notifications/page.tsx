@@ -28,6 +28,8 @@ import { formatTimeAgo } from "@/lib/formatTime";
 
 const iconMap: Record<string, React.ElementType> = {
   message: MessageSquare,
+  like: Heart,
+  comment: MessageSquare,
   shop: Store,
   review: Heart,
   order: Package,
@@ -36,6 +38,8 @@ const iconMap: Record<string, React.ElementType> = {
 
 const colorMap: Record<string, string> = {
   message: "text-teal-500 bg-teal-500/10",
+  like: "text-rose-400 bg-rose-400/10",
+  comment: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
   order: "text-blue-400 bg-blue-400/10",

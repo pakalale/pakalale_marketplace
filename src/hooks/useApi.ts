@@ -368,6 +368,8 @@ export function useInfiniteFeed(params?: {
   locationId?: string;
   authorId?: string;
   mode?: "ranked" | "chronological";
+  /** Viewer id so the feed can show which posts they already liked. */
+  userId?: string;
 }) {
   const [posts, setPosts] = useState<FeedPostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -388,11 +390,12 @@ export function useInfiniteFeed(params?: {
     if (params?.filter && params.filter !== "all") sp.set("filter", params.filter);
     if (params?.locationId) sp.set("locationId", params.locationId);
     if (params?.authorId) sp.set("authorId", params.authorId);
+    if (params?.userId) sp.set("userId", params.userId);
     sp.set("mode", params?.mode || "ranked");
     sp.set("limit", "20");
     if (cursor) sp.set("cursor", cursor);
     return `/api/feed?${sp.toString()}`;
-  }, [params?.filter, params?.locationId, params?.authorId, params?.mode]);
+  }, [params?.filter, params?.locationId, params?.authorId, params?.mode, params?.userId]);
 
   // Initial load
   useEffect(() => {
@@ -590,6 +593,116 @@ export async function commentFeedPost(postId: string, userId: string, authorName
   return res.json();
 }
 
+// ── Post detail (comments, replies, reactions, shares) ──
+export interface FeedCommentData {
+  id: string;
+  authorId?: string;
+  authorName: string;
+  authorAvatar?: string;
+  content: string;
+  createdAt: string;
+  parentId?: string | null;
+  likes: string[];
+  dislikes: string[];
+}
+
+export interface FeedPersonData {
+  id: string;
+  name: string;
+  avatar?: string;
+  role: string;
+  isShopVerified?: boolean;
+}
+
+export interface FeedPostDetailData {
+  id: string;
+  content: string;
+  images?: string[];
+  authorId: string;
+  author?: { id: string; name: string; avatar?: string; role: string; isShopVerified?: boolean } | null;
+  locationId?: string;
+  likes: number;
+  likedBy: string[];
+  likers: FeedPersonData[];
+  shares: number;
+  sharedBy: FeedPersonData[];
+  comments: FeedCommentData[];
+  commentsCount: number;
+  isPromotion: boolean;
+  postType?: string;
+  product?: FeedPostData["product"];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full post with comments, reactions and share records for the post page. */
+export function useFeedPostDetail(postId: string | null) {
+  const url = postId ? `/api/feed/${encodeURIComponent(postId)}` : null;
+  const [post, setPost] = useState<FeedPostDetailData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+
+    fetch(url)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to load post");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setPost(data.post || null);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load post");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedUrl(url);
+      });
+
+    return () => { cancelled = true; };
+  }, [url]);
+
+  const loading = Boolean(url) && loadedUrl !== url;
+  return { post, setPost, loading, error };
+}
+
+export async function addFeedComment(
+  postId: string,
+  userId: string,
+  content: string,
+  parentId?: string | null,
+) {
+  const res = await fetch("/api/feed", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: postId, action: "comment", userId, comment: { content, parentId: parentId || null } }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Failed to post comment");
+  return data as { commentsCount: number; comment: FeedCommentData | null };
+}
+
+export async function reactToFeedComment(
+  postId: string,
+  commentId: string,
+  userId: string,
+  reaction: "like" | "dislike",
+) {
+  const res = await fetch("/api/feed", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: postId, action: "comment_reaction", userId, commentId, reaction }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Failed to react to comment");
+  return data as { likes: number; dislikes: number; liked: boolean; disliked: boolean };
+}
+
 // ── Chat ──
 export function useChats(userId: string | null) {
   return useFetch<{ chats: ChatData[]; totalUnread: number }>(userId ? `/api/chat?userId=${userId}` : null, [userId]);
@@ -715,7 +828,7 @@ export function useNotifications(userId: string | null) {
 export interface NotificationData {
   id: string;
   userId: string;
-  type: "deal" | "message" | "review" | "shop" | "order" | "system";
+  type: "deal" | "message" | "like" | "comment" | "review" | "shop" | "order" | "system";
   title: string;
   message: string;
   isRead: boolean;

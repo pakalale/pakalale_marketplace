@@ -30,7 +30,7 @@ async function emitUnreadCount(userId: string) {
  */
 export async function createNotification(data: {
   userId: string;
-  type: "message" | "review" | "shop" | "order" | "system";
+  type: "message" | "like" | "comment" | "review" | "shop" | "order" | "system";
   title: string;
   message: string;
   actionUrl?: string;
@@ -63,7 +63,7 @@ export async function createNotification(data: {
 export async function createBulkNotifications(
   userIds: string[],
   data: {
-    type: "message" | "review" | "shop" | "order" | "system";
+    type: "message" | "like" | "comment" | "review" | "shop" | "order" | "system";
     title: string;
     message: string;
     actionUrl?: string;

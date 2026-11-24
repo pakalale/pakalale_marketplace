@@ -77,9 +77,8 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     loadMore,
     refresh,
     toggleLike,
-    addComment,
     prependPost,
-  } = useInfiniteFeed({ filter, authorId });
+  } = useInfiniteFeed({ filter, authorId, userId: user?.id });
 
   const { data: shopsData } = useShops();
   const allShops = shopsData?.shops || [];
@@ -171,12 +170,6 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     toggleLike(postId, user.id);
   }, [user?.id, toggleLike, requireAuth]);
 
-  // ── Comment ──
-  const handleComment = useCallback((postId: string, authorName: string, content: string) => {
-    if (!user?.id) { requireAuth(); return; }
-    addComment(postId, user.id, authorName, content);
-  }, [user?.id, addComment, requireAuth]);
-
   const handleShare = (postId: string) => {
     const url = typeof window !== "undefined" ? `${window.location.origin}/post/${postId}` : "";
     if (navigator.share) { navigator.share({ title: "Pakalale Post", url }).catch(() => {}); }
@@ -185,7 +178,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     fetch("/api/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "feed_share", targetId: postId }),
+      body: JSON.stringify({ type: "feed_share", targetId: postId, userId: user?.id }),
     }).catch(() => {});
   };
 
@@ -517,7 +510,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
         ) : (
           <>
             {feedPosts.map((post) => (
-              <FeedPost key={post.id} post={post} onLike={handleLike} onComment={handleComment} onShare={handleShare} onContactShop={handleContactShop} currentUserId={user?.id} currentUserName={user ? `${user.firstName} ${user.lastName}` : undefined} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
+              <FeedPost key={post.id} post={post} onLike={handleLike} onShare={handleShare} onContactShop={handleContactShop} currentUserId={user?.id} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
             ))}
 
             {/* Load more sentinel — IntersectionObserver targets this */}

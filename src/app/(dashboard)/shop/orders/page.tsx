@@ -2,11 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, MessageSquare, Package, RefreshCw, Store, Truck, Wallet } from "lucide-react";
+import toast from "react-hot-toast";
+import { CheckCircle2, Copy, Loader2, MessageSquare, Package, RefreshCw, Store, Truck, Wallet } from "lucide-react";
 import ShopNav from "@/components/ShopNav";
+import DeliveryLocationButton from "@/components/orders/DeliveryLocationButton";
 import { Button } from "@/components/ui/button";
 import { formatKwacha } from "@/lib/product";
-import { orderStatusLabel } from "@/lib/orderStatus";
+import {
+  canCancelOrder,
+  isOutForDelivery,
+  nextShopStatus,
+  normalizeOrderStatus,
+  orderStatusHeaderClass,
+  orderStatusLabel,
+  orderStatusPillClass,
+  shopActionLabel,
+} from "@/lib/orderStatus";
 import { useAuthStore } from "@/store/authStore";
 
 interface OrderLine {
@@ -29,6 +40,12 @@ interface ShopOrder {
   notes?: string;
   createdAt: string;
   customerId: string | { id?: string; firstName?: string; lastName?: string; email?: string };
+  deliveryAgent?: {
+    name?: string;
+    phone?: string;
+    location?: { lat: number; lng: number; updatedAt?: string };
+    trackingUrl?: string;
+  };
 }
 
 function customerFields(customer: ShopOrder["customerId"]) {
@@ -39,13 +56,6 @@ function customerFields(customer: ShopOrder["customerId"]) {
 
 function itemName(item: OrderLine) {
   return typeof item.productId === "string" ? "Product" : item.productId.name || "Product";
-}
-
-function nextStatus(order: ShopOrder) {
-  if (["order_received", "pending", "confirmed", "preparing"].includes(order.status)) return "in_store";
-  if (order.status === "in_store") return order.deliveryMethod === "pickup" ? "ready_for_pickup" : "out_for_delivery";
-  if (order.status === "out_for_delivery") return "delivered";
-  return null;
 }
 
 const deliveryLabel: Record<string, string> = {
@@ -89,22 +99,46 @@ export default function ShopOrdersPage() {
     finally { setRefreshing(false); }
   };
 
-  const updateStatus = async (order: ShopOrder, status: string) => {
+  const updateOrder = async (order: ShopOrder, payload: Record<string, unknown>, doneMessage?: string) => {
     setBusyOrder(order.id);
     setError("");
     try {
       const response = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: order.id, status }),
+        body: JSON.stringify({ id: order.id, ...payload }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Could not update order");
       if (user?.id) setOrders(await getShopOrders(user.id));
+      if (doneMessage) toast.success(doneMessage, { id: "shop-order-update" });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not update order");
     } finally {
       setBusyOrder(null);
+    }
+  };
+
+  const saveAgent = async (order: ShopOrder, form: HTMLFormElement) => {
+    const data = new FormData(form);
+    await updateOrder(
+      order,
+      {
+        deliveryAgent: {
+          name: String(data.get("agentName") || ""),
+          phone: String(data.get("agentPhone") || ""),
+        },
+      },
+      "Delivery agent details saved"
+    );
+  };
+
+  const copyTrackingLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Tracking link copied — send it to the delivery agent", { id: "tracking-link" });
+    } catch {
+      toast.error("Could not copy the link. Long-press it instead.", { id: "tracking-link" });
     }
   };
 
@@ -129,11 +163,10 @@ export default function ShopOrdersPage() {
   };
 
   const filteredOrders = orders.filter((order) => {
+    const status = normalizeOrderStatus(order.status);
     if (statusFilter === "all") return true;
-    if (statusFilter === "active") return !["received", "completed", "cancelled"].includes(order.status);
-    if (statusFilter === "in_store") return ["in_store", "confirmed", "preparing"].includes(order.status);
-    if (statusFilter === "delivered") return ["delivered", "received", "completed"].includes(order.status);
-    return order.status === statusFilter;
+    if (statusFilter === "active") return !["completed", "cancelled"].includes(status);
+    return status === statusFilter;
   });
 
   return (
@@ -155,11 +188,11 @@ export default function ShopOrdersPage() {
           <select id="shop-order-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 min-w-48 rounded-lg border border-border bg-background px-3 text-sm">
             <option value="all">All orders</option>
             <option value="active">Needs action</option>
-            <option value="order_received">Order received</option>
-            <option value="in_store">In store</option>
-            <option value="out_for_delivery">Out for delivery</option>
-            <option value="ready_for_pickup">Ready for pickup</option>
-            <option value="delivered">Delivered / received</option>
+            <option value="order_placed">Order placed</option>
+            <option value="approved">Approved</option>
+            <option value="delivery_in_progress">Delivery in progress</option>
+            <option value="delivered">Delivered</option>
+            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
@@ -178,16 +211,24 @@ export default function ShopOrdersPage() {
             <section className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No orders match this filter.</section>
           ) : filteredOrders.map((order) => {
             const customer = customerFields(order.customerId);
-            const next = nextStatus(order);
+            const status = normalizeOrderStatus(order.status);
+            const next = nextShopStatus(order.status);
+            const isPickup = order.deliveryMethod === "pickup";
+            const showAgentForm = !isPickup && ["approved", "delivery_in_progress"].includes(status);
             return (
               <article key={order.id} className="overflow-hidden rounded-xl border border-border bg-card">
-                <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
+                <header className={`flex flex-wrap items-start justify-between gap-3 border-b p-4 ${orderStatusHeaderClass(order.status)}`}>
                   <div className="min-w-0">
-                    <p className="text-[11px] uppercase text-muted-foreground">Order ID</p>
+                    <p className="text-[11px] uppercase opacity-70">Order ID</p>
                     <h2 className="break-all font-bold">#{order.id}</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                    <p className="mt-1 text-xs opacity-70">{new Date(order.createdAt).toLocaleString()}</p>
                   </div>
-                  <span className="rounded-full {orderStatusColorClass(order.status)} px-3 py-1.5 text-xs font-semibold text-foreground">{orderStatusLabel(order.status)}</span>
+                  <div className="flex items-center gap-2">
+                    {isOutForDelivery(order.status) && (
+                      <DeliveryLocationButton orderId={order.id} agent={order.deliveryAgent} compact />
+                    )}
+                    <span className={`rounded-full px-3 py-1.5 text-xs font-semibold ${orderStatusPillClass(order.status)}`}>{orderStatusLabel(order.status, order.deliveryMethod)}</span>
+                  </div>
                 </header>
 
                 <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -221,16 +262,58 @@ export default function ShopOrdersPage() {
                       <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span>{order.deliveryFee ? formatKwacha(order.deliveryFee) : "Free"}</span></div>
                       <div className="flex justify-between border-t border-border pt-2 font-bold"><span>Total</span><span className="text-brand">{formatKwacha(order.total)}</span></div>
                     </div>
+
                     {next && (
-                      <Button type="button" disabled={busyOrder === order.id} className="w-full" onClick={() => updateStatus(order, next)}>
+                      <Button type="button" disabled={busyOrder === order.id} className="w-full" onClick={() => updateOrder(order, { status: next })}>
                         {busyOrder === order.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {next === "in_store" ? "Confirm order" : next === "out_for_delivery" ? "Mark out for delivery" : next === "ready_for_pickup" ? "Mark ready for pickup" : "Mark delivered"}
+                        {shopActionLabel(next, order.deliveryMethod)}
                       </Button>
                     )}
-                    {!["cancelled", "delivered", "received", "completed"].includes(order.status) && order.status !== "ready_for_pickup" && (
-                      <Button type="button" variant="outline" disabled={busyOrder === order.id} className="w-full" onClick={() => updateStatus(order, "cancelled")}>Cancel order</Button>
+
+                    {showAgentForm && (
+                      <form
+                        className="space-y-2 rounded-lg border border-border bg-background p-2.5"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void saveAgent(order, event.currentTarget);
+                        }}
+                      >
+                        <p className="text-xs font-semibold">Delivery agent</p>
+                        <input
+                          name="agentName"
+                          defaultValue={order.deliveryAgent?.name || ""}
+                          placeholder="Agent name"
+                          className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-sm"
+                        />
+                        <input
+                          name="agentPhone"
+                          defaultValue={order.deliveryAgent?.phone || ""}
+                          placeholder="Agent phone"
+                          inputMode="tel"
+                          className="h-9 w-full rounded-lg border border-border bg-background px-2.5 text-sm"
+                        />
+                        <Button type="submit" size="sm" variant="outline" className="w-full" disabled={busyOrder === order.id}>
+                          Save agent
+                        </Button>
+                        {order.deliveryAgent?.trackingUrl && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => copyTrackingLink(order.deliveryAgent!.trackingUrl!)}
+                          >
+                            <Copy className="mr-1.5 h-3.5 w-3.5" /> Copy tracking link
+                          </Button>
+                        )}
+                      </form>
                     )}
-                    {order.status === "received" && <p className="flex items-center gap-2 text-xs font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />Customer confirmed receipt</p>}
+
+                    {canCancelOrder(order.status) && (
+                      <Button type="button" variant="outline" disabled={busyOrder === order.id} className="w-full" onClick={() => updateOrder(order, { status: "cancelled" }, "Order cancelled. The customer has been notified.")}>Cancel order</Button>
+                    )}
+                    {status === "delivered" && <p className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4" />Waiting for the customer to confirm</p>}
+                    {status === "completed" && <p className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4" />Sale recorded · stock updated</p>}
                   </aside>
                 </div>
               </article>

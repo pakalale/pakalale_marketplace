@@ -5,10 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Settings, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNotificationStore } from "@/store/notificationStore";
 import { shopNavItems } from "@/components/ShopBottomNav";
 
 export default function ShopNav() {
   const pathname = usePathname();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   // Settings and Notifications in top bar. The main sections show here on
   // desktop, where the bottom nav is hidden.
@@ -54,7 +56,14 @@ export default function ShopNav() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <link.icon className="h-4 w-4" />
+              <span className="relative">
+                <link.icon className="h-4 w-4" />
+                {link.to === "/shop/notifications" && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-pink-500 px-1 text-[9px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </span>
             </Link>
           ))}
         </div>

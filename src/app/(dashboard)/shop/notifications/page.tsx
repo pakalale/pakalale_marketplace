@@ -18,6 +18,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/authStore";
+import { useNotificationStore } from "@/store/notificationStore";
 import {
   useNotifications,
   markNotificationsRead,
@@ -26,7 +27,6 @@ import {
 import { formatTimeAgo } from "@/lib/formatTime";
 
 const iconMap: Record<string, React.ElementType> = {
-  deal: MessageSquare,
   message: MessageSquare,
   shop: Store,
   review: Heart,
@@ -35,7 +35,6 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const colorMap: Record<string, string> = {
-  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
@@ -47,17 +46,27 @@ export default function ShopNotificationsPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const { data, loading, refetch } = useNotifications(user?.id || null);
+  const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const [clearing, setClearing] = useState(false);
 
-  const notifications = data?.notifications || [];
+  // Deals were removed from the app; hide any deal notifications left in old accounts.
+  const notifications = (data?.notifications || []).filter((n) => n.type !== "deal");
   const unreadCount = data?.unreadCount || 0;
+
+  // Keep the global badge in step with what this page knows.
+  useEffect(() => {
+    if (data?.unreadCount !== undefined) setUnreadCount(data.unreadCount);
+  }, [data?.unreadCount, setUnreadCount]);
 
   // Mark all as read on visit
   useEffect(() => {
     if (user?.id && unreadCount > 0) {
-      markNotificationsRead(user.id).then(() => refetch());
+      markNotificationsRead(user.id).then(() => {
+        refetch();
+        setUnreadCount(0);
+      });
     }
-  }, [user?.id, unreadCount, refetch]);
+  }, [user?.id, unreadCount, refetch, setUnreadCount]);
 
   const handleDelete = useCallback(
     async (notificationId: string) => {
@@ -161,8 +170,8 @@ export default function ShopNotificationsPage() {
             <div>
               <h3 className="font-semibold text-sm">No notifications yet</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                You&apos;ll see alerts for new messages, deal updates, and
-                customer activity here.
+                You&apos;ll see alerts for new messages, orders, and customer
+                activity here.
               </p>
             </div>
           </div>
@@ -193,14 +202,14 @@ export default function ShopNotificationsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="text-sm font-medium truncate">
+                          <h4 className="text-sm font-medium break-words">
                             {n.title}
                           </h4>
                           <span className="text-[10px] text-muted-foreground shrink-0">
                             {formatTimeAgo(n.createdAt)}
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        <p className="text-xs text-muted-foreground mt-0.5 break-words whitespace-pre-line">
                           {n.message}
                         </p>
                       </div>

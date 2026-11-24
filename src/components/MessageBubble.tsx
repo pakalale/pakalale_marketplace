@@ -78,7 +78,7 @@ export default function MessageBubble({
   const hasMovedRef = useRef(false);
 
   const isOwn = message.senderId === currentUserId;
-  const isTextMessage = message.type === "text" || message.type === "deal_update";
+  const isTextMessage = message.type === "text";
   const isMediaMessage = message.type === "image";
 
   const SWIPE_THRESHOLD = 60;

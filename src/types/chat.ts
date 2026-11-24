@@ -1,19 +1,11 @@
 export interface Chat {
   id: string;
-  type: "deal" | "general";
+  type: "general";
   participants: ChatParticipant[];
   lastMessage?: Message;
   lastMessageTime: string;
   unreadCount: number;
   isActive: boolean;
-  dealInfo?: {
-    dealId: string;
-    productName: string;
-    productImage?: string;
-    initialPrice?: number;
-    finalPrice?: number;
-    status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled";
-  };
   createdAt: string;
   updatedAt: string;
 }
@@ -34,7 +26,7 @@ export interface Message {
   senderName: string;
   senderRole: "customer" | "shop_owner";
   content: string;
-  type: "text" | "image" | "file" | "voice" | "deal_update" | "system";
+  type: "text" | "image" | "file" | "voice" | "system";
   timestamp: string;
   isRead: boolean;
   readBy: string[];

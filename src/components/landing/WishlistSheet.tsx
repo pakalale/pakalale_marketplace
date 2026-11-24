@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toastAddedToCart } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -83,7 +83,7 @@ export default function WishlistSheet({
                         onClick={() => {
                           if (!line) return;
                           addItem(line);
-                          toast.success(`${product.name} added to cart`);
+                          toastAddedToCart(product.name);
                         }}
                       >
                         Add to Cart

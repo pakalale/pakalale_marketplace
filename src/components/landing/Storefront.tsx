@@ -15,7 +15,7 @@ import {
   Truck,
   X,
 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import ProductDetailModal from "@/components/ProductDetailModal";
@@ -188,11 +188,11 @@ export default function Storefront() {
   const handleAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   const goToPage = (nextPage: number) => {

@@ -10,7 +10,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useShops, useLocations, type ProductData } from "@/hooks/useApi";
 import { useCartStore } from "@/store/cartStore";
 import { cartLineFromProduct } from "@/lib/cart";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 
 export default function CustomerDashboard() {
   const router = useRouter();
@@ -35,11 +35,11 @@ export default function CustomerDashboard() {
   const handlePreviewAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   // Redirect authenticated users from landing to dashboard

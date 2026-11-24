@@ -103,19 +103,6 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      case "feed_deal": {
-        if (userId) {
-          await FeedEvent.create({
-            userId,
-            postId: targetId,
-            eventType: "deal",
-            metadata: body.metadata || {},
-            timestamp: new Date(),
-          });
-        }
-        break;
-      }
-
       default:
         return NextResponse.json({ error: "Invalid track type" }, { status: 400 });
     }

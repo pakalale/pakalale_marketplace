@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import Container from "@/components/landing/Container";
 import { cartLineFromProduct } from "@/lib/cart";
 import ProductCard from "@/components/landing/ProductCard";
@@ -22,11 +22,11 @@ export default function CustomerSavedPage() {
   const handleAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   return (

@@ -18,8 +18,6 @@ interface ProductDetailModalProps {
   onClose: () => void;
   product: ProductData;
   shopName?: string;
-  /** Legacy deal action. Used when no custom primary action is supplied. */
-  onMakeDeal?: (product: ProductData) => void;
   /** Public storefront action, e.g. Add to Cart. */
   primaryActionLabel?: string;
   onPrimaryAction?: (product: ProductData) => void;
@@ -33,7 +31,6 @@ export default function ProductDetailModal({
   onClose,
   product,
   shopName,
-  onMakeDeal,
   primaryActionLabel,
   onPrimaryAction,
   secondaryActionLabel,
@@ -223,15 +220,18 @@ export default function ProductDetailModal({
         </div>
 
         {/* Primary action — fixed at bottom */}
+        {(onPrimaryAction || secondaryActionLabel) && (
         <div className="p-4 border-t border-border shrink-0 space-y-2">
-          <Button
-            className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-semibold"
-            onClick={() => (onPrimaryAction ? onPrimaryAction(product) : onMakeDeal?.(product))}
-            disabled={product.stock <= 0}
-          >
-            <ShoppingBag className="h-4 w-4 mr-2" />
-            {product.stock > 0 ? primaryActionLabel || "Make a Deal" : "Out of Stock"}
-          </Button>
+          {onPrimaryAction && (
+            <Button
+              className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-semibold"
+              onClick={() => onPrimaryAction(product)}
+              disabled={product.stock <= 0}
+            >
+              <ShoppingBag className="h-4 w-4 mr-2" />
+              {product.stock > 0 ? primaryActionLabel || "View" : "Out of Stock"}
+            </Button>
+          )}
           {secondaryActionLabel && onSecondaryAction && (
             <Button
               variant="outline"
@@ -244,6 +244,7 @@ export default function ProductDetailModal({
             </Button>
           )}
         </div>
+        )}
       </DialogContent>
     </Dialog>
     <ImageViewerModal

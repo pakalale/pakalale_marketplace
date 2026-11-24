@@ -8,7 +8,6 @@ import {
   Image, Camera, Send, Phone, Heart, MessageCircle, Package
 } from "lucide-react";
 import ProductDetailModal from "./ProductDetailModal";
-import DealModal from "./DealModal";
 import { useAuthStore } from "@/store/authStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,8 +127,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [searchHistory, setSearchHistory] = useState<{ query: string; timestamp: string }[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "products" | "shops" | "posts">("all");
 
-  // Deal modal
-  const [dealModal, setDealModal] = useState<{ open: boolean; product: SearchResult | null; shopOwnerId: string }>({ open: false, product: null, shopOwnerId: "" });
   const router = useRouter();
 
   const fetchTrending = useCallback(async () => {
@@ -258,9 +255,8 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   return (
     <>
-      <div className={cn("fixed inset-0 z-[60] flex flex-col transition-colors", dealModal.open ? "bg-transparent pointer-events-none" : "bg-background")} onClick={dealModal.open ? undefined : onClose}>
-        {!dealModal.open && (
-          <>
+      <div className="fixed inset-0 z-[60] flex flex-col bg-background" onClick={onClose}>
+        <>
         {/* Search bar */}
         <div className="bg-background border-b border-border px-3 py-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           <div className="relative max-w-2xl mx-auto">
@@ -408,16 +404,12 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                               </div>
                               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                             </button>
-                            {/* Deal / Contact buttons */}
+                            {/* Contact button */}
                             {product.isAvailable && shopOwnerId && (
                               <div className="flex border-t border-border">
                                 <button onClick={(e) => { e.stopPropagation(); const phone = getShopPhone(product.shopId); if (phone) window.open(`tel:${phone}`, '_self'); }}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-r border-border">
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
                                   <Phone className="h-3 w-3" /> Contact
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); setDealModal({ open: true, product, shopOwnerId }); }}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-brand hover:bg-primary/5 transition-colors">
-                                  <ShoppingBag className="h-3 w-3" /> Make Deal
                                 </button>
                               </div>
                             )}
@@ -537,62 +529,13 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             )}
           </div>
         </div>
-          </>
-        )}
+        </>
       </div>
 
       {/* Product Detail Modal */}
       {selectedProduct && (
         <ProductDetailModal isOpen={!!selectedProduct} onClose={() => setSelectedProduct(null)}
-          product={productToModalData(selectedProduct)} shopName={getShopName(selectedProduct.shopId)}
-          onMakeDeal={() => setSelectedProduct(null)} />
-      )}
-
-      {/* Deal Modal */}
-      {dealModal.open && dealModal.product && (
-        <DealModal isOpen={dealModal.open} onClose={() => setDealModal({ open: false, product: null, shopOwnerId: "" })}
-          productName={dealModal.product.name} productPrice={dealModal.product.price}
-          shopName={getShopName(dealModal.product.shopId)}
-          onSendDeal={async (data) => {
-            if (!user?.id) return;
-            const ownerId = dealModal.shopOwnerId;
-            if (!ownerId) return;
-            try {
-              // Always create a new deal chat
-              const createRes = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  type: "deal",
-                  participants: [user.id, ownerId],
-                  dealInfo: { productName: dealModal.product!.name, productId: dealModal.product!.id, quantity: data.quantity, initialPrice: data.suggestedPrice, status: "pending" },
-                }),
-              });
-              const createJson = await createRes.json();
-              const chatId = createJson.chat?.id;
-              // Send the deal message
-              if (chatId) {
-                await fetch("/api/chat", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chatId,
-                    senderId: user.id,
-                    senderName: `${user.firstName} ${user.lastName}`,
-                    senderRole: "customer",
-                    content: data.message,
-                    type: "deal_update",
-                  }),
-                });
-              }
-              setDealModal({ open: false, product: null, shopOwnerId: "" });
-              onClose();
-              router.push(chatId ? `/customer/chat?chatId=${chatId}` : "/customer/chat");
-            } catch (e) {
-              console.error("Failed to send deal:", e);
-            }
-          }}
-        />
+          product={productToModalData(selectedProduct)} shopName={getShopName(selectedProduct.shopId)} />
       )}
 
       {/* Demand / Request Modal with photos */}

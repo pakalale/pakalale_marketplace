@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
+import { Types } from "mongoose";
 import Shop from "@/models/Shop";
 import Product from "@/models/Product";
+import { Location } from "@/models/FeedPost";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
 import { isProductVideo } from "@/lib/product";
 
@@ -31,7 +33,21 @@ export async function GET(request: NextRequest) {
     }
 
     const locationId = searchParams.get("locationId");
-    if (locationId) query.locationId = locationId;
+    if (locationId) {
+      // Callers pass either a location slug or its _id; shops store whichever
+      // was submitted, so match both so every shop shows in its location.
+      const location = await Location.findOne({
+        $or: [{ slug: locationId }, ...(Types.ObjectId.isValid(locationId) ? [{ _id: locationId }] : [])],
+      })
+        .select("slug")
+        .lean();
+      const keys = new Set([locationId]);
+      if (location) {
+        keys.add(location._id.toString());
+        if (location.slug) keys.add(location.slug);
+      }
+      query.locationId = { $in: [...keys] };
+    }
 
     const ownerId = searchParams.get("ownerId");
     if (ownerId) query.ownerId = ownerId;

@@ -10,7 +10,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import Header from "@/components/Header";
 import ProductDetailModal from "@/components/ProductDetailModal";
-import DealModal from "@/components/DealModal";
 import { useAuthStore } from "@/store/authStore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +100,6 @@ function SearchResultsContent() {
   const [demandSubmitted, setDemandSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "products" | "shops" | "locations">("all");
   const [searchHistory, setSearchHistory] = useState<{ query: string; timestamp: string }[]>([]);
-  const [dealModal, setDealModal] = useState<{ open: boolean; product: SearchResult | null }>({ open: false, product: null });
 
   // Fetch search results
   const fetchResults = useCallback(async (q: string) => {
@@ -435,12 +433,8 @@ function SearchResultsContent() {
                         {product.isAvailable && shopObj?.id && (
                           <div className="flex border-t border-border">
                             <button onClick={(e) => { e.stopPropagation(); if (shopPhone) window.open(`tel:${shopPhone}`, '_self'); }}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors border-r border-border">
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors">
                               <Phone className="h-3 w-3" /> Contact
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); setDealModal({ open: true, product }); }}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-medium text-brand hover:bg-primary/5 transition-colors">
-                              <ShoppingBag className="h-3 w-3" /> Make Deal
                             </button>
                           </div>
                         )}
@@ -599,60 +593,6 @@ function SearchResultsContent() {
           onClose={() => setSelectedProduct(null)}
           product={productToModalData(selectedProduct)}
           shopName={getShopName(selectedProduct.shopId)}
-          onMakeDeal={(p) => {
-            setSelectedProduct(null);
-            setDealModal({ open: true, product: selectedProduct });
-          }}
-        />
-      )}
-
-      {/* Deal Modal */}
-      {dealModal.open && dealModal.product && (
-        <DealModal
-          isOpen={dealModal.open}
-          onClose={() => setDealModal({ open: false, product: null })}
-          productName={dealModal.product.name}
-          productPrice={dealModal.product.price}
-          shopName={getShopName(dealModal.product.shopId)}
-          onSendDeal={async (data) => {
-            if (!user?.id || !dealModal.product) return;
-            const shopObj = typeof dealModal.product.shopId === 'object' ? dealModal.product.shopId : null;
-            const ownerId = shopObj?.id || '';
-            if (!ownerId) return;
-            try {
-              // Always create a new deal chat
-              const createRes = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  type: "deal",
-                  participants: [user.id, ownerId],
-                  dealInfo: { productName: dealModal.product.name, productId: dealModal.product.id, quantity: data.quantity, initialPrice: data.suggestedPrice, status: "pending" },
-                }),
-              });
-              const createJson = await createRes.json();
-              const chatId = createJson.chat?.id;
-              // Send the deal message
-              if (chatId) {
-                await fetch("/api/chat", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chatId,
-                    senderId: user.id,
-                    senderName: `${user.firstName} ${user.lastName}`,
-                    senderRole: "customer",
-                    content: data.message,
-                    type: "deal_update",
-                  }),
-                });
-              }
-              setDealModal({ open: false, product: null });
-              router.push(chatId ? `/customer/chat?chatId=${chatId}` : "/customer/chat");
-            } catch (e) {
-              console.error("Failed to send deal:", e);
-            }
-          }}
         />
       )}
 

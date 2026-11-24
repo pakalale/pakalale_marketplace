@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import { connectToDatabase } from "@/lib/mongodb";
 import { Location } from "@/models/FeedPost";
 import Shop from "@/models/Shop";
@@ -59,12 +59,14 @@ async function fetchProductCounts(shopIds: Types.ObjectId[]) {
 
 function collectLocationPreviews(
   shops: Array<{ _id: unknown; locationId?: string }>,
-  previewMap: Map<string, Array<Record<string, unknown>>>
+  previewMap: Map<string, Array<Record<string, unknown>>>,
+  /** Shops may store a location's slug or its _id; normalise so they group together. */
+  resolveKey: (locationId: string) => string = (locationId) => locationId
 ) {
   const shopsByLocation = new Map<string, Array<Array<Record<string, unknown>>>>();
 
   for (const shop of shops) {
-    const locationKey = shop.locationId || "";
+    const locationKey = resolveKey(shop.locationId || "");
     if (!locationKey) continue;
     const shopProducts = previewMap.get(toStr(shop._id)) || [];
     const lists = shopsByLocation.get(locationKey) || [];
@@ -128,12 +130,16 @@ export async function GET(request: NextRequest) {
 
     const slug = searchParams.get("slug");
     if (slug) {
-      const location = await Location.findOne({ slug }).lean();
+      // Callers pass a slug or an _id, and shops store whichever was submitted.
+      const location = await Location.findOne({
+        $or: [{ slug }, ...(Types.ObjectId.isValid(slug) ? [{ _id: slug }] : [])],
+      }).lean();
       if (!location) {
         return NextResponse.json({ error: "Location not found" }, { status: 404 });
       }
+      const locationKeys = [location._id.toString(), ...(location.slug ? [location.slug] : []), slug];
       // Compute real data from shops
-      const shops = await Shop.find({ locationId: slug })
+      const shops = await Shop.find({ locationId: { $in: [...new Set(locationKeys)] } })
         .select("specialties rating totalReviews totalViews locationId")
         .lean();
       const [previewMap, productCounts] = await Promise.all([
@@ -141,12 +147,13 @@ export async function GET(request: NextRequest) {
         fetchProductCounts(shops.map((s) => s._id)),
       ]);
       const computed = computeLocationStats(shops, productCounts);
+      const previews = collectLocationPreviews(shops, previewMap, () => location._id.toString());
       return NextResponse.json({
         location: {
           ...location,
           id: location._id.toString(),
           ...computed,
-          previewProducts: collectLocationPreviews(shops, previewMap).get(slug) || [],
+          previewProducts: previews.get(location._id.toString()) || [],
         },
       });
     }
@@ -158,7 +165,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "Location not found" }, { status: 404 });
       }
       // Compute real data from shops
-      const shops = await Shop.find({ locationId: location._id.toString() })
+      const shops = await Shop.find({
+        locationId: { $in: [location._id.toString(), ...(location.slug ? [location.slug] : [])] },
+      })
         .select("specialties rating totalReviews totalViews locationId")
         .lean();
       const [previewMap, productCounts] = await Promise.all([
@@ -166,16 +175,13 @@ export async function GET(request: NextRequest) {
         fetchProductCounts(shops.map((s) => s._id)),
       ]);
       const computed = computeLocationStats(shops, productCounts);
-      const locationPreviews = collectLocationPreviews(shops, previewMap);
+      const locationPreviews = collectLocationPreviews(shops, previewMap, () => location._id.toString());
       return NextResponse.json({
         location: {
           ...location,
           id: location._id.toString(),
           ...computed,
-          previewProducts:
-            locationPreviews.get(location._id.toString()) ||
-            locationPreviews.get(location.slug || "") ||
-            [],
+          previewProducts: locationPreviews.get(location._id.toString()) || [],
         },
       });
     }
@@ -216,12 +222,21 @@ export async function GET(request: NextRequest) {
       fetchShopPreviewProducts(shops.map((s) => s._id)),
       fetchProductCounts(shops.map((s) => s._id)),
     ]);
-    const locationPreviews = collectLocationPreviews(shops, previewMap);
+    // Map every location slug/_id to the location's _id so shops stored under
+    // either form are counted and previewed together.
+    const canonicalKeys = new Map<string, string>();
+    for (const l of locations) {
+      const id = l._id.toString();
+      canonicalKeys.set(id, id);
+      if (l.slug) canonicalKeys.set(l.slug, id);
+    }
+    const resolveLocationKey = (key: string) => (key ? canonicalKeys.get(key) || key : "");
+    const locationPreviews = collectLocationPreviews(shops, previewMap, resolveLocationKey);
 
     // Build location stats from real shop data
     const statsMap = new Map<string, { shopCount: number; avgRating: number; specialties: string[]; totalViews: number; totalReviews: number; productCount: number }>();
     for (const shop of shops) {
-      const locId = shop.locationId || "";
+      const locId = resolveLocationKey(shop.locationId || "");
       const existing = statsMap.get(locId) || { shopCount: 0, avgRating: 0, specialties: [], totalViews: 0, totalReviews: 0, productCount: 0 };
       existing.shopCount += 1;
       existing.totalViews += (shop as unknown as Record<string, unknown>).totalViews as number || 0;
@@ -238,7 +253,7 @@ export async function GET(request: NextRequest) {
 
     const result = {
       locations: locations.map((l) => {
-        const stats = statsMap.get(l._id.toString()) || statsMap.get(l.slug) || { shopCount: 0, avgRating: 0, specialties: [], totalViews: 0, totalReviews: 0, productCount: 0 };
+        const stats = statsMap.get(l._id.toString()) || { shopCount: 0, avgRating: 0, specialties: [], totalViews: 0, totalReviews: 0, productCount: 0 };
         return {
           ...l,
           id: l._id.toString(),
@@ -247,10 +262,7 @@ export async function GET(request: NextRequest) {
           specialties: stats.specialties.length > 0 ? stats.specialties : (l.specialties || []),
           totalViews: stats.totalViews,
           productCount: stats.productCount || 0,
-          previewProducts:
-            locationPreviews.get(l._id.toString()) ||
-            locationPreviews.get(l.slug || "") ||
-            [],
+          previewProducts: locationPreviews.get(l._id.toString()) || [],
         };
       }),
     };

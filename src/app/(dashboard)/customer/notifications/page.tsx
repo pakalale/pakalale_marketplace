@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Store, Heart, MapPin, Package, Info, Bell, Trash2, Sparkles, TrendingUp, ShoppingBag } from "lucide-react";
+import { MessageSquare, Store, Heart, MapPin, Package, Info, Bell, Trash2, Sparkles, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { formatTimeAgo } from "@/lib/formatTime";
 import { useNotificationStore } from "@/store/notificationStore";
 
 const iconMap: Record<string, React.ElementType> = {
-  deal: MessageSquare,
   message: MessageSquare,
   shop: Store,
   review: Heart,
@@ -20,7 +19,6 @@ const iconMap: Record<string, React.ElementType> = {
   system: Info,
 };
 const colorMap: Record<string, string> = {
-  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
@@ -34,7 +32,8 @@ export default function NotificationsPage() {
   const { data, loading, refetch } = useNotifications(user?.id || null);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
-  const notifications = data?.notifications || [];
+  // Deals were removed from the app; hide any deal notifications left in old accounts.
+  const notifications = (data?.notifications || []).filter((n) => n.type !== "deal");
 
   // Sync unread count to global store
   useEffect(() => {
@@ -70,7 +69,6 @@ export default function NotificationsPage() {
     }
   }, [notifications, data?.unreadCount, refetch, setUnreadCount]);
 
-  const dealCount = notifications.filter((n) => n.type === "deal").length;
   const messageCount = notifications.filter((n) => n.type === "message").length;
   const shopCount = notifications.filter((n) => n.type === "shop").length;
 
@@ -86,19 +84,12 @@ export default function NotificationsPage() {
 
       <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Card className="bg-gradient-to-br from-teal-500/10 to-primary/10 border-teal-500/20 cursor-pointer" onClick={() => router.push("/customer/chat")}>
             <CardContent className="p-3 text-center">
               <MessageSquare className="h-5 w-5 text-teal-500 mx-auto mb-1" />
               <p className="text-lg font-bold">{messageCount}</p>
               <p className="text-[10px] text-muted-foreground">Messages</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-primary/10 to-amber-500/10 border-primary/20 cursor-pointer" onClick={() => router.push("/customer/deals")}>
-            <CardContent className="p-3 text-center">
-              <ShoppingBag className="h-5 w-5 text-brand mx-auto mb-1" />
-              <p className="text-lg font-bold">{dealCount}</p>
-              <p className="text-[10px] text-muted-foreground">Deals</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-amber-400/10 to-rose-400/10 border-amber-400/20 cursor-pointer" onClick={() => router.push("/customer/locations")}>
@@ -133,7 +124,7 @@ export default function NotificationsPage() {
               <div>
                 <h3 className="font-semibold text-sm">No notifications yet</h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                  You&apos;ll see alerts for new messages, deal updates, shop responses, and more here.
+                  You&apos;ll see alerts for new messages, order updates, shop responses, and more here.
                 </p>
               </div>
               <div className="flex flex-col gap-2 max-w-xs mx-auto">
@@ -165,10 +156,10 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-sm font-medium truncate">{n.title}</h4>
+                            <h4 className="text-sm font-medium break-words">{n.title}</h4>
                             <span className="text-[10px] text-muted-foreground shrink-0">{formatTimeAgo(n.createdAt)}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 break-words whitespace-pre-line">{n.message}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {!n.isRead && <div className="w-2 h-2 bg-primary rounded-full" />}

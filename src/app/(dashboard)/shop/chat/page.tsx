@@ -1,66 +1,20 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import {
-  PhoneCall,
-  ShoppingBag,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Handshake,
-  Tag,
-  Send,
-  Loader2,
-} from "lucide-react";
+import { PhoneCall } from "lucide-react";
 import MessageBubble from "@/components/MessageBubble";
 import MessageInput from "@/components/MessageInput";
 import ChatListSimple from "@/components/ChatListSimple";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/authStore";
-import { useDealStore } from "@/store/dealStore";
 import {
   useChatMessages,
   sendMessage,
-  updateDealStatus,
-  proposePrice,
   type ChatData,
   type MessageData,
 } from "@/hooks/useApi";
 import { useOnlineStore } from "@/store/onlineStore";
-import { formatLastSeen } from "@/lib/formatTime";
 import { useSocket, type SocketMessage } from "@/hooks/useSocket";
-
-const dealStatusConfig: Record<
-  string,
-  { label: string; color: string; icon: React.ElementType }
-> = {
-  pending: {
-    label: "Pending",
-    color: "text-amber-400 bg-amber-400/10 border-amber-400/20",
-    icon: Clock,
-  },
-  negotiating: {
-    label: "Negotiating",
-    color: "text-blue-400 bg-blue-400/10 border-blue-400/20",
-    icon: Handshake,
-  },
-  confirmed: {
-    label: "Confirmed",
-    color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-    icon: CheckCircle2,
-  },
-  completed: {
-    label: "Completed",
-    color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
-    icon: CheckCircle2,
-  },
-  cancelled: {
-    label: "Cancelled",
-    color: "text-red-400 bg-red-400/10 border-red-400/20",
-    icon: XCircle,
-  },
-};
 
 export default function ShopChatPage() {
   const { user } = useAuthStore();
@@ -73,8 +27,6 @@ export default function ShopChatPage() {
   } | null>(null);
 
   const [pendingMessages, setPendingMessages] = useState<MessageData[]>([]);
-  const [counterPriceInput, setCounterPriceInput] = useState("");
-  const [proposing, setProposing] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -267,6 +219,7 @@ export default function ShopChatPage() {
     }
 
     if (isConnected) {
+      const recipientId = activeChat.otherParticipant?.id;
       sendSocketMessage({
         chatId: activeChat.id,
         senderId: user.id,
@@ -274,6 +227,7 @@ export default function ShopChatPage() {
         senderRole: "shop_owner",
         content,
         type: type || "text",
+        ...(recipientId ? { recipientId } : {}),
       });
     }
 
@@ -374,87 +328,8 @@ export default function ShopChatPage() {
     setReplyTo(null);
     setPendingMessages([]);
     setShowChatList(false);
-    setCounterPriceInput("");
     hasScrolledOnOpen.current = false;
     isUserScrolledUp.current = false;
-  };
-
-  // ── Deal actions ──
-  const handleDealAction = async (
-    status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled"
-  ) => {
-    if (!activeChat || !user) return;
-    try {
-      await updateDealStatus(activeChat.id, status, user.id);
-      setActiveChat((prev) =>
-        prev
-          ? {
-              ...prev,
-              dealInfo: prev.dealInfo
-                ? { ...prev.dealInfo, status }
-                : undefined,
-            }
-          : prev
-      );
-      refetchMessages();
-
-      // Optimistically update deal count when status becomes terminal
-      if (status === "completed" || status === "cancelled") {
-        useDealStore.getState().decrementDealCount();
-      }
-
-      // Notify other participants via socket
-      const participantIds = activeChat.participants?.map((p) => p.id) || [];
-      window.dispatchEvent(
-        new CustomEvent("deal-status-changed", {
-          detail: { chatId: activeChat.id, dealStatus: status, participantIds },
-        })
-      );
-    } catch (e) {
-      console.error("Failed to update deal status:", e);
-    }
-  };
-
-  const handleProposePrice = async () => {
-    if (!activeChat || !user || !counterPriceInput) return;
-    const price = parseFloat(counterPriceInput);
-    if (isNaN(price) || price <= 0) return;
-
-    setProposing(true);
-    try {
-      const currentPrice =
-        activeChat.dealInfo?.counterPrice ||
-        activeChat.dealInfo?.initialPrice;
-      await proposePrice(
-        activeChat.id,
-        user.id,
-        "shop_owner",
-        price,
-        currentPrice
-      );
-      setActiveChat((prev) =>
-        prev?.dealInfo
-          ? {
-              ...prev,
-              dealInfo: {
-                ...prev.dealInfo,
-                counterPrice: price,
-                lastOfferBy: user.id,
-                status:
-                  prev.dealInfo.status === "pending"
-                    ? "negotiating"
-                    : prev.dealInfo.status,
-              },
-            }
-          : prev
-      );
-      setCounterPriceInput("");
-      refetchMessages();
-    } catch (e) {
-      console.error("Failed to propose price:", e);
-    } finally {
-      setProposing(false);
-    }
   };
 
   if (showChatList) {
@@ -494,200 +369,21 @@ export default function ShopChatPage() {
                     ? <span className="text-emerald-500">typing...</span>
                     : activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id)
                       ? <span className="text-emerald-500">Online</span>
-                      : activeChat?.dealInfo
-                        ? `Deal: ${activeChat.dealInfo.productName}`
-                        : "Customer"}
+                      : "Customer"}
                 </p>
               </div>
             </div>
-            {activeChat?.otherParticipant?.id ? (
+            {activeChat?.otherParticipant?.id && (
               <a
-                href={`/shop/profile/${activeChat.otherParticipant?.id}`}
+                href={`/shop/profile/${activeChat.otherParticipant.id}`}
+                aria-label={`Open ${otherName}'s profile`}
                 className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors"
               >
                 <PhoneCall className="h-4 w-4" />
               </a>
-            ) : (
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled>
-                <PhoneCall className="h-4 w-4" />
-              </Button>)}
+            )}
           </div>
         </header>
-
-        {/* ── Pinned Deal Banner ── */}
-        {activeChat?.type === "deal" && activeChat?.dealInfo && (
-          <div className="sticky top-14 z-50 border-b border-border bg-background/90 backdrop-blur-lg">
-            <div className="px-3 py-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
-                    <ShoppingBag className="h-3.5 w-3.5 text-brand" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold truncate">
-                      {activeChat.dealInfo.productName}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      {activeChat.dealInfo.initialPrice && (
-                        <span className="text-[10px] text-muted-foreground">
-                          Offer: K
-                          {activeChat.dealInfo.initialPrice.toLocaleString()}
-                        </span>
-                      )}
-                      {activeChat.dealInfo.counterPrice &&
-                        activeChat.dealInfo.counterPrice !==
-                          activeChat.dealInfo.initialPrice && (
-                          <>
-                            <span className="text-[10px] text-muted-foreground">
-                              →
-                            </span>
-                            <span className="text-[10px] text-brand font-bold">
-                              K
-                              {activeChat.dealInfo.counterPrice.toLocaleString()}
-                            </span>
-                          </>
-                        )}
-                    </div>
-                  </div>
-                </div>
-                {(() => {
-                  const cfg =
-                    dealStatusConfig[activeChat.dealInfo.status] ||
-                    dealStatusConfig.pending;
-                  const StatusIcon = cfg.icon;
-                  return (
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.color}`}
-                    >
-                      <StatusIcon className="h-3 w-3" />
-                      {cfg.label}
-                    </span>
-                  );
-                })()}
-              </div>
-
-              {/* ── Deal action buttons — shop owner only decides ── */}
-              {(() => {
-                const dealStatus = activeChat.dealInfo.status;
-
-                // ── PENDING: Shop owner reviews customer's offer → Accept / Negotiate / Decline ──
-                if (dealStatus === "pending") {
-                  const offerPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.initialPrice;
-                  return (
-                    <div className="mt-2 space-y-2">
-                      {offerPrice && (
-                        <div className="flex items-center gap-1.5">
-                          <Tag className="h-3 w-3 text-brand" />
-                          <span className="text-[10px] text-muted-foreground">Customer&apos;s offer:</span>
-                          <span className="text-[10px] font-bold text-brand">K{offerPrice.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Button size="sm" className="h-7 text-[10px] flex-1 bg-emerald-500 text-white hover:bg-emerald-600" onClick={() => handleDealAction("confirmed" as const)}>
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Accept
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-[10px] flex-1" onClick={() => handleDealAction("negotiating" as const)}>
-                          <Handshake className="h-3 w-3 mr-1" /> Negotiate
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-7 text-[10px] flex-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => handleDealAction("cancelled" as const)}>
-                          <XCircle className="h-3 w-3 mr-1" /> Decline
-                        </Button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">Accept the price, negotiate with a counter-offer, or decline</p>
-                    </div>
-                  );
-                }
-
-                // ── NEGOTIATING: Back-and-forth until shop owner accepts or declines ──
-                if (dealStatus === "negotiating") {
-                  const lastOfferPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.initialPrice;
-                  const isMyOffer = activeChat.dealInfo?.lastOfferBy === user?.id;
-                  return (
-                    <div className="mt-2 space-y-2">
-                      {lastOfferPrice && (
-                        <div className="flex items-center gap-1.5">
-                          <Tag className="h-3 w-3 text-brand" />
-                          <span className="text-[10px] text-muted-foreground">
-                            {isMyOffer ? "Your counter:" : "Customer&apos;s counter:"}
-                          </span>
-                          <span className="text-[10px] font-bold text-brand">K{lastOfferPrice.toLocaleString()}</span>
-                        </div>
-                      )}
-                      <div className="flex gap-1.5">
-                        <div className="relative flex-1">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">K</span>
-                          <input
-                            type="number"
-                            value={counterPriceInput}
-                            onChange={(e) => setCounterPriceInput(e.target.value)}
-                            placeholder={lastOfferPrice ? `Counter (current: K${lastOfferPrice.toLocaleString()})` : "Your price"}
-                            className="w-full pl-5 pr-2 py-1.5 bg-muted border border-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-primary"
-                            onKeyDown={(e) => e.key === "Enter" && handleProposePrice()}
-                          />
-                        </div>
-                        <Button size="sm" className="h-7 px-2 bg-primary text-primary-foreground" onClick={handleProposePrice} disabled={proposing || !counterPriceInput}>
-                          {proposing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <Button size="sm" className="h-6 text-[9px] px-2 bg-emerald-500 text-white hover:bg-emerald-600 flex-1" onClick={() => handleDealAction("confirmed" as const)}>
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Accept K{lastOfferPrice?.toLocaleString()}
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-6 text-[9px] px-2 text-destructive border-destructive/30 flex-1" onClick={() => handleDealAction("cancelled" as const)}>
-                          <XCircle className="h-3 w-3 mr-1" /> Decline
-                        </Button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">Accept, counter with a different price, or decline</p>
-                    </div>
-                  );
-                }
-
-                // ── CONFIRMED: Deal agreed, show agreed price ──
-                if (dealStatus === "confirmed") {
-                  const agreedPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.finalPrice ||
-                    activeChat.dealInfo?.initialPrice;
-                  return (
-                    <div className="mt-2 space-y-2">
-                      {agreedPrice && (
-                        <div className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                          <span className="text-[10px] text-emerald-400 font-semibold">
-                            Agreed price: K{agreedPrice.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          className="h-7 text-[10px] flex-1 bg-primary text-primary-foreground"
-                          onClick={() =>
-                            handleDealAction("completed" as const)
-                          }
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Mark Complete
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[10px] flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                          onClick={() =>
-                            handleDealAction("cancelled" as const)
-                          }
-                        >
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return null;
-              })()}
-            </div>
-          </div>
-        )}
 
         <div
           ref={messagesContainerRef}

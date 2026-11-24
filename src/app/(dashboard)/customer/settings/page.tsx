@@ -261,7 +261,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between py-2">
                   <div>
                     <span className="text-sm font-medium">Push Notifications</span>
-                    <p className="text-[10px] text-muted-foreground">Get notified about deals, messages, and updates</p>
+                    <p className="text-[10px] text-muted-foreground">Get notified about messages, orders, and updates</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -283,7 +283,7 @@ export default function SettingsPage() {
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notificationsEnabled ? "translate-x-5" : ""}`} />
                   </button>
                 </div>
-                {["Deal Updates", "New Messages", "Order Status", "Promotions"].map((item) => (
+                {["New Messages", "Order Status", "Promotions"].map((item) => (
                   <div key={item} className="flex items-center justify-between py-2 pl-4 border-l-2 border-border">
                     <span className="text-sm">{item}</span>
                     <input type="checkbox" defaultChecked disabled={!notificationsEnabled} className="accent-primary rounded" />

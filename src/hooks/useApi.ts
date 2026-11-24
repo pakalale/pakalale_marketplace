@@ -324,7 +324,7 @@ export interface OrderData {
     quantity: number;
     price: number;
   }>;
-  status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+  status: "order_placed" | "approved" | "delivery_in_progress" | "delivered" | "completed" | "cancelled";
   total: number;
   paymentMethod?: string;
   notes?: string;
@@ -567,7 +567,9 @@ export async function createFeedPost(data: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  return res.json();
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(result?.error || "Failed to create post");
+  return result;
 }
 
 export async function likeFeedPost(postId: string, userId: string) {
@@ -590,7 +592,7 @@ export async function commentFeedPost(postId: string, userId: string, authorName
 
 // ── Chat ──
 export function useChats(userId: string | null) {
-  return useFetch<{ chats: ChatData[]; totalUnread: number; totalDeals: number }>(userId ? `/api/chat?userId=${userId}` : null, [userId]);
+  return useFetch<{ chats: ChatData[]; totalUnread: number }>(userId ? `/api/chat?userId=${userId}` : null, [userId]);
 }
 
 export function useChatMessages(chatId: string | null) {
@@ -599,22 +601,12 @@ export function useChatMessages(chatId: string | null) {
 
 export interface ChatData {
   id: string;
-  type: "deal" | "general";
+  type: "general";
   participants: Array<{ id: string; name: string; avatar?: string; role: string }>;
   otherParticipant?: { id: string; name: string; avatar?: string; role: string; shopId?: string } | null;
   lastMessage?: { id: string; content: string; senderId: string; type?: string; isRead?: boolean; readBy?: string[]; timestamp: string } | null;
   lastMessageTime: string;
   unreadCount?: number;
-  dealInfo?: {
-    productName?: string;
-    productId?: string;
-    initialPrice?: number;
-    counterPrice?: number;
-    finalPrice?: number;
-    lastOfferBy?: string;
-    quantity?: number;
-    status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled";
-  };
   isActive: boolean;
   createdAt: string;
 }
@@ -626,7 +618,7 @@ export interface MessageData {
   senderName: string;
   senderRole: "customer" | "shop_owner";
   content: string;
-  type: "text" | "image" | "file" | "voice" | "deal_update" | "system";
+  type: "text" | "image" | "file" | "voice" | "system";
   isRead: boolean;
   readBy: string[];
   replyTo?: { messageId: string; content: string; senderName: string };
@@ -657,7 +649,6 @@ export async function sendMessage(data: {
 export async function createChat(data: {
   type?: string;
   participants: string[];
-  dealInfo?: Record<string, unknown>;
 }) {
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -668,24 +659,6 @@ export async function createChat(data: {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `Failed to create chat (${res.status})`);
   }
-  return res.json();
-}
-
-export async function updateDealStatus(chatId: string, dealStatus: string, senderId: string) {
-  const res = await fetch("/api/chat", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "updateDealStatus", chatId, dealStatus, senderId }),
-  });
-  return res.json();
-}
-
-export async function proposePrice(chatId: string, senderId: string, senderRole: "customer" | "shop_owner", price: number, previousPrice?: number) {
-  const res = await fetch("/api/chat", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "proposePrice", chatId, senderId, senderRole, price, previousPrice }),
-  });
   return res.json();
 }
 

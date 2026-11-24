@@ -53,11 +53,13 @@ export async function POST(request: NextRequest) {
     // If shop owner, create the shop (not verified by default)
     let shopData = null;
     if (role === "shop_owner" && shop) {
+      // Ensure locationId is set; default to first available location if not provided
+      const locationId = shop.locationId || "";
       shopData = await Shop.create({
         name: shop.name,
         description: shop.description,
         ownerId: user._id,
-        locationId: shop.locationId || "",
+        locationId,
         status: "pending", // NOT verified by default
         contact: {
           phone: phone || "",
@@ -69,8 +71,9 @@ export async function POST(request: NextRequest) {
         images: [],
         totalReviews: 0,
       });
-      // Invalidate shops cache so new shop appears immediately
+      // Invalidate shops + locations cache so the new shop appears immediately
       invalidateCache("shops:");
+      invalidateCache("loc:");
     }
 
     // Send welcome notification

@@ -7,21 +7,28 @@ export interface IOrderItem {
 }
 
 export type OrderStatus =
-  | "order_received"
-  | "in_store"
-  | "out_for_delivery"
-  | "ready_for_pickup"
+  | "order_placed"
+  | "approved"
+  | "delivery_in_progress"
   | "delivered"
-  | "received"
-  | "cancelled"
-  | "pending"
-  | "confirmed"
-  | "preparing"
-  | "ready"
-  | "completed";
+  | "completed"
+  | "cancelled";
 
 export type OrderDeliveryMethod = "yango" | "indrive" | "pickup";
 export type OrderPaymentMethod = "airtel_money" | "cash";
+
+export interface IOrderDeliveryAgent {
+  name?: string;
+  phone?: string;
+  /** Last position shared from the agent's tracking link. */
+  location?: {
+    lat: number;
+    lng: number;
+    updatedAt: Date;
+  };
+  /** Secret in the agent's no-login tracking link (`/track/<token>`). */
+  trackingToken?: string;
+}
 
 export interface IOrder extends Document {
   _id: mongoose.Types.ObjectId;
@@ -37,6 +44,9 @@ export interface IOrder extends Document {
   customerPhone?: string;
   deliveryAddress?: string;
   notes?: string;
+  deliveryAgent?: IOrderDeliveryAgent;
+  /** Set once the completion step recorded the sale, so stock only drops once. */
+  saleRecordedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,9 +63,27 @@ const OrderSchema = new Schema<IOrder>(
     shopId: { type: Schema.Types.ObjectId, ref: "Shop", required: true },
     items: [OrderItemSchema],
     status: {
+      // Old statuses are intentionally still allowed so pre-existing orders
+      // can be read and normalised rather than failing validation.
       type: String,
-      enum: ["order_received", "in_store", "out_for_delivery", "ready_for_pickup", "delivered", "received", "cancelled", "pending", "confirmed", "preparing", "ready", "completed"],
-      default: "order_received",
+      enum: [
+        "order_placed",
+        "approved",
+        "delivery_in_progress",
+        "delivered",
+        "completed",
+        "cancelled",
+        "order_received",
+        "in_store",
+        "out_for_delivery",
+        "ready_for_pickup",
+        "received",
+        "pending",
+        "confirmed",
+        "preparing",
+        "ready",
+      ],
+      default: "order_placed",
     },
     total: { type: Number, required: true },
     subtotal: { type: Number },
@@ -65,6 +93,17 @@ const OrderSchema = new Schema<IOrder>(
     deliveryAddress: { type: String, trim: true },
     paymentMethod: { type: String, default: "Cash" },
     notes: { type: String },
+    deliveryAgent: {
+      name: { type: String, trim: true },
+      phone: { type: String, trim: true },
+      location: {
+        lat: { type: Number },
+        lng: { type: Number },
+        updatedAt: { type: Date },
+      },
+      trackingToken: { type: String, index: true },
+    },
+    saleRecordedAt: { type: Date },
   },
   { timestamps: true }
 );

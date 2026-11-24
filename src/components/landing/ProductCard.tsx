@@ -2,6 +2,7 @@
 
 import { createElement, useState } from "react";
 import { Heart, Play, ShoppingCart, Star } from "lucide-react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { formatKwacha, isProductVideo, productDiscount, productImages, productShopName, productVideos } from "@/lib/product";
 import { productPlaceholder } from "@/lib/placeholders";
@@ -39,7 +40,10 @@ function compactCount(count: number) {
 
 export default function ProductCard({ product, onOpen, onAddToCart, className, compact = false, imageOverride }: ProductCardProps) {
   const [failedImageCount, setFailedImageCount] = useState(0);
-  const saved = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
+  const hydrated = useHydrated();
+  const savedInStore = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
+  // Persisted wishlist is only readable after hydration; avoid a blank flash of unsaved hearts.
+  const saved = hydrated && savedInStore;
   const toggleSaved = useWishlistStore((state) => state.toggle);
 
   const photos = productImages(product);

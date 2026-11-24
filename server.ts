@@ -38,6 +38,10 @@ app.prepare().then(() => {
     maxHttpBufferSize: 1e8, // 100MB for large file transfers
   });
 
+  // Expose the Socket.IO server so API routes running in this process can push
+  // real-time events (notifications, message badges) to connected users.
+  (globalThis as typeof globalThis & { __pakalaleIo?: Server }).__pakalaleIo = io;
+
   // Track online users
   const onlineUsers = new Map<string, Set<string>>();
   const userSockets = new Map<string, string>();
@@ -47,6 +51,8 @@ app.prepare().then(() => {
 
     socket.on("register", (userId: string) => {
       userSockets.set(userId, socket.id);
+      // Personal room so server-side code can target this user directly.
+      socket.join(`user:${userId}`);
       // Broadcast this user coming online to ALL connected clients
       io.emit("user_online", { userId });
       // Send current online user list to the newly connected user
@@ -85,8 +91,29 @@ app.prepare().then(() => {
       type: string;
       timestamp: string;
       id: string;
+      recipientId?: string;
+      recipientIds?: string[];
     }) => {
+      // Broadcast to chat room (for users actively viewing the chat)
       socket.to(data.chatId).emit("new_message", data);
+
+      // Also notify recipients who are online but NOT viewing this chat, so
+      // their global unread badge updates in real-time. Recipients viewing the
+      // chat already got the message through the room broadcast above.
+      const recipients = data.recipientIds || (data.recipientId ? [data.recipientId] : []);
+      const chatRoom = io.sockets.adapter.rooms.get(data.chatId);
+      for (const rid of recipients) {
+        if (rid === data.senderId) continue;
+        const recipientRoom = io.sockets.adapter.rooms.get(`user:${rid}`);
+        if (!recipientRoom) continue;
+        const isViewingChat = chatRoom
+          ? [...recipientRoom].some((sid) => chatRoom.has(sid))
+          : false;
+        if (!isViewingChat) {
+          io.to(`user:${rid}`).emit("new_message", data);
+        }
+      }
+
       console.log(`📨 Message in ${data.chatId} from ${data.senderName}: ${data.content.substring(0, 50)}`);
     });
 
@@ -102,22 +129,6 @@ app.prepare().then(() => {
       socket.to(data.chatId).emit("user_stop_typing", data);
       // Also broadcast globally
       io.emit("user_stop_typing_global", data);
-    });
-
-    socket.on("deal_status_changed", (data: { chatId: string; dealStatus: string; participantIds: string[] }) => {
-      // Broadcast deal status change to all participants so their deal count updates
-      if (data.participantIds && Array.isArray(data.participantIds)) {
-        for (const pid of data.participantIds) {
-          const targetSid = userSockets.get(pid);
-          if (targetSid) {
-            io.to(targetSid).emit("deal_status_changed", {
-              dealStatus: data.dealStatus,
-              chatId: data.chatId,
-            });
-          }
-        }
-      }
-      console.log(`🤝 Deal status changed in ${data.chatId}: ${data.dealStatus}`);
     });
 
     socket.on("get_online_users", (chatId: string) => {

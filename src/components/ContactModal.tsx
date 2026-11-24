@@ -10,7 +10,6 @@ import {
   Star,
   Store,
   MessageSquare,
-  ShoppingBag,
   Calendar,
 } from "lucide-react";
 import {
@@ -43,7 +42,6 @@ interface ContactModalProps {
   onClose: () => void;
   contact: ContactInfo;
   onMessageClick?: () => void;
-  onDealClick?: () => void;
 }
 
 export default function ContactModal({
@@ -51,7 +49,6 @@ export default function ContactModal({
   onClose,
   contact,
   onMessageClick,
-  onDealClick,
 }: ContactModalProps) {
   useModalBack(isOpen, onClose);
 
@@ -131,15 +128,6 @@ export default function ContactModal({
 
         {/* Actions */}
         <div className="pt-3 border-t border-border space-y-2 shrink-0">
-          {contact.role === "shop_owner" && onDealClick && (
-            <Button
-              onClick={onDealClick}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <ShoppingBag className="h-4 w-4 mr-2" />
-              Make Deal
-            </Button>
-          )}
           <Button
             variant="secondary"
             onClick={onMessageClick}

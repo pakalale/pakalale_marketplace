@@ -11,8 +11,10 @@ import { useLocations, type LocationData, type ProductData } from "@/hooks/useAp
 import { useOnlineStore } from "@/store/onlineStore";
 import { useCartStore } from "@/store/cartStore";
 import { cartLineFromProduct } from "@/lib/cart";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import ProductPreviewStrip from "@/components/ProductPreview";
+import SavedItemsButton from "@/components/customer/SavedItemsButton";
+import CartButton from "@/components/customer/CartButton";
 
 export default function LocationsPage() {
   const router = useRouter();
@@ -34,11 +36,11 @@ export default function LocationsPage() {
   const addPreviewProductToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   // Collect all unique specialties across locations for the filter
@@ -48,9 +50,12 @@ export default function LocationsPage() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
         <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-16" />
+          <div className="w-20" />
           <h1 className="text-sm font-bold">Locations</h1>
-          <div className="w-16" />
+          <div className="flex w-20 items-center justify-end gap-1">
+            <CartButton />
+            <SavedItemsButton />
+          </div>
         </div>
       </header>
 

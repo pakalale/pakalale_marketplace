@@ -42,7 +42,7 @@ export default function Header({ activeTab = "home", userId, title }: HeaderProp
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
-  // Start polling for notification + deal counts
+  // Start polling for notification counts
   useCountPolling(userId);
 
   // Initial fetch + periodic polling for chat unread

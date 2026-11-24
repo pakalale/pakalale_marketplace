@@ -23,20 +23,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Cloudinary not configured" }, { status: 500 });
     }
 
-    // Validate file size (max 50MB for video, 10MB for images/audio)
-    const maxSize = resourceType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: `File too large. Max size: ${resourceType === "video" ? "50MB" : "10MB"}` },
-        { status: 400 }
-      );
-    }
-
-    // Convert file to buffer
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Determine the correct resource type
+    // Determine the correct resource type. The client usually sends "auto", so
+    // the file's MIME type has to be inspected before the size limit is applied.
     let detectedType: "image" | "video" | "audio" | "auto" = "auto";
     if (resourceType === "video" || file.type.startsWith("video/")) {
       detectedType = "video";
@@ -45,6 +33,19 @@ export async function POST(request: NextRequest) {
     } else if (resourceType === "image" || file.type.startsWith("image/")) {
       detectedType = "image";
     }
+
+    // Validate file size (max 50MB for video, 10MB for images/audio)
+    const maxSize = detectedType === "video" ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File too large. Max size: ${detectedType === "video" ? "50MB" : "10MB"}` },
+        { status: 400 }
+      );
+    }
+
+    // Convert file to buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
     // Subfolder based on type
     const subFolder = `${folder}/${detectedType === "auto" ? "misc" : detectedType}s`;

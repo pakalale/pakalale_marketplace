@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, MessageSquare, Share, ShoppingBag, ShoppingCart, MapPin, Clock, CheckCircle, Phone, Loader2 } from "lucide-react";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,7 +11,6 @@ import ImageWithFallback from "@/components/ImageWithFallback";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import ContactModal from "./ContactModal";
-import DealModal from "./DealModal";
 import ImageViewerModal from "./ImageViewerModal";
 import VerifiedBadge from "./VerifiedBadge";
 import { cn } from "@/lib/utils";
@@ -19,6 +18,7 @@ import { formatTimeAgo } from "@/lib/formatTime";
 import { type FeedPostData, type ProductData } from "@/hooks/useApi";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
+import { useHydrated } from "@/hooks/useHydrated";
 
 const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
 function isVideoUrl(url: string): boolean {
@@ -37,12 +37,6 @@ interface FeedPostProps {
   onLike: (postId: string) => void;
   onComment: (postId: string, authorName: string, content: string) => void;
   onShare: (postId: string) => void;
-  onMakeDeal: (productName: string, shopOwnerId: string, dealData: {
-    quantity: number;
-    suggestedPrice: number;
-    message: string;
-    productId?: string;
-  }) => void;
   onContactShop: (shopOwnerId: string) => void;
   currentUserId?: string;
   currentUserName?: string;
@@ -54,7 +48,6 @@ export default function FeedPost({
   onLike,
   onComment,
   onShare,
-  onMakeDeal,
   onContactShop,
   currentUserId,
   currentUserName,
@@ -62,9 +55,12 @@ export default function FeedPost({
 }: FeedPostProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
-  const saved = useWishlistStore((state) =>
+  const hydrated = useHydrated();
+  const savedInStore = useWishlistStore((state) =>
     state.items.some((item) => item.id === (post.product?.id || post.id))
   );
+  // Persisted wishlist is only readable after hydration; avoid a blank flash of unsaved hearts.
+  const saved = hydrated && savedInStore;
   const toggleSaved = useWishlistStore((state) => state.toggle);
   const [showComments, setShowComments] = useState(false);
   const [showCommentsModal, setShowCommentsModal] = useState(false);
@@ -72,14 +68,11 @@ export default function FeedPost({
   const [newComment, setNewComment] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [showDealModal, setShowDealModal] = useState(false);
-  const [dealSending, setDealSending] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   // Lazy-mount flags: only render modals after first open
   const [contactMounted, setContactMounted] = useState(false);
-  const [dealMounted, setDealMounted] = useState(false);
 
   // Determine profile path based on user role
   const profileBase = currentUserRole === "shop_owner" ? "/shop/profile" : "/customer/profile";
@@ -158,7 +151,7 @@ export default function FeedPost({
   const handleAddToCart = () => {
     if (!post.product) return;
     if (!shopId) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem({
@@ -172,20 +165,8 @@ export default function FeedPost({
       shopId,
       shopName: post.author?.name,
     });
-    toast.success(`${post.product.name} added to cart`);
+    toastAddedToCart(post.product.name);
   };
-
-  const handleDealSend = async (data: { quantity: number; suggestedPrice: number; message: string }) => {
-    setDealSending(true);
-    try {
-      await onMakeDeal(post.product?.name || post.content.slice(0, 50), post.author!.id, { ...data, productId: post.product?.id });
-      setShowDealModal(false);
-    } finally {
-      setDealSending(false);
-    }
-  };
-
-
 
   return (
     <Card className="bg-card border-border overflow-hidden">
@@ -592,20 +573,6 @@ export default function FeedPost({
             role: post.author?.role || "customer",
           }}
           onMessageClick={() => { setShowContactModal(false); onContactShop(post.author?.id || ""); }}
-          onDealClick={() => { setShowContactModal(false); setShowDealModal(true); setDealMounted(true); }}
-        />
-      )}
-
-      {/* Deal Modal */}
-      {dealMounted && (
-        <DealModal
-          isOpen={showDealModal}
-          onClose={() => setShowDealModal(false)}
-          productName={post.product?.name || post.content.slice(0, 50)}
-          productPrice={post.product?.price}
-          shopName={post.author?.name}
-          onSendDeal={handleDealSend}
-          sending={dealSending}
         />
       )}
 

@@ -3,11 +3,21 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { CheckCircle2, Loader2, MessageSquare, Package, Store, Truck, Wallet } from "lucide-react";
 import Header from "@/components/Header";
+import DeliveryLocationButton from "@/components/orders/DeliveryLocationButton";
 import { Button } from "@/components/ui/button";
 import { formatKwacha } from "@/lib/product";
-import { customerCanConfirmReceived, orderStatusLabel } from "@/lib/orderStatus";
+import {
+  canCancelOrder,
+  customerCanConfirmCompletion,
+  isOutForDelivery,
+  normalizeOrderStatus,
+  orderStatusHeaderClass,
+  orderStatusLabel,
+  orderStatusPillClass,
+} from "@/lib/orderStatus";
 import { useAuthStore } from "@/store/authStore";
 
 interface OrderLine {
@@ -29,6 +39,11 @@ interface CustomerOrder {
   deliveryAddress?: string;
   createdAt: string;
   shopId: string | { id?: string; name?: string; ownerId?: string; profileImage?: string };
+  deliveryAgent?: {
+    name?: string;
+    phone?: string;
+    location?: { lat: number; lng: number; updatedAt?: string };
+  };
 }
 
 const deliveryLabel: Record<string, string> = {
@@ -80,11 +95,10 @@ export default function CustomerOrdersPage() {
   }, []);
 
   const filteredOrders = orders.filter((order) => {
+    const status = normalizeOrderStatus(order.status);
     if (statusFilter === "all") return true;
-    if (statusFilter === "active") return !["received", "completed", "cancelled"].includes(order.status);
-    if (statusFilter === "in_store") return ["in_store", "confirmed", "preparing"].includes(order.status);
-    if (statusFilter === "delivered") return ["delivered", "received", "completed"].includes(order.status);
-    return order.status === statusFilter;
+    if (statusFilter === "active") return !["completed", "cancelled"].includes(status);
+    return status === statusFilter;
   });
 
   const messageShop = async (order: CustomerOrder) => {
@@ -107,19 +121,24 @@ export default function CustomerOrdersPage() {
     }
   };
 
-  const confirmReceived = async (order: CustomerOrder) => {
+  const updateStatus = async (order: CustomerOrder, status: "completed" | "cancelled") => {
     setBusyOrder(order.id);
     try {
       const response = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: order.id, status: "received" }),
+        body: JSON.stringify({ id: order.id, status }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not confirm receipt");
+      if (!response.ok) throw new Error(data.error || "Could not update this order");
       await loadOrders();
+      if (status === "cancelled") {
+        toast.success("Order cancelled. The shop has been notified.", { id: "customer-order-update" });
+      } else {
+        toast.success("Order completed. Thanks for confirming!", { id: "customer-order-update" });
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not confirm receipt");
+      setError(cause instanceof Error ? cause.message : "Could not update this order");
     } finally {
       setBusyOrder(null);
     }
@@ -139,11 +158,11 @@ export default function CustomerOrdersPage() {
           <select id="customer-order-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="h-10 min-w-48 rounded-lg border border-border bg-background px-3 text-sm">
             <option value="all">All orders</option>
             <option value="active">Active orders</option>
-            <option value="order_received">Order received</option>
-            <option value="in_store">In store</option>
-            <option value="out_for_delivery">Out for delivery</option>
-            <option value="ready_for_pickup">Ready for pickup</option>
-            <option value="delivered">Delivered / received</option>
+            <option value="order_placed">Order placed</option>
+            <option value="approved">Approved</option>
+            <option value="delivery_in_progress">Delivery in progress</option>
+            <option value="delivered">Delivered</option>
+            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
@@ -163,18 +182,25 @@ export default function CustomerOrdersPage() {
             <section className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No orders match this filter.</section>
           ) : filteredOrders.map((order) => {
             const shop = shopFields(order.shopId);
-            const canConfirm = customerCanConfirmReceived(order.status);
+            const canConfirm = customerCanConfirmCompletion(order.status);
+            const canCancel = canCancelOrder(order.status);
+            const trackable = isOutForDelivery(order.status) && order.deliveryMethod !== "pickup";
             return (
               <article key={order.id} className="overflow-hidden rounded-xl border border-border bg-card">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-4">
+                <div className={`flex flex-wrap items-start justify-between gap-3 border-b p-4 ${orderStatusHeaderClass(order.status)}`}>
                   <div className="min-w-0">
-                    <p className="text-[11px] uppercase text-muted-foreground">Order ID</p>
+                    <p className="text-[11px] uppercase opacity-70">Order ID</p>
                     <h2 className="break-all font-bold">#{order.id}</h2>
-                    <p className="mt-1 text-xs text-muted-foreground">{new Date(order.createdAt).toLocaleString()}</p>
+                    <p className="mt-1 text-xs opacity-70">{new Date(order.createdAt).toLocaleString()}</p>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full {orderStatusColorClass(order.status)} px-3 py-1.5 text-xs font-semibold text-foreground">
-                    {orderStatusLabel(order.status)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {trackable && (
+                      <DeliveryLocationButton orderId={order.id} agent={order.deliveryAgent} compact />
+                    )}
+                    <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${orderStatusPillClass(order.status)}`}>
+                      {orderStatusLabel(order.status, order.deliveryMethod)}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-3 p-4">
@@ -210,8 +236,13 @@ export default function CustomerOrdersPage() {
                     <div className="flex justify-between border-t border-border pt-2 font-bold"><span>Total</span><span className="text-brand">{formatKwacha(order.total)}</span></div>
                   </div>
                   {canConfirm && (
-                    <Button type="button" className="w-full" disabled={busyOrder === order.id} onClick={() => confirmReceived(order)}>
-                      {busyOrder === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Confirm received
+                    <Button type="button" className="w-full" disabled={busyOrder === order.id} onClick={() => updateStatus(order, "completed")}>
+                      {busyOrder === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Confirm order completed
+                    </Button>
+                  )}
+                  {canCancel && (
+                    <Button type="button" variant="outline" className="w-full" disabled={busyOrder === order.id} onClick={() => updateStatus(order, "cancelled")}>
+                      Cancel order
                     </Button>
                   )}
                 </div>

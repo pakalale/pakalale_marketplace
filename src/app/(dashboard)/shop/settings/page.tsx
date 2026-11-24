@@ -403,7 +403,7 @@ export default function ShopSettingsPage() {
                     <Bell className="h-4 w-4 text-brand" />
                     <div>
                       <span className="text-sm font-medium">Push Notifications</span>
-                      <p className="text-[10px] text-muted-foreground">Get notified about new deals and messages</p>
+                      <p className="text-[10px] text-muted-foreground">Get notified about new orders and messages</p>
                     </div>
                   </div>
                   <button

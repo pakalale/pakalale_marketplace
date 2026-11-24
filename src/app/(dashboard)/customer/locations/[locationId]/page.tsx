@@ -13,13 +13,15 @@ import { useLocation, useShops, useProducts, useShopPosts, type FeedPostData, ty
 import { useCartStore } from "@/store/cartStore";
 import { cartLineFromProduct } from "@/lib/cart";
 import ProductCard from "@/components/landing/ProductCard";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import { useOnlineStore } from "@/store/onlineStore";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import ProductPreviewStrip from "@/components/ProductPreview";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
+import SavedItemsButton from "@/components/customer/SavedItemsButton";
+import CartButton from "@/components/customer/CartButton";
 
 type ProductFilter = "all" | "promo" | "new" | string;
 
@@ -198,11 +200,11 @@ export default function LocationDetailPage() {
   const handleAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   // Open a product previewed on the location header (shop derived from product).
@@ -239,7 +241,10 @@ export default function LocationDetailPage() {
         <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">
           <div aria-hidden="true" />
           <h1 className="max-w-[70vw] truncate text-sm font-bold">{selectedShop ? currentShop?.name || "Shop" : location?.name || "Location"}</h1>
-          <div aria-hidden="true" />
+          <div className="flex items-center justify-end gap-1">
+            <CartButton />
+            <SavedItemsButton />
+          </div>
         </div>
       </header>
 

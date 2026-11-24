@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useInfiniteFeed, useShops, useProducts, createFeedPost, createChat, type ProductData, type ShopData } from "@/hooks/useApi";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
+import toast from "react-hot-toast";
 
 type FilterType = "all" | "promotions" | "nearby";
 type ShopPostTemplate = "promotion" | "product_arrival" | "shop_announcement" | "custom";
@@ -277,15 +278,14 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
         relatedShopId: productShopId,
         product: postProduct,
       });
-      if (result?.post) {
-        prependPost({
-          ...result.post,
-          postType,
-          product: postProduct ? { ...postProduct, id: selectedProduct?.id } : undefined,
-          author: { id: user.id, name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role as "customer" | "shop_owner" },
-          likes: 0, likedBy: [], comments: [], commentsCount: 0, shares: 0,
-        });
-      }
+      if (!result?.post) throw new Error("Your post wasn't published. Please try again.");
+      prependPost({
+        ...result.post,
+        postType,
+        product: postProduct ? { ...postProduct, id: selectedProduct?.id } : undefined,
+        author: { id: user.id, name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role as "customer" | "shop_owner" },
+        likes: 0, likedBy: [], comments: [], commentsCount: 0, shares: 0,
+      });
       setNewPostContent("");
       setPostMedia([]);
       setPostLocation("");
@@ -295,28 +295,13 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
       setSelectedProductDraft(null);
       setPriceDrop("");
       setShowCreatePost(false);
+      toast.success("Post published");
     } catch (e) {
       console.error("Failed to create post:", e);
+      toast.error(e instanceof Error ? e.message : "Couldn't publish your post. Please try again.");
     } finally {
       setPosting(false);
     }
-  };
-
-  // ── Deal ──
-  const handleMakeDeal = async (productName: string, shopOwnerId: string, dealData?: { quantity: number; suggestedPrice: number; message: string; productId?: string }) => {
-    if (!user?.id) { requireAuth(); return; }
-    const chatBase = user.role === "shop_owner" ? "/shop/chat" : "/customer/chat";
-    try {
-      const dealInfo: Record<string, unknown> = { productName, quantity: dealData?.quantity, initialPrice: dealData?.suggestedPrice, status: "pending" };
-      if (dealData?.productId) dealInfo.productId = dealData.productId;
-      const res = await createChat({ type: "deal", participants: [user.id, shopOwnerId], dealInfo });
-      const chatId = res?.chat?.id;
-      if (chatId && dealData) {
-        const { sendMessage: sendMsg } = await import("@/hooks/useApi");
-        await sendMsg({ chatId, senderId: user.id, senderName: `${user.firstName} ${user.lastName}`, senderRole: user.role as "customer" | "shop_owner", content: dealData.message, type: "deal_update" });
-      }
-      router.push(chatId ? `${chatBase}?chatId=${chatId}` : chatBase);
-    } catch (e) { console.error("Failed to create deal chat:", e); }
   };
 
   const handleContactShop = async (shopOwnerId: string) => {
@@ -532,7 +517,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
         ) : (
           <>
             {feedPosts.map((post) => (
-              <FeedPost key={post.id} post={post} onLike={handleLike} onComment={handleComment} onShare={handleShare} onMakeDeal={handleMakeDeal} onContactShop={handleContactShop} currentUserId={user?.id} currentUserName={user ? `${user.firstName} ${user.lastName}` : undefined} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
+              <FeedPost key={post.id} post={post} onLike={handleLike} onComment={handleComment} onShare={handleShare} onContactShop={handleContactShop} currentUserId={user?.id} currentUserName={user ? `${user.firstName} ${user.lastName}` : undefined} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
             ))}
 
             {/* Load more sentinel — IntersectionObserver targets this */}
@@ -605,7 +590,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
                       onChange={(event) => setPriceDrop(event.target.value)}
                       placeholder={`Current price: K${selectedProduct.price.toLocaleString()}`}
                     />
-                    <p className="text-[10px] text-muted-foreground">Original price K{selectedProduct.price.toLocaleString()} is filled from your inventory.</p>
+                    <p className="text-[10px] text-muted-foreground">Original price K{selectedProduct.price.toLocaleString()} is filled from your inventory. The sale price must be lower.</p>
                   </div>
                 )}
                 {postTemplate === "shop_announcement" && (
@@ -655,8 +640,8 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
               <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setTagPickerMounted(true); setShowTagPicker(true); }}><Tag className="h-4 w-4 mr-1" />Tag</Button>
             </div>
             <div className="flex justify-end">
-              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting || (isShopOwner && postTemplate !== "custom" && !selectedProduct) || (postTemplate === "promotion" && (!priceDrop || Number(priceDrop) <= 0 || Number(priceDrop) >= (selectedProduct?.price || 0)))} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post"}
+              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting || mediaUploading || (isShopOwner && postTemplate !== "custom" && !selectedProduct) || (postTemplate === "promotion" && (!priceDrop || Number(priceDrop) <= 0 || Number(priceDrop) >= (selectedProduct?.price || 0)))} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : mediaUploading ? "Uploading..." : "Post"}
               </Button>
             </div>
           </div>

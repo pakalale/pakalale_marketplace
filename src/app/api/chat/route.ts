@@ -88,12 +88,12 @@ export async function GET(request: NextRequest) {
     const [participants, shops, lastMessages, unreadCounts] = await Promise.all([
       allParticipantIds.length > 0
         ? User.find({ _id: { $in: allParticipantIds } })
-            .select("firstName lastName avatar role")
+            .select("firstName lastName avatar role phone lastActiveAt")
             .lean()
         : [],
       allParticipantIds.length > 0
         ? ShopModel.find({ ownerId: { $in: allParticipantIds } })
-            .select("ownerId name profileImage")
+            .select("ownerId name profileImage contact.phone")
             .lean()
         : [],
       lastMessageIds.length > 0
@@ -118,8 +118,14 @@ export async function GET(request: NextRequest) {
     // Build lookup maps
     const userMap = new Map<string, Record<string, unknown>>();
     participants.forEach((p) => userMap.set(toStr(p._id), p as unknown as Record<string, unknown>));
-    const shopMap = new Map<string, { name: string; profileImage: string }>();
-    shops.forEach((s) => shopMap.set(toStr(s.ownerId), { name: String(s.name || ""), profileImage: String(s.profileImage || "") }));
+    const shopMap = new Map<string, { name: string; profileImage: string; phone: string }>();
+    shops.forEach((s) =>
+      shopMap.set(toStr(s.ownerId), {
+        name: String(s.name || ""),
+        profileImage: String(s.profileImage || ""),
+        phone: String(s.contact?.phone || ""),
+      })
+    );
     const msgMap = new Map<string, Record<string, unknown>>();
     lastMessages.forEach((m) => msgMap.set(toStr(m._id), m as unknown as Record<string, unknown>));
     const unreadMap = new Map<string, number>();
@@ -131,7 +137,7 @@ export async function GET(request: NextRequest) {
         const parts = (chat.participants || []).map((pid) => {
           const uid = toStr(pid);
           const u = userMap.get(uid);
-          if (!u) return { id: uid, name: "", avatar: undefined, role: undefined };
+          if (!u) return { id: uid, name: "", avatar: undefined, role: undefined, phone: "", lastActiveAt: null };
           // For shop owners, use shop name/avatar instead of personal name/avatar
           const shop = u.role === "shop_owner" ? shopMap.get(uid) : null;
           return {
@@ -139,6 +145,8 @@ export async function GET(request: NextRequest) {
             name: shop?.name || `${u.firstName} ${u.lastName}`,
             avatar: shop?.profileImage || u.avatar,
             role: u.role,
+            phone: shop?.phone || String(u.phone || ""),
+            lastActiveAt: (u.lastActiveAt as Date | undefined)?.toISOString?.() || null,
           };
         });
         const otherParticipant = parts.find((p) => p.id !== userId) || null;

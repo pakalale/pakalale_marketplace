@@ -53,6 +53,33 @@ export function formatTimeShort(timestamp: string | Date): string {
 }
 
 /**
+ * Day label used as a divider between chat messages, WhatsApp style.
+ * "Today", "Yesterday", "Mon, Nov 3" or "Mon, Nov 3, 2025".
+ */
+export function formatChatDateDivider(timestamp: string | Date): string {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+/** Local calendar day key, for grouping messages by day. */
+export function chatDayKey(timestamp: string | Date): string {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : timestamp;
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+/**
  * Format last seen / last active time.
  * "Online", "Last seen 2m ago", "Last seen 3h ago", "Last seen yesterday"
  */
@@ -60,13 +87,22 @@ export function formatLastSeen(lastActiveAt?: string | Date | null, isOnline?: b
   if (isOnline) return "Online";
   if (!lastActiveAt) return "";
 
-  const now = Date.now();
-  const then = typeof lastActiveAt === "string" ? new Date(lastActiveAt).getTime() : lastActiveAt.getTime();
-  const diffSec = Math.floor((now - then) / 1000);
+  const then = typeof lastActiveAt === "string" ? new Date(lastActiveAt) : lastActiveAt;
+  const diffSec = Math.floor((Date.now() - then.getTime()) / 1000);
 
   if (diffSec < 60) return "Last seen just now";
   if (diffSec < 3600) return `Last seen ${Math.floor(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `Last seen ${Math.floor(diffSec / 3600)}h ago`;
-  if (diffSec < 172800) return "Last seen yesterday";
-  return `Last seen ${formatTimeAgo(lastActiveAt)}`;
+
+  const time = then.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86400000);
+
+  if (diffDays === 0) return `Last seen today at ${time}`;
+  if (diffDays === 1) return `Last seen yesterday at ${time}`;
+  if (diffDays < 7) {
+    const weekday = then.toLocaleDateString("en-US", { weekday: "short" });
+    return `Last seen ${weekday} at ${time}`;
+  }
+
+  return `Last seen ${formatTimeAgo(then)}`;
 }

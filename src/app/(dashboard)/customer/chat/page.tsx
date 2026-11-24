@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useApi";
 import { useSocket, type SocketMessage } from "@/hooks/useSocket";
 import { useOnlineStore } from "@/store/onlineStore";
+import { chatDayKey, formatChatDateDivider, formatLastSeen } from "@/lib/formatTime";
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
@@ -37,6 +38,9 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const unreadDividerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Floating date pill (WhatsApp style) — tracks the day dividers we've scrolled past
+  const [stickyDateLabel, setStickyDateLabel] = useState<string | null>(null);
+  const dateDividerRefs = useRef(new Map<string, HTMLDivElement>());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrolledOnOpen = useRef(false);
   const isUserScrolledUp = useRef(false);
@@ -83,6 +87,19 @@ export default function ChatPage() {
 
   const hasUnread = unreadDividerIndex >= 0;
 
+  // The date pill shows the day of the last divider scrolled above the top edge,
+  // and hides while that divider itself is still visible in the flow.
+  const updateStickyDate = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const scrollTop = container.scrollTop;
+    let label: string | null = null;
+    dateDividerRefs.current.forEach((el) => {
+      if (el.offsetTop <= scrollTop + 2) label = el.textContent;
+    });
+    setStickyDateLabel(label);
+  }, []);
+
   // Track if user scrolled up
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -90,7 +107,8 @@ export default function ChatPage() {
     const isAtBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     isUserScrolledUp.current = !isAtBottom;
-  }, []);
+    updateStickyDate();
+  }, [updateStickyDate]);
 
   // ── Native back handling ──
   // When entering a chat, push state so native back goes to chatlist
@@ -198,6 +216,12 @@ export default function ChatPage() {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [allMessages, hasUnread]);
+
+  // Keep the floating date pill in sync after auto-scrolls and new messages
+  useEffect(() => {
+    const t = setTimeout(updateStickyDate, 60);
+    return () => clearTimeout(t);
+  }, [allMessages, activeChat?.id, updateStickyDate]);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -461,6 +485,16 @@ export default function ChatPage() {
   }
 
   const otherName = activeChat?.otherParticipant?.name || "Shop Owner";
+  const otherId = activeChat?.otherParticipant?.id;
+  const profileHref = otherId ? `/customer/profile/${otherId}` : null;
+  // Normalise before handing to the dialer so "+254 712 345 678" still works.
+  const otherPhone = (activeChat?.otherParticipant?.phone || "").replace(/[^\d+]/g, "");
+  const phoneHref = otherPhone ? `tel:${otherPhone}` : null;
+  const otherOnline =
+    !!otherId && useOnlineStore.getState().onlineUserIds.has(otherId);
+  const presenceLabel = otherOnline
+    ? "Online"
+    : formatLastSeen(activeChat?.otherParticipant?.lastActiveAt) || "Offline";
 
   return (
     <>
@@ -469,10 +503,16 @@ export default function ChatPage() {
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={activeChat?.otherParticipant?.avatar} alt={otherName} />
-                <AvatarFallback className="bg-primary/10 text-brand text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
-              </Avatar>
+              <a
+                href={profileHref ?? undefined}
+                aria-label={`Open ${otherName}'s profile`}
+                className="block"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={activeChat?.otherParticipant?.avatar} alt={otherName} />
+                  <AvatarFallback className="bg-primary/10 text-brand text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
+                </Avatar>
+              </a>
               {activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id) && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full" />
               )}
@@ -482,33 +522,60 @@ export default function ChatPage() {
               <p className="text-[10px] text-muted-foreground">
                 {typingUser
                   ? <span className="text-emerald-500">typing...</span>
-                  : activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id)
+                  : otherOnline
                     ? <span className="text-emerald-500">Online</span>
-                    : "Chat"}
+                    : presenceLabel}
               </p>
             </div>
           </div>
-          {activeChat?.otherParticipant?.id && (
-            <a
-              href={`/customer/profile/${activeChat.otherParticipant.id}`}
-              aria-label={`Open ${otherName}'s profile`}
-              className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-            >
-              <PhoneCall className="h-4 w-4" />
-            </a>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {phoneHref && (
+              <a
+                href={phoneHref}
+                aria-label={`Call ${otherName}`}
+                className="h-8 w-8 inline-flex items-center justify-center rounded-md text-brand hover:bg-muted transition-colors"
+              >
+                <PhoneCall className="h-4 w-4" />
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto flex flex-col p-3 pb-[60px]"
+        className="relative flex-1 overflow-y-auto flex flex-col p-3 pb-[60px]"
         onScroll={handleScroll}
       >
+        {/* Floating date pill — pinned just below the header while scrolling */}
+        <div className="sticky top-0 z-20 h-0 flex justify-center pointer-events-none">
+          {stickyDateLabel && (
+            <span className="mt-1 rounded-full bg-muted/95 backdrop-blur px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
+              {stickyDateLabel}
+            </span>
+          )}
+        </div>
         {/* Spacer pushes messages to the bottom — they grow upward from here */}
         <div className="flex-1" />
-        {allMessages.map((message, idx) => (
+        {allMessages.map((message, idx) => {
+          const showDateDivider =
+            idx === 0 || chatDayKey(allMessages[idx - 1].timestamp) !== chatDayKey(message.timestamp);
+          return (
           <div key={message.id} className="mb-3">
+            {showDateDivider && (
+              <div
+                className="flex justify-center py-2"
+                ref={(el) => {
+                  const key = chatDayKey(message.timestamp);
+                  if (el) dateDividerRefs.current.set(key, el);
+                  else dateDividerRefs.current.delete(key);
+                }}
+              >
+                <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
+                  {formatChatDateDivider(message.timestamp)}
+                </span>
+              </div>
+            )}
             {idx === unreadDividerIndex && (
               <div ref={unreadDividerRef} className="flex items-center gap-2 my-4">
                 <div className="flex-1 h-px bg-primary/30" />
@@ -537,7 +604,8 @@ export default function ChatPage() {
               isDelivered={message.senderId === user?.id && !message.id.startsWith("pending-") && activeChat?.otherParticipant?.id != null && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id)}
             />
           </div>
-        ))}
+          );
+        })}
         {typingUser && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
             <div className="flex gap-1">

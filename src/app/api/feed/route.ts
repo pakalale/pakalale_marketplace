@@ -363,7 +363,8 @@ export async function PUT(request: NextRequest) {
           type: "comment",
           title: parent ? `${actor.name} replied to your comment` : `${actor.name} commented on your post`,
           message: content.length > 80 ? content.slice(0, 80) + "..." : content,
-          actionUrl: `/post/${id}`,
+          // Deep link straight to the new comment/reply.
+          actionUrl: `/post/${id}?comment=${toStr(created._id)}`,
           relatedId: id,
         });
       }
@@ -435,7 +436,7 @@ export async function PUT(request: NextRequest) {
           type: "like",
           title: `${actor.name} liked your comment`,
           message: current.content.length > 80 ? current.content.slice(0, 80) + "..." : current.content,
-          actionUrl: `/post/${id}`,
+          actionUrl: `/post/${id}?comment=${commentId}`,
           relatedId: id,
         });
       }

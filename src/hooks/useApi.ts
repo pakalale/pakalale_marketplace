@@ -716,7 +716,7 @@ export interface ChatData {
   id: string;
   type: "general";
   participants: Array<{ id: string; name: string; avatar?: string; role: string }>;
-  otherParticipant?: { id: string; name: string; avatar?: string; role: string; shopId?: string } | null;
+  otherParticipant?: { id: string; name: string; avatar?: string; role: string; shopId?: string; phone?: string; lastActiveAt?: string | null } | null;
   lastMessage?: { id: string; content: string; senderId: string; type?: string; isRead?: boolean; readBy?: string[]; timestamp: string } | null;
   lastMessageTime: string;
   unreadCount?: number;

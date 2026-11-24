@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Heart,
@@ -49,6 +49,35 @@ export default function PostDetailView({ postId }: PostDetailViewProps) {
   const [submitting, setSubmitting] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Deep link from a comment/reply notification: /post/:id?comment=:commentId
+  const searchParams = useSearchParams();
+  const targetCommentId = searchParams?.get("comment") ?? null;
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const deepLinkHandled = useRef<string | null>(null);
+  const postLoaded = Boolean(post?.id);
+
+  useEffect(() => {
+    if (!targetCommentId || !postLoaded || deepLinkHandled.current === targetCommentId) return;
+    deepLinkHandled.current = targetCommentId;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    const scrollToTarget = (attempt: number) => {
+      const el = document.getElementById(`comment-${targetCommentId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedId(targetCommentId);
+        timers.push(setTimeout(() => setHighlightedId(null), 2800));
+        return;
+      }
+      // Comments may still be mounting — retry briefly.
+      if (attempt < 10) timers.push(setTimeout(() => scrollToTarget(attempt + 1), 120));
+    };
+    timers.push(setTimeout(() => scrollToTarget(0), 80));
+
+    return () => timers.forEach(clearTimeout);
+  }, [targetCommentId, postLoaded]);
 
   const profileBase = user?.role === "shop_owner" ? "/shop/profile" : "/customer/profile";
   const profileHref = useCallback(
@@ -450,6 +479,7 @@ export default function PostDetailView({ postId }: PostDetailViewProps) {
                   onReact={handleReact}
                   onReply={focusComposer}
                   pendingReaction={pendingReaction}
+                  highlightedId={highlightedId}
                 />
               ))}
             </div>

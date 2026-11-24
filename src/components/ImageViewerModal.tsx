@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { cloudflareStreamPlayerUrl, isProductVideo } from "@/lib/product";
 
@@ -109,15 +109,6 @@ export default function ImageViewerModal({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {images.length > 1 && currentIndex > 0 && (
-          <button
-            onClick={goPrev}
-            className="absolute left-2 sm:left-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-        )}
-
         {isProductVideo(images[currentIndex]) ? (
           cloudflareStreamPlayerUrl(images[currentIndex]) ? (
             <iframe
@@ -143,15 +134,6 @@ export default function ImageViewerModal({
             className="max-h-[85vh] max-w-full object-contain select-none"
             draggable={false}
           />
-        )}
-
-        {images.length > 1 && currentIndex < images.length - 1 && (
-          <button
-            onClick={goNext}
-            className="absolute right-2 sm:right-4 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
         )}
       </div>
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useModalBack } from "@/hooks/useModalBack";
-import { ShoppingBag, Star, Package, Store, ChevronLeft, ChevronRight, Maximize2, X } from "lucide-react";
+import { ShoppingBag, Star, Package, Store, Maximize2, X } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +41,8 @@ export default function ProductDetailModal({
 
   const [imageIndex, setImageIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
 
   // Track product view when modal opens
   useEffect(() => {
@@ -66,6 +68,26 @@ export default function ProductDetailModal({
     setImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+    swipedRef.current = false;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || images.length < 2) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    // Only treat clearly horizontal drags as swipes, so vertical scrolling still works.
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    swipedRef.current = true;
+    if (dx < 0) nextImage();
+    else prevImage();
+  };
+
   const discount = productDiscount(product);
 
   return (
@@ -81,7 +103,11 @@ export default function ProductDetailModal({
         </button>
 
         {/* Image Slider */}
-        <div className="relative shrink-0 bg-muted aspect-[4/3] overflow-hidden">
+        <div
+          className="relative shrink-0 bg-muted aspect-[4/3] overflow-hidden touch-pan-y"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {isProductVideo(images[imageIndexInRange]) ? (
             cloudflareStreamPlayerUrl(images[imageIndexInRange]) ? (
               <iframe
@@ -97,7 +123,14 @@ export default function ProductDetailModal({
           ) : (
                 <button
                   type="button"
-                  onClick={() => setViewerOpen(true)}
+                  onClick={() => {
+                    // A swipe must not also count as a tap that opens the viewer.
+                    if (swipedRef.current) {
+                      swipedRef.current = false;
+                      return;
+                    }
+                    setViewerOpen(true);
+                  }}
                   aria-label={`View ${product.name} image ${imageIndexInRange + 1} full screen`}
                   className="absolute inset-0 z-0 h-full w-full cursor-zoom-in p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 >
@@ -112,22 +145,6 @@ export default function ProductDetailModal({
           )}
           {images.length > 1 && (
             <>
-                  <button
-                    type="button"
-                    onClick={prevImage}
-                    aria-label="View previous product image"
-                    className="absolute left-2 top-1/2 z-10 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextImage}
-                    aria-label="View next product image"
-                    className="absolute right-2 top-1/2 z-10 -translate-y-1/2 p-1.5 bg-background/80 backdrop-blur rounded-full text-foreground hover:bg-background/95 transition-colors"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
                   {/* Dots */}
                   <div className="absolute bottom-2 inset-x-0 z-10 flex justify-center gap-1">
                     {images.map((_, i) => (

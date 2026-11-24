@@ -15,6 +15,8 @@ interface CommentThreadProps {
   onReact: (commentId: string, reaction: "like" | "dislike") => void;
   onReply: (target: { id: string; name: string }) => void;
   pendingReaction: string | null;
+  /** Comment opened from a notification — briefly highlighted and scrolled to. */
+  highlightedId?: string | null;
 }
 
 interface CommentRowProps {
@@ -24,9 +26,10 @@ interface CommentRowProps {
   onReact: (commentId: string, reaction: "like" | "dislike") => void;
   onReply: (target: { id: string; name: string }) => void;
   pending: boolean;
+  highlighted?: boolean;
 }
 
-function CommentRow({ comment, currentUserId, profileHref, onReact, onReply, pending }: CommentRowProps) {
+function CommentRow({ comment, currentUserId, profileHref, onReact, onReply, pending, highlighted }: CommentRowProps) {
   const href = profileHref(comment.authorId);
   const liked = Boolean(currentUserId && comment.likes.includes(currentUserId));
   const disliked = Boolean(currentUserId && comment.dislikes.includes(currentUserId));
@@ -42,7 +45,13 @@ function CommentRow({ comment, currentUserId, profileHref, onReact, onReply, pen
   );
 
   return (
-    <div className="flex items-start gap-2">
+    <div
+      id={`comment-${comment.id}`}
+      className={cn(
+        "flex items-start gap-2 rounded-xl transition-colors duration-500",
+        highlighted && "bg-primary/10 ring-2 ring-primary/30",
+      )}
+    >
       {href ? (
         <Link href={href} className="shrink-0">
           <Avatar className="h-8 w-8">
@@ -116,6 +125,7 @@ export default function CommentThread({
   onReact,
   onReply,
   pendingReaction,
+  highlightedId,
 }: CommentThreadProps) {
   return (
     <div className="space-y-2">
@@ -126,6 +136,7 @@ export default function CommentThread({
         onReact={onReact}
         onReply={onReply}
         pending={pendingReaction === comment.id}
+        highlighted={highlightedId === comment.id}
       />
 
       {replies.length > 0 && (
@@ -139,6 +150,7 @@ export default function CommentThread({
               onReact={onReact}
               onReply={() => onReply({ id: comment.id, name: comment.authorName })}
               pending={pendingReaction === reply.id}
+              highlighted={highlightedId === reply.id}
             />
           ))}
         </div>

@@ -90,17 +90,22 @@ export function normalizeShopHours(
 /**
  * Convert the hours object from the settings form (strings) into the format
  * the Shop model expects (objects with open/close/closed). Used when saving.
+ *
+ * `closedDays` lets a shop take a day off; a day with no hours typed in is
+ * treated as closed too, so clearing a day never silently reopens it.
  */
 export function toModelHours(
-  formHours: Record<string, string>
+  formHours: Record<string, string>,
+  closedDays?: Record<string, boolean>
 ): Record<string, { open: string; close: string; closed: boolean }> {
   const result: Record<string, { open: string; close: string; closed: boolean }> = {};
   for (const day of SHOP_DAYS) {
     const raw = formHours[day] || "";
     const range = parseRange(raw);
-    result[day] = range
+    const fallback = DEFAULT_SHOP_HOURS[day];
+    result[day] = range && !closedDays?.[day]
       ? { open: range.open, close: range.close, closed: false }
-      : DEFAULT_SHOP_HOURS[day];
+      : { open: fallback.open, close: fallback.close, closed: true };
   }
   return result;
 }

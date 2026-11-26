@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
+import toast from "react-hot-toast";
 import {
   FileText,
   Upload,
@@ -63,7 +64,7 @@ export default function VerificationSection({ shopData, refetch }: Props) {
   const isRejected = status === "rejected";
   const hasDocs = docs.businessLicense || docs.taxCertificate || docs.nationalId;
 
-  const handleUpload = async (key: string) => {
+  const handleUpload = async (key: string, label: string) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*,.pdf";
@@ -73,11 +74,15 @@ export default function VerificationSection({ shopData, refetch }: Props) {
       setUploading(key);
       try {
         const result = await uploadFile(file);
-        if (result?.url) {
-          setDocs((prev) => ({ ...prev, [key]: result.url }));
-        }
+        if (!result?.url) throw new Error("The upload did not return a file URL");
+        setDocs((prev) => ({ ...prev, [key]: result.url }));
+        toast.success(`${label} uploaded. Remember to submit for verification.`, { id: "verification-upload" });
       } catch (err) {
         console.error("Upload failed:", err);
+        toast.error(
+          err instanceof Error ? `Could not upload ${label.toLowerCase()}: ${err.message}` : `Could not upload ${label.toLowerCase()}`,
+          { id: "verification-upload" }
+        );
       } finally {
         setUploading(null);
       }
@@ -89,12 +94,15 @@ export default function VerificationSection({ shopData, refetch }: Props) {
     if (!user?.id || !shop?.id) return;
     setSaving(true);
     try {
-      await updateShop(user.id, {
+      const result = await updateShop(user.id, {
         verificationDocuments: docs,
       });
+      if (!result?.shop) throw new Error("The documents were not saved");
+      toast.success("Documents submitted. We will review them shortly.", { id: "verification-save" });
       refetch();
     } catch (err) {
       console.error("Failed to save documents:", err);
+      toast.error(err instanceof Error ? err.message : "Could not submit your documents", { id: "verification-save" });
     } finally {
       setSaving(false);
     }
@@ -214,7 +222,7 @@ export default function VerificationSection({ shopData, refetch }: Props) {
                       size="sm"
                       variant="outline"
                       className="h-7 text-[10px]"
-                      onClick={() => handleUpload(key)}
+                      onClick={() => handleUpload(key, label)}
                       disabled={isUploading || isVerified}
                     >
                       {isUploading ? (

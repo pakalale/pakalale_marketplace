@@ -6,6 +6,7 @@ import Product from "@/models/Product";
 import { Location } from "@/models/FeedPost";
 import { getCached, setCache, invalidateCache } from "@/lib/cache";
 import { isProductVideo } from "@/lib/product";
+import { getSessionUser } from "@/lib/session";
 
 function toStr(val: unknown): string {
   if (!val) return "";
@@ -61,18 +62,19 @@ export async function GET(request: NextRequest) {
 
     const id = searchParams.get("id");
     if (id) {
+      // Signed-in readers may need their own verification state, which is not
+      // part of the shared public response, so they skip the public cache.
+      const session = await getSessionUser(request);
       const cacheKey = `shop:${id}`;
-      const cached = getCached(cacheKey);
+      const cached = session ? null : getCached(cacheKey);
       if (cached) return NextResponse.json(cached);
 
       // Try finding by _id first, then by ownerId (shop settings passes userId)
-      let shop = await Shop.findById(id)
-        .select("name description ownerId locationId status contact hours coverImage profileImage images specialties rating totalReviews createdAt updatedAt")
-        .lean();
+      const shopFields =
+        "name description ownerId locationId status contact hours coverImage profileImage images specialties rating totalReviews totalViews coordinates verificationDocuments verificationNotes rejectedReason verifiedAt createdAt updatedAt";
+      let shop = await Shop.findById(id).select(shopFields).lean();
       if (!shop) {
-        shop = await Shop.findOne({ ownerId: id })
-          .select("name description ownerId locationId status contact hours coverImage profileImage images specialties rating totalReviews createdAt updatedAt")
-          .lean();
+        shop = await Shop.findOne({ ownerId: id }).select(shopFields).lean();
       }
       if (!shop) {
         return NextResponse.json({ error: "Shop not found" }, { status: 404 });
@@ -85,6 +87,11 @@ export async function GET(request: NextRequest) {
         .lean();
 
       const productCount = await Product.countDocuments({ shopId: shop._id });
+      // Verification documents are private: only the shop's owner or an admin
+      // may read them back.
+      const canSeeVerification =
+        Boolean(session) &&
+        (session!.role === "admin" || session!.id === toStr(shop.ownerId));
 
       const result = {
         shop: {
@@ -95,6 +102,7 @@ export async function GET(request: NextRequest) {
             ? { id: toStr(owner._id), firstName: owner.firstName, lastName: owner.lastName, email: owner.email, avatar: owner.avatar }
             : { id: toStr(shop.ownerId) },
           locationId: shop.locationId,
+          coordinates: shop.coordinates,
           status: shop.status,
           contact: shop.contact,
           hours: shop.hours,
@@ -104,12 +112,17 @@ export async function GET(request: NextRequest) {
           specialties: shop.specialties,
           rating: shop.rating,
           totalReviews: shop.totalReviews,
+          totalViews: shop.totalViews,
+          verificationDocuments: canSeeVerification ? shop.verificationDocuments : undefined,
+          verificationNotes: canSeeVerification ? shop.verificationNotes : undefined,
+          rejectedReason: canSeeVerification ? shop.rejectedReason : undefined,
+          verifiedAt: shop.verifiedAt,
           productCount,
           createdAt: shop.createdAt,
           updatedAt: shop.updatedAt,
         },
       };
-      setCache(cacheKey, result, 60_000); // 60s cache
+      if (!canSeeVerification) setCache(cacheKey, result, 60_000); // 60s public cache
       return NextResponse.json(result);
     }
 
@@ -289,7 +302,7 @@ export async function PUT(request: NextRequest) {
     invalidateCache("shops:");
     invalidateCache("shop:");
 
-    return NextResponse.json({ shop: { ...shop, id: shop._id.toString() } });
+    return NextResponse.json({ shop: { ...updatedShop, id: updatedShop._id.toString() } });
   } catch (error) {
     console.error("Shops PUT error:", error);
     return NextResponse.json({ error: "Failed to update shop" }, { status: 500 });

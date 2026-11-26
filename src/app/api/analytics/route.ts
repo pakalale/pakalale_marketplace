@@ -23,7 +23,8 @@ interface SaleDoc {
   customerId: mongoose.Types.ObjectId;
   items: Array<{ productId: mongoose.Types.ObjectId; quantity: number; price: number }>;
   total: number;
-  createdAt: Date;
+  /** When the sale was actually recorded (customer confirmed receipt). */
+  soldAt: Date;
 }
 
 export async function GET(request: NextRequest) {
@@ -78,22 +79,28 @@ export async function GET(request: NextRequest) {
         .lean(),
       // Completed orders are sales: what was bought, for how much, when and by whom.
       // Aggregated because the legacy "received" status is not in the model's enum type.
+      // A sale belongs to when it was recorded (customer confirmed receipt),
+      // not to when the order was placed: a week-old order completed today is
+      // today's sale. Legacy completed orders have no stamp, so they fall back
+      // to the order date.
       Order.aggregate([
         { $match: { shopId: shopObjectId, status: { $in: ["completed", "received"] } } },
-        { $sort: { createdAt: -1 } },
+        { $addFields: { soldAt: { $ifNull: ["$saleRecordedAt", "$createdAt"] } } },
+        { $sort: { soldAt: -1 } },
         { $limit: 10 },
-        { $project: { customerId: 1, items: 1, total: 1, createdAt: 1 } },
+        { $project: { customerId: 1, items: 1, total: 1, soldAt: 1 } },
       ]),
-      // Today and last-7-days takings, counted from when the order was placed.
+      // Today and last-7-days takings, counted from when the sale was recorded.
       Order.aggregate([
         { $match: { shopId: shopObjectId, status: { $in: ["completed", "received"] } } },
+        { $addFields: { soldAt: { $ifNull: ["$saleRecordedAt", "$createdAt"] } } },
         {
           $group: {
             _id: null,
-            todayCount: { $sum: { $cond: [{ $gte: ["$createdAt", startOfToday] }, 1, 0] } },
-            todayRevenue: { $sum: { $cond: [{ $gte: ["$createdAt", startOfToday] }, "$total", 0] } },
-            weekCount: { $sum: { $cond: [{ $gte: ["$createdAt", weekAgo] }, 1, 0] } },
-            weekRevenue: { $sum: { $cond: [{ $gte: ["$createdAt", weekAgo] }, "$total", 0] } },
+            todayCount: { $sum: { $cond: [{ $gte: ["$soldAt", startOfToday] }, 1, 0] } },
+            todayRevenue: { $sum: { $cond: [{ $gte: ["$soldAt", startOfToday] }, "$total", 0] } },
+            weekCount: { $sum: { $cond: [{ $gte: ["$soldAt", weekAgo] }, 1, 0] } },
+            weekRevenue: { $sum: { $cond: [{ $gte: ["$soldAt", weekAgo] }, "$total", 0] } },
           },
         },
       ]),
@@ -154,10 +161,12 @@ export async function GET(request: NextRequest) {
 
     const [monthlyAgg, customerAgg, categoryAgg] = await Promise.all([
       Order.aggregate([
-        { $match: { ...chartMatch, createdAt: { $gte: firstOfSixMonths } } },
+        { $match: chartMatch },
+        { $addFields: { soldAt: { $ifNull: ["$saleRecordedAt", "$createdAt"] } } },
+        { $match: { soldAt: { $gte: firstOfSixMonths } } },
         {
           $group: {
-            _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
+            _id: { year: { $year: "$soldAt" }, month: { $month: "$soldAt" } },
             revenue: { $sum: "$total" },
             count: { $sum: 1 },
           },
@@ -330,7 +339,7 @@ export async function GET(request: NextRequest) {
           items,
           units: items.reduce((sum, item) => sum + item.quantity, 0),
           total: order.total || 0,
-          createdAt: order.createdAt,
+          createdAt: order.soldAt,
         };
       }),
       salesSummary: {

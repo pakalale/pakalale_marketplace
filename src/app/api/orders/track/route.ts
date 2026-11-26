@@ -28,7 +28,7 @@ async function findByToken(token: string) {
   if (!token || token.length < 16) return null;
   await connectToDatabase();
   return await Order.findOne({ "deliveryAgent.trackingToken": token })
-    .select("shopId status deliveryMethod deliveryAddress customerPhone deliveryAgent notes items")
+    .select("shopId status deliveryMethod deliveryAddress customerPhone deliveryAgent delivery notes items")
     .lean();
 }
 
@@ -49,6 +49,13 @@ export async function GET(request: NextRequest) {
         notes: order.notes,
         items: order.items.length,
         shop: shop ? { name: shop.name, locationId: shop.locationId, coordinates: shop.coordinates } : null,
+        delivery: {
+          provider: order.delivery?.provider,
+          stage: order.delivery?.stage,
+          etaMinutes: order.delivery?.etaMinutes,
+          dropoff: order.delivery?.dropoff,
+          mock: order.delivery?.mock,
+        },
         agent: {
           name: order.deliveryAgent?.name,
           phone: order.deliveryAgent?.phone,
@@ -78,7 +85,7 @@ export async function PUT(request: NextRequest) {
       }
       const updated = await Order.findOneAndUpdate(
         { "deliveryAgent.trackingToken": token, status: "delivery_in_progress" },
-        { $set: { status: "delivered" } },
+        { $set: { status: "delivered", "delivery.stage": "delivered", "delivery.deliveredAt": new Date() } },
         { new: true }
       )
         .select("customerId total")
@@ -116,8 +123,10 @@ export async function PUT(request: NextRequest) {
     if (!validCoords(body.lat, body.lng)) {
       return NextResponse.json({ error: "A valid location is required" }, { status: 400 });
     }
-    if (status !== "delivery_in_progress") {
-      return NextResponse.json({ error: "This order is not out for delivery" }, { status: 409 });
+    // The rider may share while heading to the shop and on the way to the
+    // customer; both screens watch the same position.
+    if (!["agent_assigned", "delivery_in_progress"].includes(status)) {
+      return NextResponse.json({ error: "This delivery is not active" }, { status: 409 });
     }
 
     await Order.updateOne(
@@ -129,6 +138,7 @@ export async function PUT(request: NextRequest) {
             lng: body.lng,
             updatedAt: new Date(),
           },
+          "delivery.lastSyncedAt": new Date(),
         },
       }
     );

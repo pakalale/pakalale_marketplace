@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import ShopNav from "@/components/ShopNav";
 import {
   Settings,
@@ -17,6 +18,7 @@ import {
   X,
   ImageIcon,
   Bell,
+  CalendarCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { Card, CardContent } from "@/components/ui/card";
@@ -79,6 +81,7 @@ export default function ShopSettingsPage() {
       SHOP_DAYS.map((d) => [d, DEFAULT_SHOP_HOURS[d].open + " - " + DEFAULT_SHOP_HOURS[d].close])
     ) as Record<string, string>,
   });
+  const [closedDays, setClosedDays] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const { upload: uploadFile, uploading, progress: uploadProgress } = useUpload({ folder: "pakalale/shop" });
   const [locations, setLocations] = useState<
@@ -105,6 +108,11 @@ export default function ShopSettingsPage() {
   useEffect(() => {
     if (shopData?.shop) {
       const s = shopData.shop;
+      setClosedDays(
+        Object.fromEntries(
+          SHOP_DAYS.map((day) => [day, parseDayHours(s.hours?.[day], DEFAULT_SHOP_HOURS[day]).closed])
+        )
+      );
       setShopForm({
         name: s.name || "",
         description: s.description || "",
@@ -166,8 +174,9 @@ export default function ShopSettingsPage() {
         specialties: shopForm.specialties,
         coverImage: shopForm.coverImage,
         profileImage: shopForm.profileImage,
-        hours: toModelHours(shopForm.hours),
+        hours: toModelHours(shopForm.hours, closedDays),
       });
+      toast.success("Shop settings saved");
       // Sync profileImage to auth store so avatar updates everywhere
       if (shopForm.profileImage && shopForm.profileImage !== user.avatar) {
         updateUser({ avatar: shopForm.profileImage });
@@ -175,10 +184,16 @@ export default function ShopSettingsPage() {
       refetch();
     } catch (e) {
       console.error("Failed to save:", e);
+      toast.error(e instanceof Error ? e.message : "Could not save your shop settings");
     } finally {
       setSaving(false);
     }
   };
+
+  // "No off day" means every day has hours and none is marked closed.
+  const openEveryDay = SHOP_DAYS.every(
+    (day) => !closedDays[day] && Boolean(shopForm.hours[day]?.trim())
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -424,13 +439,45 @@ export default function ShopSettingsPage() {
 
                 {/* Working Hours */}
                 <div>
-                  <Label className="text-xs mb-2 block">Working Hours</Label>
-                  <p className="text-[10px] text-muted-foreground mb-2">
-                    Pick a preset for each day, or type your own hours.
-                  </p>
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <div>
+                      <Label className="text-xs block">Working Hours</Label>
+                      <p className="text-[10px] text-muted-foreground">
+                        Pick a preset for each day, or type your own hours. Mark a day closed when you are not trading.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-pressed={openEveryDay}
+                      title="Open all seven days"
+                      onClick={() => {
+                        if (openEveryDay) return;
+                        setClosedDays({});
+                        setShopForm((p) => ({
+                          ...p,
+                          hours: Object.fromEntries(
+                            SHOP_DAYS.map((day) => [
+                              day,
+                              p.hours[day]?.trim() ||
+                                `${DEFAULT_SHOP_HOURS[day].open} - ${DEFAULT_SHOP_HOURS[day].close}`,
+                            ])
+                          ),
+                        }));
+                      }}
+                      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[10px] font-medium transition-colors ${
+                        openEveryDay
+                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <CalendarCheck className="h-3 w-3" />
+                      No off day
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                     {SHOP_DAYS.map((day) => {
                       const current = shopForm.hours[day] || "";
+                      const isClosed = Boolean(closedDays[day]);
                       const presetOptions = [
                         { label: "08:00 - 18:00", value: "08:00 - 18:00", days: ["monday", "tuesday", "wednesday", "thursday"] },
                         { label: "08:00 - 19:00", value: "08:00 - 19:00", days: ["friday"] },
@@ -439,20 +486,35 @@ export default function ShopSettingsPage() {
                       ].filter((p) => p.days.includes(day));
 
                       return (
-                        <div key={day} className="space-y-1">
-                          <p className="text-[10px] text-muted-foreground capitalize">{day}</p>
+                        <div key={day} className={`space-y-1 ${isClosed ? "opacity-70" : ""}`}>
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-[10px] text-muted-foreground capitalize">{day}</p>
+                            <button
+                              type="button"
+                              aria-pressed={isClosed}
+                              onClick={() => setClosedDays((p) => ({ ...p, [day]: !p[day] }))}
+                              className={`rounded px-1.5 py-0.5 text-[9px] font-medium transition-colors ${
+                                isClosed
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-emerald-500/10 text-emerald-500"
+                              }`}
+                            >
+                              {isClosed ? "Closed" : "Open"}
+                            </button>
+                          </div>
                           <div className="flex gap-1">
                             {presetOptions.map((preset) => (
                               <button
                                 key={preset.value}
                                 type="button"
+                                disabled={isClosed}
                                 onClick={() =>
                                   setShopForm((p) => ({
                                     ...p,
                                     hours: { ...p.hours, [day]: preset.value },
                                   }))
                                 }
-                                className={`flex-1 text-[10px] px-1.5 py-1 rounded border transition-colors ${
+                                className={`flex-1 text-[10px] px-1.5 py-1 rounded border transition-colors disabled:cursor-not-allowed ${
                                   current === preset.value
                                     ? "border-primary bg-primary/10 text-brand font-semibold"
                                     : "border-border bg-background hover:border-primary/30"
@@ -464,6 +526,7 @@ export default function ShopSettingsPage() {
                           </div>
                           <Input
                             value={current}
+                            disabled={isClosed}
                             onChange={(e) =>
                               setShopForm((p) => ({
                                 ...p,

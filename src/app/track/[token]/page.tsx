@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   CheckCircle2,
+  ExternalLink,
   Loader2,
   MapPin,
   Navigation,
@@ -22,8 +23,30 @@ interface TrackedOrder {
   customerPhone?: string;
   notes?: string;
   items: number;
-  shop: { name: string; locationId?: string } | null;
+  shop: { name: string; locationId?: string; coordinates?: { lat: number; lng: number } } | null;
   agent: { name?: string; phone?: string; location?: { lat: number; lng: number; updatedAt: string } };
+  delivery?: {
+    provider?: string;
+    stage?: string;
+    etaMinutes?: number;
+    mock?: boolean;
+    dropoff?: { lat: number; lng: number };
+  };
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  booked: "Courier requested",
+  performer_found: "You are heading to the shop",
+  pickup_arrived: "At the shop — collect the parcel",
+  picked_up: "On the way to the customer",
+  delivery_arrived: "Arriving at the customer",
+  delivered: "Trip complete",
+  cancelled: "Cancelled",
+  failed: "Booking failed",
+};
+
+function mapsSearch(query: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 /** Don't spam the API: send at most every 15s, or when the agent moved ~25m. */
@@ -179,12 +202,31 @@ export default function DeliveryTrackingPage() {
 
             <p className="flex items-start gap-2 text-sm">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-              <span>{order.deliveryAddress || "Pickup from the shop"}</span>
+              <span className="flex-1">{order.deliveryAddress || "Pickup from the shop"}</span>
+              {order.deliveryAddress && (
+                <a
+                  href={mapsSearch(order.deliveryAddress)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-brand"
+                >
+                  Map <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </p>
             <p className="flex items-center gap-2 text-sm">
               <Package className="h-4 w-4 text-brand" />
               {order.items} {order.items === 1 ? "item" : "items"}
             </p>
+            {order.delivery?.stage && (
+              <p className="rounded-lg bg-muted/60 px-2.5 py-2 text-xs font-medium">
+                {STAGE_LABELS[order.delivery.stage] || "Delivery in progress"}
+                {typeof order.delivery.etaMinutes === "number" && order.delivery.etaMinutes > 0
+                  ? ` · ~${order.delivery.etaMinutes} min`
+                  : ""}
+                {order.delivery.mock ? " · sandbox" : ""}
+              </p>
+            )}
             {order.customerPhone && (
               <a href={`tel:${order.customerPhone}`} className="flex items-center gap-2 text-sm text-brand">
                 <Phone className="h-4 w-4" />
@@ -192,10 +234,21 @@ export default function DeliveryTrackingPage() {
               </a>
             )}
             {order.notes && <p className="rounded-lg bg-muted/60 p-2 text-xs text-muted-foreground">{order.notes}</p>}
-            {order.shop?.locationId && (
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Store className="h-3.5 w-3.5" /> Collect from {order.shop.locationId}
-              </p>
+            {order.shop && (
+              <a
+                href={
+                  order.shop.coordinates
+                    ? mapsSearch(`${order.shop.coordinates.lat},${order.shop.coordinates.lng}`)
+                    : mapsSearch([order.shop.name, order.shop.locationId].filter(Boolean).join(" "))
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-xs font-medium text-brand"
+              >
+                <Store className="h-3.5 w-3.5" /> Collect from {order.shop.name}
+                {order.shop.locationId ? ` · ${order.shop.locationId}` : ""}
+                <ExternalLink className="h-3 w-3" />
+              </a>
             )}
           </section>
 

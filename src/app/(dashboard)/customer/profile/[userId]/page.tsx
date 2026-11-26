@@ -90,7 +90,9 @@ export default function ProfilePage() {
     Promise.all([
       fetch(`/api/user/profile?userId=${userId}`).then((r) => r.json()),
       fetch(`/api/shops?ownerId=${userId}`).then((r) => r.json()),
-      fetch(`/api/feed?authorId=${userId}&limit=20`).then((r) => r.json()),
+      // Newest first, and never served from a stale cache: a post published
+      // from the shop feed must be on the profile straight away.
+      fetch(`/api/feed?authorId=${userId}&mode=chronological&limit=20`, { cache: "no-store" }).then((r) => r.json()),
     ]).then(([profileData, shopsData, postsData]) => {
       setProfile(profileData.user || null);
       if (shopsData.shops?.length) setShop(shopsData.shops[0]);

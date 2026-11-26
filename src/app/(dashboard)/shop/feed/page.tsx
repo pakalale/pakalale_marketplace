@@ -39,6 +39,7 @@ export default function ShopFeedPage() {
   const pendingOrders =
     (analytics?.ordersByStatus?.order_placed ?? 0) +
     (analytics?.ordersByStatus?.approved ?? 0) +
+    (analytics?.ordersByStatus?.agent_assigned ?? 0) +
     (analytics?.ordersByStatus?.delivery_in_progress ?? 0);
   const topSellers = (analytics?.topSellingProducts ?? []).slice(0, 3);
   const latestSale = analytics?.recentSales?.[0];

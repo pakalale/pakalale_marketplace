@@ -27,6 +27,13 @@ function setCachedData(key: string, data: unknown): void {
   clientCache.set(key, { data, timestamp: Date.now() });
 }
 
+/** Drop cached responses whose URL starts with `prefix` (client-side only). */
+export function invalidateClientCache(prefix?: string): void {
+  for (const key of clientCache.keys()) {
+    if (!prefix || key.startsWith(prefix)) clientCache.delete(key);
+  }
+}
+
 function isStale(key: string): boolean {
   const entry = clientCache.get(key);
   if (!entry) return true;
@@ -309,7 +316,10 @@ export async function updateShop(id: string, data: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, ...data }),
   });
-  return res.json();
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(result?.error || "Could not update the shop");
+  invalidateClientCache("/api/shops");
+  return result;
 }
 
 // ── Orders ──
@@ -334,7 +344,14 @@ export interface OrderData {
     quantity: number;
     price: number;
   }>;
-  status: "order_placed" | "approved" | "delivery_in_progress" | "delivered" | "completed" | "cancelled";
+  status:
+    | "order_placed"
+    | "approved"
+    | "agent_assigned"
+    | "delivery_in_progress"
+    | "delivered"
+    | "completed"
+    | "cancelled";
   total: number;
   paymentMethod?: string;
   notes?: string;
@@ -582,6 +599,8 @@ export async function createFeedPost(data: Record<string, unknown>) {
   });
   const result = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(result?.error || "Failed to create post");
+  // Shop profile and location pages read the feed through this cache.
+  invalidateClientCache("/api/feed");
   return result;
 }
 

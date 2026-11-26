@@ -22,6 +22,7 @@ import { ORDER_STATUSES, ORDER_STATUS_LABELS } from "@/lib/orderStatus";
 const STATUS_COLORS: Record<string, string> = {
   order_placed: "bg-yellow-400",
   approved: "bg-blue-400",
+  agent_assigned: "bg-indigo-400",
   delivery_in_progress: "bg-purple-400",
   delivered: "bg-cyan-400",
   completed: "bg-emerald-500",

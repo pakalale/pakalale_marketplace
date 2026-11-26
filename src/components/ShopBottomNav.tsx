@@ -44,7 +44,7 @@ export default function ShopBottomNav() {
           setChatUnread(chatRes.totalUnread || 0);
         }
         if (ordersRes?.orders) {
-          setOrderCount(ordersRes.orders.filter((o: { status: string }) => !["completed", "cancelled"].includes(normalizeOrderStatus(o.status))).length);
+          setOrderCount(ordersRes.orders.filter((o: { status: string }) => !["delivered", "completed", "cancelled"].includes(normalizeOrderStatus(o.status))).length);
         }
       } catch { /* ignore */ }
     };

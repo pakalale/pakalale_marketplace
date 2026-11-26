@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useAuthStore } from "@/store/authStore";
+import { destinationAfterLogin, safeNextPath } from "@/lib/authRedirect";
 
 type Step = "type" | "form";
 
@@ -53,10 +54,11 @@ interface ShopOwnerForm {
 
 // Keep someone who signed up mid-checkout on their way to placing the order.
 function destinationAfterSignup(role: string) {
-  if (role === "admin") return "/admin";
-  if (role === "shop_owner") return "/shop/feed";
+  const next =
+    safeNextPath(new URLSearchParams(window.location.search).get("next")) ||
+    safeNextPath(sessionStorage.getItem("redirectAfterLogin"));
   sessionStorage.removeItem("redirectAfterLogin");
-  return "/customer";
+  return destinationAfterLogin(role, next);
 }
 
 export default function SignupPage() {
@@ -66,6 +68,7 @@ export default function SignupPage() {
   const [selectedType, setSelectedType] = useState<"customer" | "shop_owner" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [sentTo, setSentTo] = useState("");
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
@@ -100,6 +103,14 @@ export default function SignupPage() {
     setSelectedType(type);
     setStep("form");
     setError("");
+    setAlreadyRegistered(false);
+  };
+
+  const goToSignIn = (email: string) => {
+    const next = safeNextPath(new URLSearchParams(window.location.search).get("next"));
+    const search = new URLSearchParams({ email });
+    if (next) search.set("next", next);
+    router.push(`/login?${search.toString()}`);
   };
 
   const onCustomerSubmit = async (data: CustomerForm) => {
@@ -109,6 +120,7 @@ export default function SignupPage() {
     }
     setIsLoading(true);
     setError("");
+    setAlreadyRegistered(false);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -126,6 +138,7 @@ export default function SignupPage() {
       const result = await res.json();
       if (!res.ok) {
         setError(result.error || "Registration failed");
+        setAlreadyRegistered(res.status === 409);
         return;
       }
       if (result.verificationRequired) {
@@ -140,6 +153,11 @@ export default function SignupPage() {
       const loginData = await loginRes.json();
       if (loginRes.ok && loginData.user) {
         login(loginData.user);
+      } else if (loginData.code === "EMAIL_NOT_VERIFIED") {
+        setSentTo(data.email);
+      } else {
+        setError(loginData.error || "Account created. Please sign in to continue.");
+        setAlreadyRegistered(true);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -159,6 +177,7 @@ export default function SignupPage() {
     }
     setIsLoading(true);
     setError("");
+    setAlreadyRegistered(false);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -183,6 +202,7 @@ export default function SignupPage() {
       const result = await res.json();
       if (!res.ok) {
         setError(result.error || "Registration failed");
+        setAlreadyRegistered(res.status === 409);
         return;
       }
       if (result.verificationRequired) {
@@ -197,6 +217,11 @@ export default function SignupPage() {
       const loginData = await loginRes.json();
       if (loginRes.ok && loginData.user) {
         login(loginData.user);
+      } else if (loginData.code === "EMAIL_NOT_VERIFIED") {
+        setSentTo(data.email);
+      } else {
+        setError(loginData.error || "Account created. Please sign in to continue.");
+        setAlreadyRegistered(true);
       }
     } catch {
       setError("Network error. Please try again.");
@@ -310,6 +335,7 @@ export default function SignupPage() {
             setStep("type");
             setSelectedType(null);
             setError("");
+            setAlreadyRegistered(false);
           }}
           className="absolute left-0 -top-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
@@ -333,7 +359,16 @@ export default function SignupPage() {
           <CardContent className="p-4 sm:p-6">
             {error && (
               <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg mb-4 text-xs text-destructive">
-                {error}
+                <p>{error}</p>
+                {alreadyRegistered && (
+                  <button
+                    type="button"
+                    onClick={() => goToSignIn(selectedType === "customer" ? customerForm.getValues("email") : shopForm.getValues("email"))}
+                    className="mt-1.5 font-semibold underline underline-offset-2 hover:text-destructive/80"
+                  >
+                    Sign in to your account instead
+                  </button>
+                )}
               </div>
             )}
 

@@ -2,15 +2,21 @@
  * The order lifecycle, in one place.
  *
  *   order_placed  → the customer checked out; both shop and customer are notified
- *   approved      → the shop confirmed the order; goods are still in the store
- *   delivery_in_progress → handover to the delivery agent (pickup: ready for pickup)
- *   delivered     → the delivery agent marked it delivered
- *   completed     → the customer confirmed receipt; the sale is recorded and stock drops
+ *   approved      → the shop confirmed the order. For delivery this books the
+ *                   courier; for pickup the goods are ready to collect
+ *   agent_assigned → Yango found a courier, who is on the way to the shop
+ *                   (pickup orders skip this step)
+ *   delivery_in_progress → the shop handed the parcel to the courier and it is
+ *                   now on the way to the customer
+ *   delivered     → the courier completed the trip (pickup: handed over at shop)
+ *   completed     → the customer confirmed receipt; escrow is released and the
+ *                   sale is recorded
  *   cancelled     → either side backed out before delivery
  */
 export const ORDER_STATUSES = [
   "order_placed",
   "approved",
+  "agent_assigned",
   "delivery_in_progress",
   "delivered",
   "completed",
@@ -20,17 +26,18 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  order_placed: "Order placed",
-  approved: "Approved",
-  delivery_in_progress: "Delivery in progress",
+  order_placed: "Awaiting shop",
+  approved: "Shop confirmed",
+  agent_assigned: "Courier assigned",
+  delivery_in_progress: "Dispatched",
   delivered: "Delivered",
   completed: "Completed",
   cancelled: "Cancelled",
 };
 
 const PICKUP_LABELS: Partial<Record<OrderStatus, string>> = {
-  delivery_in_progress: "Ready for pickup",
-  delivered: "Picked up",
+  approved: "Ready for pickup",
+  delivered: "Handed over",
 };
 
 export function isOrderStatus(value: unknown): value is OrderStatus {
@@ -80,6 +87,7 @@ export type OrderStatusTone = "success" | "danger" | "progress" | "pending" | "n
 const STATUS_TONES: Record<OrderStatus, OrderStatusTone> = {
   order_placed: "pending",
   approved: "progress",
+  agent_assigned: "progress",
   delivery_in_progress: "progress",
   delivered: "success",
   completed: "success",
@@ -143,12 +151,19 @@ export function orderStatusDotClass(status: string) {
   return TONE_STYLES[orderStatusTone(status)].dot;
 }
 
-/** Statuses the shop can move to next. One step at a time, never backwards. */
-export function nextShopStatus(status: string): OrderStatus | null {
+/**
+ * Statuses the shop can move to next. One step at a time, never backwards.
+ * Delivery orders are booked automatically on approval (→ agent_assigned), so
+ * `approved → delivery_in_progress` is the manual fallback when a shop hands
+ * the parcel to a courier outside Yango.
+ */
+export function nextShopStatus(status: string, deliveryMethod?: string): OrderStatus | null {
   switch (normalizeOrderStatus(status)) {
     case "order_placed":
       return "approved";
     case "approved":
+      return deliveryMethod === "pickup" ? "delivered" : "delivery_in_progress";
+    case "agent_assigned":
       return "delivery_in_progress";
     case "delivery_in_progress":
       return "delivered";
@@ -159,11 +174,13 @@ export function nextShopStatus(status: string): OrderStatus | null {
 
 /** Wording for the shop's action button that moves the order to `next`. */
 export function shopActionLabel(next: OrderStatus, deliveryMethod?: string) {
-  if (next === "approved") return "Approve order";
+  if (next === "approved") return "Confirm order";
   if (next === "delivery_in_progress") {
-    return deliveryMethod === "pickup" ? "Mark ready for pickup" : "Start delivery";
+    if (deliveryMethod === "pickup") return "Mark ready for pickup";
+    return "Hand to courier";
   }
-  if (next === "delivered") return deliveryMethod === "pickup" ? "Mark picked up" : "Mark delivered";
+  if (next === "delivered") return deliveryMethod === "pickup" ? "Hand over goods" : "Mark delivered";
+  if (next === "agent_assigned") return "Courier assigned";
   return "Update order";
 }
 
@@ -174,7 +191,9 @@ export function customerCanConfirmCompletion(status: string) {
 
 /** Both sides may back out until the goods are delivered. */
 export function canCancelOrder(status: string) {
-  return ["order_placed", "approved", "delivery_in_progress"].includes(normalizeOrderStatus(status));
+  return ["order_placed", "approved", "agent_assigned", "delivery_in_progress"].includes(
+    normalizeOrderStatus(status)
+  );
 }
 
 /** True while the order still needs someone to act on it. */
@@ -185,4 +204,45 @@ export function isActiveOrderStatus(status: string) {
 /** Orders shown under the customer's "In delivery" shortcut. */
 export function isOutForDelivery(status: string) {
   return normalizeOrderStatus(status) === "delivery_in_progress";
+}
+
+/** True once a courier is booked, including while they ride to the shop. */
+export function isCourierActive(status: string) {
+  return ["agent_assigned", "delivery_in_progress"].includes(normalizeOrderStatus(status));
+}
+
+/** True when the customer can watch the courier (booked or en route). */
+export function canTrackCourier(status: string) {
+  return ["agent_assigned", "delivery_in_progress", "delivered"].includes(
+    normalizeOrderStatus(status)
+  );
+}
+
+export interface LifecycleStep {
+  status: OrderStatus;
+  label: string;
+  detail?: string;
+}
+
+/**
+ * The ordered timeline the order cards render. Delivery and pickup diverge at
+ * the shop-confirmation step, so the method decides the middle stages.
+ */
+export function orderLifecycleSteps(deliveryMethod?: string): LifecycleStep[] {
+  if (deliveryMethod === "pickup") {
+    return [
+      { status: "order_placed", label: "Order placed" },
+      { status: "approved", label: "Shop confirmed", detail: "Ready for pickup" },
+      { status: "delivered", label: "Handed over" },
+      { status: "completed", label: "Sale closed" },
+    ];
+  }
+  return [
+    { status: "order_placed", label: "Order placed" },
+    { status: "approved", label: "Shop confirmed" },
+    { status: "agent_assigned", label: "Courier assigned" },
+    { status: "delivery_in_progress", label: "Dispatched" },
+    { status: "delivered", label: "Delivered" },
+    { status: "completed", label: "Confirmed" },
+  ];
 }

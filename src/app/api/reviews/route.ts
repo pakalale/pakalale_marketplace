@@ -116,13 +116,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing review
-    const existing = await Review.findOne({ orderId }).lean();
-    if (existing) {
-      return NextResponse.json(
-        { error: "You have already reviewed this order" },
-        { status: 409 }
-      );
+    // Ensure orderId is a valid ObjectId before using it
+    let orderIdObj: mongoose.Types.ObjectId | undefined;
+    if (orderId && mongoose.isValidObjectId(orderId)) {
+      orderIdObj = new mongoose.Types.ObjectId(orderId);
     }
 
     // Create the review
@@ -130,7 +127,7 @@ export async function POST(request: NextRequest) {
       customerId: new mongoose.Types.ObjectId(customerId),
       shopId: new mongoose.Types.ObjectId(shopId),
       productId: productId ? new mongoose.Types.ObjectId(productId) : undefined,
-      orderId: new mongoose.Types.ObjectId(orderId),
+      orderId: orderIdObj,
       rating: Math.min(5, Math.max(1, rating)),
       comment: comment || "",
     });
@@ -196,9 +193,6 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error) {
     console.error("Reviews POST error:", error);
-    if ((error as Record<string, unknown>).code === 11000) {
-      return NextResponse.json({ error: "You have already reviewed this order" }, { status: 409 });
-    }
     return NextResponse.json({ error: "Failed to submit review" }, { status: 500 });
   }
 }

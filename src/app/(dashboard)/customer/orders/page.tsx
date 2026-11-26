@@ -120,7 +120,7 @@ export default function CustomerOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
   // Drafts are only what the customer is typing; nothing is sent until Submit.
   const [reviews, setReviews] = useState<Record<string, { rating: number; comment: string }>>({});
   const [submittedReviews, setSubmittedReviews] = useState<Record<string, { rating: number; comment: string }>>({});
@@ -156,8 +156,7 @@ export default function CustomerOrdersPage() {
 
   const filteredOrders = orders.filter((order) => {
     const status = normalizeOrderStatus(order.status);
-    if (statusFilter === "all") return true;
-    if (statusFilter === "active") return !["completed", "cancelled"].includes(status);
+    if (statusFilter === "active") return ![ "completed", "cancelled" ].includes(status);
     return status === statusFilter;
   });
 
@@ -168,17 +167,41 @@ export default function CustomerOrdersPage() {
   }, {});
 
   const filterOptions = [
-    { value: "all", label: "All", count: orders.length },
     {
       value: "active",
       label: "Active",
-      count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length,
+      count: orders.filter((order) => ![ "completed", "cancelled" ].includes(normalizeOrderStatus(order.status))).length,
     },
-    ...ORDER_STATUSES.map((status) => ({
-      value: status,
-      label: ORDER_STATUS_LABELS[status],
-      count: statusCounts[status] || 0,
-    })),
+    {
+      value: "approved",
+      label: "Approved",
+      count: statusCounts["approved"] || 0,
+    },
+    {
+      value: "agent_assigned",
+      label: "Courier assigned",
+      count: statusCounts["agent_assigned"] || 0,
+    },
+    {
+      value: "delivery_in_progress",
+      label: "Dispatched",
+      count: statusCounts["delivery_in_progress"] || 0,
+    },
+    {
+      value: "delivered",
+      label: "Delivered",
+      count: statusCounts["delivered"] || 0,
+    },
+    {
+      value: "completed",
+      label: "Completed",
+      count: statusCounts["completed"] || 0,
+    },
+    {
+      value: "cancelled",
+      label: "Cancelled",
+      count: statusCounts["cancelled"] || 0,
+    },
   ];
 
   const messageShop = async (order: CustomerOrder) => {
@@ -270,8 +293,12 @@ export default function CustomerOrdersPage() {
       <Header activeTab="orders" />
       <main className="mx-auto max-w-4xl space-y-4 p-3 pb-24 sm:p-5">
         <div>
-          <h1 className="flex items-center gap-2 text-lg font-bold"><Package className="h-5 w-5 text-brand" /> My Orders</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">Follow the courier, collect in store, and confirm receipt</p>
+          <h1 className="flex items-center gap-2 text-lg font-bold">
+            <Package className="h-5 w-5 text-brand" /> My Orders
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Follow the courier, collect in store, and confirm receipt
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -306,9 +333,15 @@ export default function CustomerOrdersPage() {
           </div>
         </div>
 
-        {error && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+        {error && (
+          <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {error}
+          </div>
+        )}
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-brand" /></div>
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-brand" />
+          </div>
         ) : orders.length === 0 ? (
           <section className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
             <Package className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -317,7 +350,9 @@ export default function CustomerOrdersPage() {
             <Button className="mt-4" onClick={() => router.push("/customer/locations")}>Browse shops</Button>
           </section>
         ) : filteredOrders.length === 0 ? (
-          <section className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">No orders match this filter.</section>
+          <section className="rounded-xl border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+            No orders match this filter.
+          </section>
         ) : (
           filteredOrders.map((order) => {
             const shop = shopFields(order.shopId);
@@ -356,19 +391,52 @@ export default function CustomerOrdersPage() {
 
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      {shop.profileImage ? <Image src={shop.profileImage} alt="" width={36} height={36} className="h-9 w-9 rounded-full object-cover" /> : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand"><Store className="h-4 w-4" /></span>}
-                      <div className="min-w-0"><p className="text-xs text-muted-foreground">Shop</p><p className="truncate text-sm font-semibold">{shop.name}</p></div>
+                      {shop.profileImage ? (
+                        <Image
+                          src={shop.profileImage}
+                          alt=""
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand">
+                          <Store className="h-4 w-4" />
+                        </span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Shop</p>
+                        <p className="truncate text-sm font-semibold">{shop.name}</p>
+                      </div>
                     </div>
-                    <Button type="button" size="sm" variant="outline" disabled={!shop.ownerId || busyOrder === order.id} onClick={() => messageShop(order)}>
-                      {busyOrder === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="mr-1.5 h-4 w-4" />} Message shop
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={!shop.ownerId || busyOrder === order.id}
+                      onClick={() => messageShop(order)}
+                    >
+                      {busyOrder === order.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <MessageSquare className="mr-1.5 h-4 w-4" />
+                      )}
+                      Message shop
                     </Button>
                   </div>
 
                   <ul className="divide-y divide-border border-y border-border">
                     {order.items.map((line, index) => (
-                      <li key={`${order.id}-${index}`} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                        <span className="min-w-0 truncate">{productName(line)} <span className="text-muted-foreground">× {line.quantity}</span></span>
-                        <span className="shrink-0 font-medium">{formatKwacha(line.price * line.quantity)}</span>
+                      <li
+                        key={`${order.id}-${index}`}
+                        className="flex items-center justify-between gap-3 py-2.5 text-sm"
+                      >
+                        <span className="min-w-0 truncate">
+                          {productName(line)} <span className="text-muted-foreground">× {line.quantity}</span>
+                        </span>
+                        <span className="shrink-0 font-medium">
+                          {formatKwacha(line.price * line.quantity)}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -383,11 +451,23 @@ export default function CustomerOrdersPage() {
                   </div>
 
                   <div className="grid gap-2 text-xs sm:grid-cols-2">
-                    <p className="flex items-center gap-2 text-muted-foreground"><Truck className="h-4 w-4 text-brand" />{deliveryLabel[order.deliveryMethod || ""] || "Delivery details to be arranged"}</p>
-                    <p className="flex items-center gap-2 text-muted-foreground"><Wallet className="h-4 w-4 text-brand" />{order.paymentMethod === "airtel_money" ? "Airtel Money · escrow" : "Cash at pickup"}</p>
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <Truck className="h-4 w-4 text-brand" />
+                      {deliveryLabel[order.deliveryMethod || ""] || "Delivery details to be arranged"}
+                    </p>
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <Wallet className="h-4 w-4 text-brand" />
+                      {order.paymentMethod === "airtel_money" ? "Airtel Money · escrow" : "Cash at pickup"}
+                    </p>
                   </div>
-                  {order.customerPhone && <p className="text-xs text-muted-foreground">Contact: {order.customerPhone}</p>}
-                  {order.deliveryAddress && <p className="text-xs text-muted-foreground">Delivery address: {order.deliveryAddress}</p>}
+                  {order.customerPhone && (
+                    <p className="text-xs text-muted-foreground">Contact: {order.customerPhone}</p>
+                  )}
+                  {order.deliveryAddress && (
+                    <p className="text-xs text-muted-foreground">
+                      Delivery address: {order.deliveryAddress}
+                    </p>
+                  )}
 
                   {isPickup && status === "approved" && (
                     <PickupJourney
@@ -400,15 +480,33 @@ export default function CustomerOrdersPage() {
                   )}
 
                   <div className="space-y-1 border-t border-border pt-3 text-sm">
-                    <div className="flex justify-between text-muted-foreground"><span>Items</span><span>{formatKwacha(order.subtotal ?? order.total)}</span></div>
-                    <div className="flex justify-between text-muted-foreground"><span>Delivery</span><span>{order.deliveryFee ? formatKwacha(order.deliveryFee) : "Free"}</span></div>
-                    <div className="flex justify-between border-t border-border pt-2 font-bold"><span>Total</span><span className="text-brand">{formatKwacha(order.total)}</span></div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Items</span>
+                      <span>{formatKwacha(order.subtotal ?? order.total)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Delivery</span>
+                      <span>{order.deliveryFee ? formatKwacha(order.deliveryFee) : "Free"}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-border pt-2 font-bold">
+                      <span>Total</span>
+                      <span className="text-brand">{formatKwacha(order.total)}</span>
+                    </div>
                   </div>
 
                   {canConfirm && (
                     <div className="space-y-1.5">
-                      <Button type="button" className="w-full" disabled={busyOrder === order.id} onClick={() => updateStatus(order, "completed")}>
-                        {busyOrder === order.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                      <Button
+                        type="button"
+                        className="w-full"
+                        disabled={busyOrder === order.id}
+                        onClick={() => updateStatus(order, "completed")}
+                      >
+                        {busyOrder === order.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        )}
                         {isPickup ? "Confirm I collected it" : "Confirm I received it"}
                       </Button>
                       <p className="text-center text-[11px] text-muted-foreground">
@@ -418,11 +516,19 @@ export default function CustomerOrdersPage() {
                       </p>
                     </div>
                   )}
+
                   {canCancel && (
-                    <Button type="button" variant="outline" className="w-full" disabled={busyOrder === order.id} onClick={() => updateStatus(order, "cancelled")}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={busyOrder === order.id}
+                      onClick={() => updateStatus(order, "cancelled")}
+                    >
                       {isPickup ? "Cancel order" : "Cancel order · refund escrow"}
                     </Button>
                   )}
+
                   {status === "completed" && !submittedReviews[order.id] && !dismissedReviews[order.id] && (
                     <div className="mt-1 border-t border-border pt-3">
                       <p className="mb-2 text-xs font-medium">How was your order?</p>
@@ -432,15 +538,27 @@ export default function CustomerOrdersPage() {
                             key={star}
                             type="button"
                             className="p-1 transition-colors"
-                            onClick={() => setReviews((prev) => ({ ...prev, [order.id]: { rating: star, comment: prev[order.id]?.comment || "" } }))}
+                            onClick={() =>
+                              setReviews((prev) => ({
+                                ...prev,
+                                [order.id]: { rating: star, comment: prev[order.id]?.comment || "" },
+                              }))
+                            }
                           >
-                            <Star className={`h-5 w-5 ${star <= (reviews[order.id]?.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-muted"}`} />
+                            <Star
+                              className={`h-5 w-5 ${star <= (reviews[order.id]?.rating || 3) ? "text-yellow-400 fill-yellow-400" : "text-muted"}`}
+                            />{" "}
                           </button>
                         ))}
                       </div>
                       <Textarea
                         value={reviews[order.id]?.comment || ""}
-                        onChange={(e) => setReviews((prev) => ({ ...prev, [order.id]: { ...prev[order.id], comment: e.target.value } }))}
+                        onChange={(e) =>
+                          setReviews((prev) => ({
+                            ...prev,
+                            [order.id]: { ...prev[order.id], comment: e.target.value },
+                          }))
+                        }
                         placeholder="Write a short review (optional)..."
                         className="h-16 resize-none text-xs"
                       />
@@ -455,7 +573,11 @@ export default function CustomerOrdersPage() {
                             if (draft?.rating) submitReview(order, draft.rating, draft.comment);
                           }}
                         >
-                          {submittingReview === order.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle2 className="mr-1 h-3 w-3" />}
+                          {submittingReview === order.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                          )}
                           Submit review
                         </Button>
                         <Button
@@ -472,17 +594,6 @@ export default function CustomerOrdersPage() {
                         >
                           Skip
                         </Button>
-                      </div>
-                    </div>
-                  )}
-                  {submittedReviews[order.id] && status === "completed" && (
-                    <div className="border-t border-border pt-2">
-                      <div className="flex items-center gap-1 text-xs">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <Star key={s} className={`h-3.5 w-3.5 ${s <= submittedReviews[order.id]!.rating ? "text-yellow-400 fill-yellow-400" : "text-muted"}`} />
-                        ))}
-                        {submittedReviews[order.id]!.comment && <span className="ml-1 text-muted-foreground">— {submittedReviews[order.id]!.comment}</span>}
-                        <span className="ml-1 font-medium text-emerald-500">Review sent</span>
                       </div>
                     </div>
                   )}

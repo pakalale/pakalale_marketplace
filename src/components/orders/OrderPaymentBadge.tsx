@@ -30,7 +30,7 @@ export default function OrderPaymentBadge({ escrow, paymentMethod, className }: 
           className
         )}
       >
-        <ShieldCheck className="h-3 w-3" /> {formatKwacha(escrow.amount)} in escrow
+        <ShieldCheck className="h-3 w-3" /> {formatKwacha(escrow.amount)} Payment held
       </span>
     );
   }

@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { CheckCircle2, Loader2, MessageSquare, Package, Store, Truck, Wallet } from "lucide-react";
+import { CheckCircle2, Loader2, MessageSquare, Package, Star, Store, Truck, Wallet, X } from "lucide-react";
 import Header from "@/components/Header";
 import DeliveryLocationButton from "@/components/orders/DeliveryLocationButton";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { formatKwacha } from "@/lib/product";
 import {
   canCancelOrder,
@@ -22,6 +25,8 @@ import {
 } from "@/lib/orderStatus";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/authStore";
+
+const STARS = [5, 4, 3, 2, 1];
 
 interface OrderLine {
   quantity: number;
@@ -73,6 +78,8 @@ export default function CustomerOrdersPage() {
   const [error, setError] = useState("");
   const [busyOrder, setBusyOrder] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [reviews, setReviews] = useState<Record<string, { rating: number; comment: string }>>({});
+  const [submittingReview, setSubmittingReview] = useState<string | null>(null);
 
   const loadOrders = async () => {
     setError("");
@@ -111,7 +118,7 @@ export default function CustomerOrdersPage() {
   }, {});
 
   const filterOptions = [
-    { value: "all", label: "All orders", count: orders.length },
+    { value: "all", label: "Active", count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length },
     { value: "active", label: "Active", count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length },
     ...ORDER_STATUSES.map((status) => ({ value: status, label: ORDER_STATUS_LABELS[status], count: statusCounts[status] || 0 })),
   ];
@@ -159,10 +166,36 @@ export default function CustomerOrdersPage() {
     }
   };
 
+  const submitReview = async (order: CustomerOrder, rating: number, comment: string) => {
+    if (!user?.id) return;
+    setSubmittingReview(order.id);
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: user.id,
+          shopId: typeof order.shopId === "string" ? order.shopId : order.shopId.id,
+          orderId: order.id,
+          rating,
+          comment: comment.trim() || undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not submit review");
+      setReviews((prev) => ({ ...prev, [order.id]: { rating, comment } }));
+      toast.success("Review submitted. Thanks for your feedback!", { id: "customer-review" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not submit review");
+    } finally {
+      setSubmittingReview(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header activeTab="orders" />
-      <main className="mx-auto max-w-2xl space-y-4 p-3 pb-24 sm:p-4">
+      <main className="mx-auto max-w-4xl space-y-4 p-3 pb-24 sm:p-5">
         <div>
           <h1 className="flex items-center gap-2 text-lg font-bold"><Package className="h-5 w-5 text-brand" /> My Orders</h1>
           <p className="mt-0.5 text-xs text-muted-foreground">Order progress and shop contact details</p>
@@ -277,6 +310,67 @@ export default function CustomerOrdersPage() {
                     <Button type="button" variant="outline" className="w-full" disabled={busyOrder === order.id} onClick={() => updateStatus(order, "cancelled")}>
                       Cancel order
                     </Button>
+                  )}
+                  {normalizeOrderStatus(order.status) === "completed" && !reviews[order.id] && (
+                    <div className="border-t border-border pt-3 mt-1">
+                      <p className="text-xs font-medium mb-2">How was your order?</p>
+                      <div className="flex gap-1 mb-2">
+                        {STARS.map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            className="p-1 transition-colors"
+                            onClick={() => setReviews((prev) => ({ ...prev, [order.id]: { rating: star, comment: prev[order.id]?.comment || "" } }))}
+                          >
+                            <Star className={`h-5 w-5 ${star <= (reviews[order.id]?.rating || 0) ? "text-yellow-400 fill-yellow-400" : "text-muted"}`} />
+                          </button>
+                        ))}
+                      </div>
+                      <Textarea
+                        value={reviews[order.id]?.comment || ""}
+                        onChange={(e) => setReviews((prev) => ({ ...prev, [order.id]: { ...prev[order.id], comment: e.target.value } }))}
+                        placeholder="Write a short review (optional)..."
+                        className="text-xs h-16 resize-none"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="flex-1 text-xs"
+                          disabled={submittingReview === order.id || (!reviews[order.id]?.rating && !reviews[order.id]?.comment)}
+                          onClick={() => {
+                            const r = reviews[order.id];
+                            if (r) submitReview(order, r.rating, r.comment);
+                          }}
+                        >
+                          {submittingReview === order.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          Submit review
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => {
+                            const next = { ...reviews };
+                            delete next[order.id];
+                            setReviews(next);
+                          }}
+                        >
+                          Skip
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  {reviews[order.id] && normalizeOrderStatus(order.status) === "completed" && (
+                    <div className="border-t border-border pt-2">
+                      <div className="flex items-center gap-1 text-xs">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className={`h-3.5 w-3.5 ${s <= reviews[order.id]!.rating ? "text-yellow-400 fill-yellow-400" : "text-muted"}`} />
+                        ))}
+                        {reviews[order.id]!.comment && <span className="text-muted-foreground ml-1">— {reviews[order.id]!.comment}</span>}
+                      </div>
+                    </div>
                   )}
                 </div>
               </article>

@@ -33,6 +33,12 @@ import VerificationSection from "@/components/VerificationSection";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
+import {
+  parseDayHours,
+  SHOP_DAYS,
+  DEFAULT_SHOP_HOURS,
+  toModelHours,
+} from "@/lib/shopHours";
 
 const ALL_SPECIALTIES = [
   "Electronics",
@@ -69,15 +75,9 @@ export default function ShopSettingsPage() {
     specialties: [] as string[],
     coverImage: "",
     profileImage: "",
-    hours: {
-      monday: "08:00 - 18:00",
-      tuesday: "08:00 - 18:00",
-      wednesday: "08:00 - 18:00",
-      thursday: "08:00 - 18:00",
-      friday: "08:00 - 19:00",
-      saturday: "09:00 - 19:00",
-      sunday: "10:00 - 15:00",
-    },
+    hours: Object.fromEntries(
+      SHOP_DAYS.map((d) => [d, DEFAULT_SHOP_HOURS[d].open + " - " + DEFAULT_SHOP_HOURS[d].close])
+    ) as Record<string, string>,
   });
   const [saving, setSaving] = useState(false);
   const { upload: uploadFile, uploading, progress: uploadProgress } = useUpload({ folder: "pakalale/shop" });
@@ -105,10 +105,6 @@ export default function ShopSettingsPage() {
   useEffect(() => {
     if (shopData?.shop) {
       const s = shopData.shop;
-      const parseHours = (h: Record<string, { open: string; close: string; closed: boolean }> | undefined, day: string) => {
-        if (h?.[day]) return `${h[day].open} - ${h[day].close}`;
-        return "08:00 - 18:00";
-      };
       setShopForm({
         name: s.name || "",
         description: s.description || "",
@@ -118,15 +114,12 @@ export default function ShopSettingsPage() {
         specialties: s.specialties || [],
         coverImage: s.coverImage || "",
         profileImage: s.profileImage || "",
-        hours: {
-          monday: parseHours(s.hours, "monday"),
-          tuesday: parseHours(s.hours, "tuesday"),
-          wednesday: parseHours(s.hours, "wednesday"),
-          thursday: parseHours(s.hours, "thursday"),
-          friday: parseHours(s.hours, "friday"),
-          saturday: parseHours(s.hours, "saturday"),
-          sunday: parseHours(s.hours, "sunday"),
-        },
+        hours: Object.fromEntries(
+          SHOP_DAYS.map((day) => {
+            const parsed = parseDayHours(s.hours?.[day], DEFAULT_SHOP_HOURS[day]);
+            return [day, `${parsed.open} - ${parsed.close}`];
+          })
+        ) as Record<string, string>,
       });
     }
   }, [shopData]);
@@ -173,7 +166,7 @@ export default function ShopSettingsPage() {
         specialties: shopForm.specialties,
         coverImage: shopForm.coverImage,
         profileImage: shopForm.profileImage,
-        hours: shopForm.hours,
+        hours: toModelHours(shopForm.hours),
       });
       // Sync profileImage to auth store so avatar updates everywhere
       if (shopForm.profileImage && shopForm.profileImage !== user.avatar) {
@@ -190,7 +183,7 @@ export default function ShopSettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
-      <main className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
+      <main className="mx-auto max-w-4xl space-y-4 p-3 sm:p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Settings className="h-5 w-5 text-brand" />
@@ -432,30 +425,57 @@ export default function ShopSettingsPage() {
                 {/* Working Hours */}
                 <div>
                   <Label className="text-xs mb-2 block">Working Hours</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(
-                      Object.entries(shopForm.hours) as [
-                        string,
-                        string,
-                      ][]
-                    ).map(([day, hours]) => (
-                      <div key={day} className="space-y-1">
-                        <p className="text-[10px] text-muted-foreground capitalize">
-                          {day}
-                        </p>
-                        <Input
-                          value={hours}
-                          onChange={(e) =>
-                            setShopForm((p) => ({
-                              ...p,
-                              hours: { ...p.hours, [day]: e.target.value },
-                            }))
-                          }
-                          className="text-xs"
-                          placeholder="08:00 - 18:00"
-                        />
-                      </div>
-                    ))}
+                  <p className="text-[10px] text-muted-foreground mb-2">
+                    Pick a preset for each day, or type your own hours.
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {SHOP_DAYS.map((day) => {
+                      const current = shopForm.hours[day] || "";
+                      const presetOptions = [
+                        { label: "08:00 - 18:00", value: "08:00 - 18:00", days: ["monday", "tuesday", "wednesday", "thursday"] },
+                        { label: "08:00 - 19:00", value: "08:00 - 19:00", days: ["friday"] },
+                        { label: "09:00 - 19:00", value: "09:00 - 19:00", days: ["saturday"] },
+                        { label: "10:00 - 15:00", value: "10:00 - 15:00", days: ["sunday"] },
+                      ].filter((p) => p.days.includes(day));
+
+                      return (
+                        <div key={day} className="space-y-1">
+                          <p className="text-[10px] text-muted-foreground capitalize">{day}</p>
+                          <div className="flex gap-1">
+                            {presetOptions.map((preset) => (
+                              <button
+                                key={preset.value}
+                                type="button"
+                                onClick={() =>
+                                  setShopForm((p) => ({
+                                    ...p,
+                                    hours: { ...p.hours, [day]: preset.value },
+                                  }))
+                                }
+                                className={`flex-1 text-[10px] px-1.5 py-1 rounded border transition-colors ${
+                                  current === preset.value
+                                    ? "border-primary bg-primary/10 text-brand font-semibold"
+                                    : "border-border bg-background hover:border-primary/30"
+                                }`}
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                          <Input
+                            value={current}
+                            onChange={(e) =>
+                              setShopForm((p) => ({
+                                ...p,
+                                hours: { ...p.hours, [day]: e.target.value },
+                              }))
+                            }
+                            className="text-[10px] h-7"
+                            placeholder="HH:MM - HH:MM"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

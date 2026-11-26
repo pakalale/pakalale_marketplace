@@ -128,7 +128,7 @@ export default function ProfilePage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="h-14" />
-        <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+        <div className="px-4 py-5 space-y-4 max-w-3xl mx-auto">
           <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="bg-gradient-to-r from-primary/10 to-amber-golden/10 p-6">
               <div className="flex items-center gap-4">
@@ -171,7 +171,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="h-14" />
-      <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+      <div className="px-4 py-5 space-y-4 max-w-3xl mx-auto">
         {/* Profile Card */}
         <Card className="bg-card border-border overflow-hidden">
           <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-amber-golden/10 p-6">

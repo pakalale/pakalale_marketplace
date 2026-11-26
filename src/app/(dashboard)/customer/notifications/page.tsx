@@ -81,14 +81,14 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-16" />
-          <h1 className="text-sm font-bold">Notifications</h1>
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 lg:px-6">
+          <div className="hidden w-16 lg:block" />
+          <h1 className="text-sm font-bold lg:text-base">Notifications</h1>
           <Button variant="ghost" size="sm" onClick={() => refetch()}><Bell className="h-4 w-4" /></Button>
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:py-6">
         {/* Summary cards */}
         <div className="grid grid-cols-2 gap-2">
           <Card className="bg-gradient-to-br from-teal-500/10 to-primary/10 border-teal-500/20 cursor-pointer" onClick={() => router.push("/customer/chat")}>

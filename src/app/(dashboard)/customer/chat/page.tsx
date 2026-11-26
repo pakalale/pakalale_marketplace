@@ -544,7 +544,7 @@ export default function ChatPage() {
 
       <div
         ref={messagesContainerRef}
-        className="relative flex-1 overflow-y-auto flex flex-col p-3 pb-[60px]"
+        className="relative flex-1 overflow-y-auto flex flex-col p-3 pb-[60px] lg:px-8"
         onScroll={handleScroll}
       >
         {/* Floating date pill — pinned just below the header while scrolling */}
@@ -630,7 +630,7 @@ export default function ChatPage() {
     </div>
 
     {/* Input — truly fixed, never moves */}
-    <div className="fixed left-0 right-0 bottom-14 sm:bottom-0 z-40 bg-background border-t border-border safe-area-bottom">
+    <div className="fixed left-0 right-0 bottom-14 sm:bottom-0 z-40 bg-background border-t border-border safe-area-bottom lg:left-64">
       <MessageInput
         onSendMessage={handleSendMessage}
         onSendImage={handleSendImage}

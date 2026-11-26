@@ -179,7 +179,7 @@ export default function ShopOrdersPage() {
   }, {});
 
   const filterOptions = [
-    { value: "all", label: "All orders", count: orders.length },
+    { value: "all", label: "Active", count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length },
     { value: "active", label: "Needs action", count: orders.filter((order) => !["completed", "cancelled"].includes(normalizeOrderStatus(order.status))).length },
     ...ORDER_STATUSES.map((status) => ({ value: status, label: ORDER_STATUS_LABELS[status], count: statusCounts[status] || 0 })),
   ];
@@ -187,7 +187,7 @@ export default function ShopOrdersPage() {
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
-      <main className="mx-auto max-w-5xl space-y-4 p-3 pb-24 sm:p-5">
+      <main className="mx-auto max-w-6xl space-y-4 p-3 pb-24 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="flex items-center gap-2 text-lg font-bold"><Package className="h-5 w-5 text-brand" /> Orders</h1>

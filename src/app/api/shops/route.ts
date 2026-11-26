@@ -239,6 +239,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can update their shop" }, { status: 403 });
+    }
     await connectToDatabase();
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -254,6 +259,13 @@ export async function PUT(request: NextRequest) {
     }
     if (!shop) {
       return NextResponse.json({ error: "Shop not found" }, { status: 404 });
+    }
+    // Shop owners can only update their own shop (unless admin)
+    if (session.role !== "admin") {
+      const shopOwnerId = typeof shop.ownerId === "string" ? shop.ownerId : shop.ownerId?.toString();
+      if (shopOwnerId !== session.id) {
+        return NextResponse.json({ error: "You can only update your own shop" }, { status: 403 });
+      }
     }
 
     // Update using the actual shop _id

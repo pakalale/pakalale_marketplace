@@ -37,13 +37,13 @@ export default function CustomerTopBar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-lg">
-      <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-2 px-4">
+      <div className="mx-auto flex h-14 max-w-[1440px] items-center gap-2 px-4 lg:px-6">
         <Link href="/customer" aria-label="My account" className="flex shrink-0 items-center gap-2">
           <Image src="/logo.png" alt="Pakalale Market" className="h-8 w-auto" width={320} height={112} priority />
           <span className="hidden text-sm font-bold text-brand sm:inline">My account</span>
         </Link>
 
-        <nav aria-label="Account sections" className="ml-3 hidden items-center gap-1 md:flex">
+        <nav aria-label="Account sections" className="ml-3 hidden items-center gap-1 md:flex lg:hidden">
           {LINKS.map((link) => (
             <Link
               key={link.href}

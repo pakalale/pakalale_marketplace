@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/authStore";
-import { useShop, useProducts } from "@/hooks/useApi";
-import ShopVisitorsList from "@/components/ShopVisitorsList";
+import { useShop, useProducts, useShopVisitors } from "@/hooks/useApi";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
+import { normalizeShopHours } from "@/lib/shopHours";
+import { formatTimeAgo } from "@/lib/formatTime";
+import { Clock, Eye } from "lucide-react";
 
 export default function VirtualShopPage() {
   const router = useRouter();
@@ -23,6 +25,8 @@ export default function VirtualShopPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const { data: shopData, loading: shopLoading } = useShop(user?.id || null);
+  const { data: visitorsData, loading: visitorsLoading, error: visitorsError } = useShopVisitors(user?.id || null);
+  const visitors = visitorsData?.views || [];
   const { data: productsData, loading: productsLoading } = useProducts({
     shopId: user?.id || undefined,
     search: searchQuery || undefined,
@@ -33,12 +37,13 @@ export default function VirtualShopPage() {
   const products = productsData?.products || [];
   const categories = ["all", ...Array.from(new Set(products.map((p) => p.category)))];
 
-  const hours = shop?.hours || {};
+  // Always seven rows: shops that never set hours fall back to default times.
+  const hours = normalizeShopHours(shop?.hours as Record<string, unknown> | undefined);
 
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
-      <main className="px-4 py-4 space-y-4 max-w-5xl mx-auto">
+      <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 sm:py-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">My Shop</h1>
@@ -108,25 +113,60 @@ export default function VirtualShopPage() {
                     <div className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 shrink-0" />{shop.locationId || "Lusaka"}</div>
                     {shop.contact?.phone && <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 shrink-0" />{shop.contact.phone}</div>}
                     {shop.contact?.email && <div className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 shrink-0" />{shop.contact.email}</div>}
-                    {Object.keys(hours).length > 0 && (
-                      <div className="mt-2">
-                        <p className="font-medium text-foreground text-xs mb-1">Hours</p>
-                        {Object.entries(hours).map(([day, h]) => {
-                          const hr = h as { open: string; close: string; closed: boolean };
-                          return (
-                            <p key={day} className="capitalize">
-                              {day}: {hr.closed ? "Closed" : `${hr.open} - ${hr.close}`}
-                            </p>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="mt-2">
+                      <p className="font-medium text-foreground text-xs mb-1">Hours</p>
+                      {hours.map(({ day, open, close, closed }) => (
+                        <p key={day} className="capitalize">
+                          {day}: {closed ? "Closed" : `${open} - ${close}`}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <ShopVisitorsList ownerId={user?.id || null} />
+            {/* Visitors: desktop list always; mobile only via the dropdown card on overview. */}
+            <div className="hidden sm:block">
+              <Card id="shop-visitors" className="bg-card border-border scroll-mt-20">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between border-b border-border p-3 sm:p-4">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold">
+                      <Eye className="h-4 w-4 text-brand" />Shop visitors
+                    </h2>
+                    <span className="text-[10px] text-muted-foreground">{visitors.length} unique</span>
+                  </div>
+                  {visitorsLoading ? (
+                    <div className="flex items-center justify-center gap-2 p-5 text-xs text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />Loading visitors
+                    </div>
+                  ) : visitorsError ? (
+                    <div className="p-5 text-center text-xs text-destructive">Could not load shop visitors</div>
+                  ) : visitors.length === 0 ? (
+                    <div className="p-5 text-center text-xs text-muted-foreground">No signed-in visitors yet</div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {visitors.map((view) => (
+                        <div key={view.id} className="flex items-center gap-3 p-3 sm:px-4">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={view.visitor.avatar} alt="" />
+                            <AvatarFallback className="text-[10px]">
+                              {view.visitor.firstName?.[0]}{view.visitor.lastName?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                            {view.visitor.firstName} {view.visitor.lastName}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />{formatTimeAgo(view.lastViewedAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Products */}
             <div>

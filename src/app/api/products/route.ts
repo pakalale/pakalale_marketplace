@@ -130,6 +130,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can add products" }, { status: 403 });
+    }
     await connectToDatabase();
     const body = await request.json();
 
@@ -166,6 +171,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can update products" }, { status: 403 });
+    }
     await connectToDatabase();
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -192,6 +202,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can delete products" }, { status: 403 });
+    }
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

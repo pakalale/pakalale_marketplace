@@ -239,9 +239,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
     await connectToDatabase();
     const body = await request.json();
-    const post = await FeedPost.create(body);
+    const actorId = typeof body.authorId === "string" && body.authorId ? body.authorId : session.id;
+    const post = await FeedPost.create({ ...body, authorId: actorId });
     invalidateCache("feed:");
     return NextResponse.json(
       {

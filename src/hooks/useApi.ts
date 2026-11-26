@@ -291,6 +291,16 @@ export interface ShopData {
   previewProducts?: ProductData[];
   createdAt: string;
   updatedAt: string;
+  /** Verification fields returned by /api/admin/shops and /api/shops when populated. */
+  verificationDocuments?: {
+    businessLicense?: string;
+    taxCertificate?: string;
+    nationalId?: string;
+    other?: string[];
+  };
+  verificationNotes?: string;
+  rejectedReason?: string;
+  verifiedAt?: string;
 }
 
 export async function updateShop(id: string, data: Record<string, unknown>) {
@@ -884,6 +894,43 @@ export interface AnalyticsData {
     rating: number;
     reviews: number;
   }>;
+  /** Completed orders, newest first: what sold, for how much, when, and to whom. */
+  recentSales: Array<{
+    id: string;
+    customer: string;
+    items: Array<{ name: string; quantity: number; price: number }>;
+    units: number;
+    total: number;
+    createdAt: string;
+  }>;
+  salesSummary: {
+    today: { count: number; revenue: number };
+    week: { count: number; revenue: number };
+  };
+  topSellingProducts: Array<{
+    id: string;
+    name: string;
+    sold: number;
+    price: number;
+  }>;
+  /** Last six months, oldest first. */
+  salesTrend: Array<{
+    month: string;
+    label: string;
+    revenue: number;
+    count: number;
+  }>;
+  salesByCategory: Array<{
+    category: string;
+    revenue: number;
+    units: number;
+  }>;
+  customers: {
+    total: number;
+    repeat: number;
+    newThisMonth: number;
+    avgSpend: number;
+  };
 }
 
 // ── Auth helpers ──

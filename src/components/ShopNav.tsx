@@ -26,12 +26,13 @@ export default function ShopNav() {
       "sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300",
       navVisible ? "translate-y-0" : "-translate-y-full"
     )}>
-      <div className="flex items-center justify-between gap-3 px-4 h-14 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between gap-3 px-4 lg:px-6 h-14 max-w-7xl mx-auto">
         <Link href="/shop/overview" aria-label="Pakalale My Shop" className="flex items-center gap-2 min-w-0">
           <Image src="/logo.png" alt="Pakalale Market" className="h-8 w-auto shrink-0" width={320} height={112} priority />
         </Link>
 
-        <nav className="hidden sm:flex flex-1 items-center justify-center gap-1">
+        {/* The desktop sidebar carries the sections, so the bar stays lean at lg. */}
+        <nav className="hidden sm:flex lg:hidden flex-1 items-center justify-center gap-1">
           {shopNavItems.map((item) => (
             <Link
               key={item.id}

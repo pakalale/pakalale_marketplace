@@ -234,7 +234,7 @@ function SearchResultsContent() {
     <div className="min-h-screen bg-background">
       <Header title="Search" />
 
-      <main className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
+      <main className="mx-auto max-w-4xl space-y-4 p-3 sm:p-5">
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />

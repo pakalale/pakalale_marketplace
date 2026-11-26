@@ -100,14 +100,14 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-16" />
-          <h1 className="text-sm font-bold">Settings</h1>
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 lg:px-6">
+          <div className="hidden w-16 lg:block" />
+          <h1 className="text-sm font-bold lg:text-base">Settings</h1>
           <div className="w-16" />
         </div>
       </header>
 
-      <div className="px-4 py-4 max-w-2xl mx-auto space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:py-6">
         <Card className="bg-card border-border">
           <CardContent className="p-4 space-y-3">
             <div>

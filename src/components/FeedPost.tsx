@@ -259,7 +259,7 @@ export default function FeedPost({
                   )}
                 </div>
               </div>
-              {saveableProduct && (
+              {saveableProduct && currentUserRole !== "shop_owner" && (
                 <button
                   type="button"
                   aria-pressed={saved}
@@ -379,13 +379,15 @@ export default function FeedPost({
           </Button>
           {/* Products on a shop post go straight to the cart; checkout asks
               visitors to sign up only when they are ready to order. */}
-          {post.product && post.author?.role === "shop_owner" && post.author?.id !== currentUserId && (
+          {post.product && post.author?.role === "shop_owner" && post.author?.id !== currentUserId && currentUserRole !== "shop_owner" && (
             <Button
               size="sm"
+              aria-label={`Add ${post.product.name} to cart`}
               className="h-7 text-[10px] sm:text-[11px] bg-primary text-primary-foreground hover:bg-primary/90 px-1.5 sm:px-2"
               onClick={handleAddToCart}
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
+              <ShoppingCart className="h-3.5 w-3.5 mr-0.5" />
+              Add
             </Button>
           )}
         </div>

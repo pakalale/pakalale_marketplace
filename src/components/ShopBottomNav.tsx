@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
+import { normalizeOrderStatus } from "@/lib/orderStatus";
 
 const POLL_INTERVAL = 30_000;
 
@@ -42,7 +43,9 @@ export default function ShopBottomNav() {
         if (chatRes) {
           setChatUnread(chatRes.totalUnread || 0);
         }
-        if (ordersRes) setOrderCount(ordersRes.orders?.length || 0);
+        if (ordersRes?.orders) {
+          setOrderCount(ordersRes.orders.filter((o: { status: string }) => !["completed", "cancelled"].includes(normalizeOrderStatus(o.status))).length);
+        }
       } catch { /* ignore */ }
     };
 

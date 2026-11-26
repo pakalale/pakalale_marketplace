@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/models/User";
 import Shop from "@/models/Shop";
 import { invalidateCache } from "@/lib/cache";
-import { createEmailToken, normalizeEmail, MIN_PASSWORD_LENGTH } from "@/lib/authTokens";
+import { createEmailToken, normalizeEmail, MIN_PASSWORD_LENGTH, EMAIL_PATTERN } from "@/lib/authTokens";
 import { appUrl, emailVerificationEnabled, sendVerificationEmail } from "@/lib/email";
 import { safeNextPath } from "@/lib/authRedirect";
 
@@ -15,6 +15,9 @@ export async function POST(request: NextRequest) {
     const { password, firstName, lastName, role, phone, location, shop } = body;
     const email = normalizeEmail(body.email);
 
+    if (!EMAIL_PATTERN.test(email)) {
+      return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 });
+    }
     if (!email || typeof password !== "string" || !firstName || !lastName || !["customer", "shop_owner"].includes(role)) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 });
     }

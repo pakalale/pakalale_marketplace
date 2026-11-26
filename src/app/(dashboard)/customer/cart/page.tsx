@@ -20,7 +20,7 @@ export default function CustomerCartPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header activeTab="cart" />
-      <main className="mx-auto max-w-2xl space-y-4 p-3 pb-24 sm:p-4">
+      <main className="mx-auto max-w-5xl space-y-4 p-3 pb-24 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="flex items-center gap-2 text-lg font-bold"><ShoppingCart className="h-5 w-5 text-brand" /> Your Cart</h1>
@@ -41,7 +41,7 @@ export default function CustomerCartPage() {
             <Button className="mt-4" onClick={() => router.push("/customer/locations")}>Browse shops</Button>
           </section>
         ) : (
-          <>
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <section className="divide-y divide-border rounded-xl border border-border bg-card px-4">
               {lines.map((line) => (
                 <article key={line.productId} className="flex items-center gap-3 py-3">
@@ -76,7 +76,7 @@ export default function CustomerCartPage() {
                 Continue to checkout
               </Button>
             </section>
-          </>
+          </div>
         )}
       </main>
     </div>

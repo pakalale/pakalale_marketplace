@@ -107,7 +107,7 @@ export default function ShopNotificationsPage() {
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
-      <main className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
+      <main className="mx-auto max-w-4xl space-y-4 p-3 sm:p-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold flex items-center gap-2">

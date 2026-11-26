@@ -51,9 +51,9 @@ export default function LocationsPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-20" />
-          <h1 className="text-sm font-bold">Locations</h1>
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 lg:px-6">
+          <div className="hidden w-20 lg:block" />
+          <h1 className="text-sm font-bold lg:text-base">Locations</h1>
           <div className="flex w-20 items-center justify-end gap-1">
             <CartButton />
             <SavedItemsButton />
@@ -61,7 +61,7 @@ export default function LocationsPage() {
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4 max-w-5xl mx-auto">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 py-5 sm:py-6">
         {/* Search + Filter */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -104,11 +104,11 @@ export default function LocationsPage() {
             {locations.map((location) => (
               <Card
                 key={location.id}
-                className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer group"
+                className="group flex h-full flex-col bg-card border-border hover:border-primary/30 transition-colors cursor-pointer"
                 onClick={() => router.push(`/customer/locations/${location.slug || location.id}`)}
               >
-                <CardContent className="p-0">
-                  <div className="p-4">
+                <CardContent className="flex flex-1 flex-col p-0">
+                  <div className="flex flex-1 flex-col p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -156,17 +156,21 @@ export default function LocationsPage() {
                       </div>
                     </div>
 
+                    {/* Pinned to the bottom so the heading lines up across cards in a row,
+                        however many lines the description, badges or stats take. */}
                     {(location.previewProducts?.length || 0) > 0 && (
-                      <div className="mt-3 border-t border-brand/10 pt-3">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-brand">
-                          Products from local shops
-                        </p>
-                        <ProductPreviewStrip
-                          products={location.previewProducts || []}
-                          max={3}
-                          onAddToCart={addPreviewProductToCart}
-                          onSelect={(product) => openPreviewProduct(location, product)}
-                        />
+                      <div className="mt-auto pt-3">
+                        <div className="border-t border-brand/10 pt-3">
+                          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                            Products from local shops
+                          </p>
+                          <ProductPreviewStrip
+                            products={location.previewProducts || []}
+                            max={3}
+                            onAddToCart={addPreviewProductToCart}
+                            onSelect={(product) => openPreviewProduct(location, product)}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>

@@ -198,4 +198,6 @@ export {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
+  SelectPrimitive,
+  ChevronDownIcon,
 }

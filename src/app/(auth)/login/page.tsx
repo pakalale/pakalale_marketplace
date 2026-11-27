@@ -27,7 +27,10 @@ function LoginForm() {
   const params = useSearchParams();
   const { login } = useAuthStore();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginCredentials>();
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginCredentials>({
+    // Signup sends people here with their email when the account already exists.
+    defaultValues: { email: params.get("email") || "" },
+  });
   const googleError = params.get("error");
   const visibleError = error || (googleError ? GOOGLE_ERRORS[googleError] || GOOGLE_ERRORS.google_failed : "");
 
@@ -122,9 +125,20 @@ function LoginForm() {
               {unverifiedEmail && (
                 <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
                   <p className="text-xs text-muted-foreground">Confirm your email before signing in.</p>
-                  <button type="button" onClick={resendVerification} className="text-xs font-semibold text-brand hover:underline">
-                    Resend confirmation email
-                  </button>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <button type="button" onClick={resendVerification} className="text-xs font-semibold text-brand hover:underline">
+                      Resend confirmation email
+                    </button>
+                    <Link
+                      href={`/verify-email?${new URLSearchParams({
+                        email: unverifiedEmail,
+                        ...(safeNextPath(params.get("next")) ? { next: safeNextPath(params.get("next"))! } : {}),
+                      }).toString()}`}
+                      className="text-xs font-semibold text-brand hover:underline"
+                    >
+                      Open confirmation page
+                    </Link>
+                  </div>
                   {resendMessage && <p className="text-xs text-muted-foreground">{resendMessage}</p>}
                 </div>
               )}

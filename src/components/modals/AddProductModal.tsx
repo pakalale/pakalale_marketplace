@@ -16,20 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
 import { Plus, Upload, X, Loader2, ImageIcon } from "lucide-react";
+import toast from "react-hot-toast";
 import { createProduct, type ProductData } from "@/hooks/useApi";
+import { isProductVideo } from "@/lib/product";
 import ImageViewerModal from "@/components/ImageViewerModal";
-
-const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "avi", "mkv"];
-function isVideoUrl(url: string): boolean {
-  try {
-    const ext = url.split(".").pop()?.split("?")[0]?.toLowerCase();
-    if (ext && VIDEO_EXTENSIONS.includes(ext)) return true;
-    if (url.includes("/video/upload/")) return true;
-    return false;
-  } catch {
-    return false;
-  }
-}
 
 interface AddProductModalProps {
   shopId: string;
@@ -56,6 +46,7 @@ export default function AddProductModal({
 }: AddProductModalProps) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [addingFiles, setAddingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -72,20 +63,26 @@ export default function AddProductModal({
   });
 
   const [images, setImages] = useState<string[]>([]);
-  const { upload: uploadFile, uploading, progress: uploadProgress } = useUpload({ folder: "pakalale/products" });
-  const hasProductPhoto = images.some((image) => !isVideoUrl(image));
+  const { upload: uploadFile, uploading, progress: uploadProgress, error: uploadError } = useUpload({ folder: "pakalale/products" });
+  const hasProductMedia = images.length > 0;
+  const busyUploading = uploading || addingFiles;
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      const result = await uploadFile(file);
-      if (result?.url) {
-        setImages((prev) => [...prev, result.url]);
+    setAddingFiles(true);
+    try {
+      for (const file of Array.from(files)) {
+        const result = await uploadFile(file);
+        if (result?.url) {
+          setImages((prev) => [...prev, result.url]);
+        }
       }
+    } finally {
+      setAddingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
@@ -94,7 +91,7 @@ export default function AddProductModal({
 
   const handleSubmit = async () => {
     if (!form.name.trim() || !form.description.trim() || !form.price) return;
-    if (!hasProductPhoto) return;
+    if (!hasProductMedia || busyUploading) return;
 
     setSaving(true);
     try {
@@ -145,6 +142,7 @@ export default function AddProductModal({
       onProductAdded?.({ ...productData, ...savedProduct, id: savedProduct.id } as ProductData);
     } catch (err) {
       console.error("Failed to create product:", err);
+      toast.error(err instanceof Error ? err.message : "Couldn't add the product. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -177,7 +175,7 @@ export default function AddProductModal({
               {images.length > 0 && (
                 images.length === 1 ? (
                   <div className="w-full h-48 bg-muted rounded-lg overflow-hidden cursor-pointer relative group" onClick={() => { setViewerIndex(0); setViewerOpen(true); }}>
-                    {isVideoUrl(images[0]) ? (
+                    {isProductVideo(images[0]) ? (
                       <video src={images[0]} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                     ) : (
                       <img src={images[0]} alt="Product 1" className="w-full h-full object-cover" loading="lazy" />
@@ -190,7 +188,7 @@ export default function AddProductModal({
                   <div className="w-full h-48 grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
                     {images.slice(0, 2).map((img, i) => (
                       <div key={i} className="relative bg-muted cursor-pointer aspect-square h-full group" onClick={() => { setViewerIndex(i); setViewerOpen(true); }}>
-                        {isVideoUrl(img) ? (
+                        {isProductVideo(img) ? (
                           <video src={img} className="w-full h-full object-cover" autoPlay loop muted playsInline preload="metadata" />
                         ) : (
                           <img src={img} alt={`Product ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
@@ -211,10 +209,10 @@ export default function AddProductModal({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                disabled={busyUploading}
                 className="w-full h-12 rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex items-center justify-center gap-2 transition-colors text-muted-foreground hover:text-brand"
               >
-                {uploading ? (
+                {busyUploading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
@@ -233,9 +231,9 @@ export default function AddProductModal({
               className="hidden"
             />
             <p className="text-[10px] text-muted-foreground">
-              Add at least one product photo. Photos should be JPEG, PNG, or WebP (max 5MB each).
+              Add at least one photo or video. Photos should be JPEG, PNG, or WebP (max 10MB each); videos up to 50MB.
             </p>
-            <UploadProgressBar uploading={uploading} progress={uploadProgress} />
+            <UploadProgressBar uploading={busyUploading} progress={uploadProgress} error={uploadError} />
           </div>
 
           {/* Product Name */}
@@ -337,7 +335,7 @@ export default function AddProductModal({
         <DialogFooter>
           <Button
             onClick={handleSubmit}
-            disabled={saving || !form.name.trim() || !form.description.trim() || !form.price || !hasProductPhoto}
+            disabled={saving || busyUploading || !form.name.trim() || !form.description.trim() || !form.price || !hasProductMedia}
             className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {saving ? (
@@ -345,7 +343,7 @@ export default function AddProductModal({
             ) : (
               <Upload className="h-4 w-4 mr-1" />
             )}
-            {saving ? "Adding..." : "Add Product"}
+            {saving ? "Adding..." : busyUploading ? "Uploading..." : "Add Product"}
           </Button>
         </DialogFooter>
       </DialogContent>

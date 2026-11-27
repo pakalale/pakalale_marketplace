@@ -13,13 +13,16 @@ import { useLocation, useShops, useProducts, useShopPosts, type FeedPostData, ty
 import { useCartStore } from "@/store/cartStore";
 import { cartLineFromProduct } from "@/lib/cart";
 import ProductCard from "@/components/landing/ProductCard";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import { useOnlineStore } from "@/store/onlineStore";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import ProductPreviewStrip from "@/components/ProductPreview";
 import ImageWithFallback from "@/components/ImageWithFallback";
 import { DEFAULT_SHOP_COVER } from "@/lib/placeholders";
+import SavedItemsButton from "@/components/customer/SavedItemsButton";
+import CartButton from "@/components/customer/CartButton";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 type ProductFilter = "all" | "promo" | "new" | string;
 
@@ -34,6 +37,7 @@ export default function LocationDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedShop, setSelectedShop] = useState<string | null>(initialShopId);
+  const navVisible = useNavScrollVisibility();
 
   // Keep the location list in history so native Back returns to it.
   const selectShop = (shopId: string) => {
@@ -198,11 +202,11 @@ export default function LocationDetailPage() {
   const handleAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   // Open a product previewed on the location header (shop derived from product).
@@ -235,15 +239,18 @@ export default function LocationDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center px-4">
           <div aria-hidden="true" />
           <h1 className="max-w-[70vw] truncate text-sm font-bold">{selectedShop ? currentShop?.name || "Shop" : location?.name || "Location"}</h1>
-          <div aria-hidden="true" />
+          <div className="flex items-center justify-end gap-1">
+            <CartButton />
+            <SavedItemsButton />
+          </div>
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4 max-w-5xl mx-auto">
+      <div className="px-4 py-5 space-y-4 max-w-6xl mx-auto">
         {loading ? (
           <div className="space-y-4">
             <div className="bg-card border border-border rounded-lg p-4 sm:p-5 space-y-3">

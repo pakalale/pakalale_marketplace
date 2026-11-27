@@ -130,6 +130,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can add products" }, { status: 403 });
+    }
     await connectToDatabase();
     const body = await request.json();
 
@@ -137,14 +142,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Product description is required" }, { status: 400 });
     }
 
-    const hasProductPhoto = Array.isArray(body.images) && body.images.some(
-      (image: unknown) =>
-        typeof image === "string" &&
-        image.trim() &&
-        !/\/video\/upload\/|\.(mp4|webm|mov)(\?|$)/i.test(image)
+    // Products can be shown with photos, videos, or both.
+    const hasProductMedia = Array.isArray(body.images) && body.images.some(
+      (media: unknown) => typeof media === "string" && media.trim()
     );
-    if (!hasProductPhoto) {
-      return NextResponse.json({ error: "At least one product photo is required" }, { status: 400 });
+    if (!hasProductMedia) {
+      return NextResponse.json({ error: "At least one product photo or video is required" }, { status: 400 });
     }
 
     // Resolve ownerId to Shop._id if the shopId is actually a user ID
@@ -168,6 +171,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can update products" }, { status: 403 });
+    }
     await connectToDatabase();
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -194,6 +202,11 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
+    if (session.role !== "shop_owner" && session.role !== "admin") {
+      return NextResponse.json({ error: "Only shop owners can delete products" }, { status: 403 });
+    }
     await connectToDatabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Loader2, Package, Search, Store, TrendingUp, X } from "lucide-react";
-import toast from "react-hot-toast";
+import { toastAddedToCart, toastProductUnavailable } from "@/lib/toast";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import { useAuthStore } from "@/store/authStore";
@@ -174,11 +174,11 @@ export default function StoreSearch({
   const handleAddToCart = (product: ProductData) => {
     const line = cartLineFromProduct(product);
     if (!line) {
-      toast.error("This product is not available to order right now.");
+      toastProductUnavailable();
       return;
     }
     addItem(line);
-    toast.success(`${product.name} added to cart`);
+    toastAddedToCart(product.name);
   };
 
   const seeAll = () => {

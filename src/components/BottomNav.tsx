@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, MessageSquare, MapPin, Bell, Package } from "lucide-react";
@@ -9,8 +8,6 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useCountPolling } from "@/hooks/useCountPolling";
 import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
-
-const POLL_INTERVAL = 30_000; // 30 seconds
 
 const navItems = [
   { id: "home", label: "Home", icon: Home, href: "/customer" },
@@ -24,58 +21,10 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const globalUnreadCount = useNotificationStore((s) => s.unreadCount);
-  const [chatUnread, setChatUnread] = useState(0);
   const navVisible = useNavScrollVisibility();
 
-  // Start polling for notification + deal counts
+  // Start polling for notification counts
   useCountPolling(user?.id);
-
-  // Initial fetch + periodic polling for chat unread
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const fetchChatCount = async () => {
-      try {
-        const res = await fetch(`/api/chat?userId=${user.id}`);
-        if (!res.ok) return;
-        const d = await res.json();
-        setChatUnread(d.totalUnread || 0);
-      } catch { /* ignore */ }
-    };
-
-    fetchChatCount();
-    const iv = setInterval(fetchChatCount, POLL_INTERVAL);
-
-    // Refetch when user returns to tab
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") fetchChatCount();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      clearInterval(iv);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [user?.id]);
-
-  // Real-time updates via custom events from global socket
-  useEffect(() => {
-    const handleCountUpdate = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.totalUnread !== undefined) {
-        setChatUnread(detail.totalUnread);
-      }
-    };
-    const handleIncrement = () => {
-      setChatUnread((prev) => prev + 1);
-    };
-    window.addEventListener("chat-unread-update", handleCountUpdate);
-    window.addEventListener("chat-unread-increment", handleIncrement);
-    return () => {
-      window.removeEventListener("chat-unread-update", handleCountUpdate);
-      window.removeEventListener("chat-unread-increment", handleIncrement);
-    };
-  }, []);
 
   // Determine active tab based on current path
   const getActiveId = () => {
@@ -91,13 +40,13 @@ export default function BottomNav() {
 
   return (
     <nav className={cn(
-      "fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-bottom transition-transform duration-300 sm:hidden",
+      "fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur-lg safe-area-bottom sm:hidden transition-transform duration-300",
       navVisible ? "translate-y-0" : "translate-y-full"
     )}>
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => {
           const isActive = activeId === item.id;
-          const badgeCount = item.id === "alerts" ? globalUnreadCount : item.id === "chat" ? chatUnread : 0;
+          const badgeCount = item.id === "alerts" ? globalUnreadCount : 0;
           return (
             <Link
               key={item.id}

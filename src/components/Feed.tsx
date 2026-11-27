@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Image, MapPin, Tag, TrendingUp, Star, Loader2, X, Search, Zap, Package, Megaphone, Sparkles, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import FeedPost from "./FeedPost";
@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
 import { useInfiniteFeed, useShops, useProducts, createFeedPost, createChat, type ProductData, type ShopData } from "@/hooks/useApi";
 import { useUpload } from "@/hooks/useUpload";
 import UploadProgressBar from "@/components/UploadProgressBar";
+import { takeFeedPosition } from "@/lib/scrollMemory";
+import { ignoreNavScrollFor } from "@/hooks/useNavScrollVisibility";
+import toast from "react-hot-toast";
 
 type FilterType = "all" | "promotions" | "nearby";
 type ShopPostTemplate = "promotion" | "product_arrival" | "shop_announcement" | "custom";
@@ -36,6 +39,7 @@ interface FeedProps {
 export default function Feed({ authorId, afterComposer }: FeedProps) {
   const { user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
   const isGuest = !user;
   const isShopOwner = user?.role === "shop_owner";
   const [newPostContent, setNewPostContent] = useState("");
@@ -66,6 +70,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
 
   // Infinite scroll sentinel
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const restoredScrollRef = useRef(false);
 
   // Use the infinite feed hook
   const {
@@ -76,15 +81,38 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     loadMore,
     refresh,
     toggleLike,
-    addComment,
     prependPost,
-  } = useInfiniteFeed({ filter, authorId });
+  } = useInfiniteFeed({ filter, authorId, userId: user?.id });
 
   const { data: shopsData } = useShops();
   const allShops = shopsData?.shops || [];
   const { data: inventoryData } = useProducts(isShopOwner && user?.id ? { shopId: user.id } : undefined);
   const inventoryProducts = inventoryData?.products || [];
   const selectedProduct = inventoryProducts.find((product) => product.id === selectedProductId) || selectedProductDraft;
+
+  // Coming back from a post page, land on the screen the reader left off on
+  // instead of the top of the feed. Images load after the first paint, so keep
+  // nudging until the page is tall enough to hold the saved position.
+  useEffect(() => {
+    if (restoredScrollRef.current || loading || feedPosts.length === 0) return;
+    restoredScrollRef.current = true;
+
+    const savedY = takeFeedPosition(pathname);
+    if (savedY === null) return;
+
+    ignoreNavScrollFor(1500);
+    let attempts = 0;
+    const restore = () => {
+      // Stop if the reader has already moved on to another page.
+      if (window.location.pathname !== pathname) return;
+      window.scrollTo(0, savedY);
+      attempts += 1;
+      if (attempts < 10 && Math.abs(window.scrollY - savedY) > 4) {
+        window.setTimeout(restore, 120);
+      }
+    };
+    requestAnimationFrame(restore);
+  }, [loading, feedPosts.length, pathname]);
 
   useEffect(() => {
     if (!isShopOwner) return;
@@ -170,12 +198,6 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     toggleLike(postId, user.id);
   }, [user?.id, toggleLike, requireAuth]);
 
-  // ── Comment ──
-  const handleComment = useCallback((postId: string, authorName: string, content: string) => {
-    if (!user?.id) { requireAuth(); return; }
-    addComment(postId, user.id, authorName, content);
-  }, [user?.id, addComment, requireAuth]);
-
   const handleShare = (postId: string) => {
     const url = typeof window !== "undefined" ? `${window.location.origin}/post/${postId}` : "";
     if (navigator.share) { navigator.share({ title: "Pakalale Post", url }).catch(() => {}); }
@@ -184,7 +206,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
     fetch("/api/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "feed_share", targetId: postId }),
+      body: JSON.stringify({ type: "feed_share", targetId: postId, userId: user?.id }),
     }).catch(() => {});
   };
 
@@ -277,15 +299,14 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
         relatedShopId: productShopId,
         product: postProduct,
       });
-      if (result?.post) {
-        prependPost({
-          ...result.post,
-          postType,
-          product: postProduct ? { ...postProduct, id: selectedProduct?.id } : undefined,
-          author: { id: user.id, name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role as "customer" | "shop_owner" },
-          likes: 0, likedBy: [], comments: [], commentsCount: 0, shares: 0,
-        });
-      }
+      if (!result?.post) throw new Error("Your post wasn't published. Please try again.");
+      prependPost({
+        ...result.post,
+        postType,
+        product: postProduct ? { ...postProduct, id: selectedProduct?.id } : undefined,
+        author: { id: user.id, name: `${user.firstName} ${user.lastName}`, avatar: user.avatar, role: user.role as "customer" | "shop_owner" },
+        likes: 0, likedBy: [], comments: [], commentsCount: 0, shares: 0,
+      });
       setNewPostContent("");
       setPostMedia([]);
       setPostLocation("");
@@ -295,28 +316,13 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
       setSelectedProductDraft(null);
       setPriceDrop("");
       setShowCreatePost(false);
+      toast.success("Post published");
     } catch (e) {
       console.error("Failed to create post:", e);
+      toast.error(e instanceof Error ? e.message : "Couldn't publish your post. Please try again.");
     } finally {
       setPosting(false);
     }
-  };
-
-  // ── Deal ──
-  const handleMakeDeal = async (productName: string, shopOwnerId: string, dealData?: { quantity: number; suggestedPrice: number; message: string; productId?: string }) => {
-    if (!user?.id) { requireAuth(); return; }
-    const chatBase = user.role === "shop_owner" ? "/shop/chat" : "/customer/chat";
-    try {
-      const dealInfo: Record<string, unknown> = { productName, quantity: dealData?.quantity, initialPrice: dealData?.suggestedPrice, status: "pending" };
-      if (dealData?.productId) dealInfo.productId = dealData.productId;
-      const res = await createChat({ type: "deal", participants: [user.id, shopOwnerId], dealInfo });
-      const chatId = res?.chat?.id;
-      if (chatId && dealData) {
-        const { sendMessage: sendMsg } = await import("@/hooks/useApi");
-        await sendMsg({ chatId, senderId: user.id, senderName: `${user.firstName} ${user.lastName}`, senderRole: user.role as "customer" | "shop_owner", content: dealData.message, type: "deal_update" });
-      }
-      router.push(chatId ? `${chatBase}?chatId=${chatId}` : chatBase);
-    } catch (e) { console.error("Failed to create deal chat:", e); }
   };
 
   const handleContactShop = async (shopOwnerId: string) => {
@@ -532,7 +538,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
         ) : (
           <>
             {feedPosts.map((post) => (
-              <FeedPost key={post.id} post={post} onLike={handleLike} onComment={handleComment} onShare={handleShare} onMakeDeal={handleMakeDeal} onContactShop={handleContactShop} currentUserId={user?.id} currentUserName={user ? `${user.firstName} ${user.lastName}` : undefined} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
+              <FeedPost key={post.id} post={post} onLike={handleLike} onShare={handleShare} onContactShop={handleContactShop} currentUserId={user?.id} currentUserRole={user?.role as "customer" | "shop_owner" | undefined} />
             ))}
 
             {/* Load more sentinel — IntersectionObserver targets this */}
@@ -605,7 +611,7 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
                       onChange={(event) => setPriceDrop(event.target.value)}
                       placeholder={`Current price: K${selectedProduct.price.toLocaleString()}`}
                     />
-                    <p className="text-[10px] text-muted-foreground">Original price K{selectedProduct.price.toLocaleString()} is filled from your inventory.</p>
+                    <p className="text-[10px] text-muted-foreground">Original price K{selectedProduct.price.toLocaleString()} is filled from your inventory. The sale price must be lower.</p>
                   </div>
                 )}
                 {postTemplate === "shop_announcement" && (
@@ -655,8 +661,8 @@ export default function Feed({ authorId, afterComposer }: FeedProps) {
               <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => { setTagPickerMounted(true); setShowTagPicker(true); }}><Tag className="h-4 w-4 mr-1" />Tag</Button>
             </div>
             <div className="flex justify-end">
-              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting || (isShopOwner && postTemplate !== "custom" && !selectedProduct) || (postTemplate === "promotion" && (!priceDrop || Number(priceDrop) <= 0 || Number(priceDrop) >= (selectedProduct?.price || 0)))} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Post"}
+              <Button size="sm" onClick={handleCreatePost} disabled={!newPostContent.trim() || posting || mediaUploading || (isShopOwner && postTemplate !== "custom" && !selectedProduct) || (postTemplate === "promotion" && (!priceDrop || Number(priceDrop) <= 0 || Number(priceDrop) >= (selectedProduct?.price || 0)))} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : mediaUploading ? "Uploading..." : "Post"}
               </Button>
             </div>
           </div>

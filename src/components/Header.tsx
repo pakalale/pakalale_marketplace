@@ -42,7 +42,7 @@ export default function Header({ activeTab = "home", userId, title }: HeaderProp
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
 
-  // Start polling for notification + deal counts
+  // Start polling for notification counts
   useCountPolling(userId);
 
   // Initial fetch + periodic polling for chat unread
@@ -115,7 +115,7 @@ export default function Header({ activeTab = "home", userId, title }: HeaderProp
       navVisible ? "translate-y-0" : "-translate-y-full"
     )}>
       {/* Top bar */}
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 lg:px-6">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Open navigation menu" className="shrink-0 sm:hidden" />}>
             <Menu className="h-5 w-5" />
@@ -215,8 +215,8 @@ export default function Header({ activeTab = "home", userId, title }: HeaderProp
       </div>
 
       {/* Desktop nav */}
-      <nav aria-label="Customer navigation" className="hidden border-t border-border/70 bg-muted/20 sm:flex">
-        <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-2">
+      <nav aria-label="Customer navigation" className="hidden border-t border-border/70 bg-muted/20 sm:flex lg:hidden">
+        <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 py-2">
           {navItems.map((item) => (
             <Link
               key={item.id}

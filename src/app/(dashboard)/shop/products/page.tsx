@@ -101,7 +101,7 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-background">
       <ShopNav />
-      <main className="p-3 sm:p-4 space-y-4 max-w-5xl mx-auto">
+      <main className="mx-auto max-w-6xl space-y-4 p-3 sm:p-5">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold">Products</h1>
@@ -131,7 +131,7 @@ export default function ProductsPage() {
             <p className="text-xs">Add your first product to get started</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((product) => (
               <Card key={product.id} className="bg-card border-border hover:border-primary/20 transition-colors">
                 <CardContent className="p-3">

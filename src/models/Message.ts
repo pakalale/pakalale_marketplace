@@ -7,7 +7,7 @@ export interface IMessage extends Document {
   senderName: string;
   senderRole: "customer" | "shop_owner";
   content: string;
-  type: "text" | "image" | "file" | "voice" | "deal_update" | "system";
+  type: "text" | "image" | "file" | "voice" | "system";
   isRead: boolean;
   readBy: mongoose.Types.ObjectId[];
   replyTo?: {
@@ -25,7 +25,7 @@ const MessageSchema = new Schema<IMessage>(
     senderName: { type: String, required: true },
     senderRole: { type: String, enum: ["customer", "shop_owner"], required: true },
     content: { type: String, required: true },
-    type: { type: String, enum: ["text", "image", "file", "voice", "deal_update", "system"], default: "text" },
+    type: { type: String, enum: ["text", "image", "file", "voice", "system"], default: "text" },
     isRead: { type: Boolean, default: false },
     readBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     replyTo: {
@@ -40,20 +40,8 @@ const MessageSchema = new Schema<IMessage>(
 
 export interface IChat extends Document {
   _id: mongoose.Types.ObjectId;
-  type: "deal" | "general";
+  type: "general";
   participants: mongoose.Types.ObjectId[];
-  dealInfo?: {
-    dealId?: mongoose.Types.ObjectId;
-    productId?: mongoose.Types.ObjectId;
-    productName?: string;
-    productImage?: string;
-    initialPrice?: number;
-    counterPrice?: number;
-    finalPrice?: number;
-    lastOfferBy?: mongoose.Types.ObjectId;
-    quantity?: number;
-    status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled";
-  };
   lastMessage?: mongoose.Types.ObjectId;
   lastMessageTime: Date;
   isActive: boolean;
@@ -63,24 +51,8 @@ export interface IChat extends Document {
 
 const ChatSchema = new Schema<IChat>(
   {
-    type: { type: String, enum: ["deal", "general"], default: "general" },
+    type: { type: String, enum: ["general"], default: "general" },
     participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
-    dealInfo: {
-      dealId: { type: Schema.Types.ObjectId },
-      productId: { type: Schema.Types.ObjectId, ref: "Product" },
-      productName: { type: String },
-      productImage: { type: String },
-      initialPrice: { type: Number },
-      counterPrice: { type: Number },
-      finalPrice: { type: Number },
-      lastOfferBy: { type: Schema.Types.ObjectId, ref: "User" },
-      quantity: { type: Number, default: 1 },
-      status: {
-        type: String,
-        enum: ["pending", "negotiating", "confirmed", "completed", "cancelled"],
-        default: "pending",
-      },
-    },
     lastMessage: { type: Schema.Types.ObjectId, ref: "Message" },
     lastMessageTime: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true },

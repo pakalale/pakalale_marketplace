@@ -1,43 +1,25 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  PhoneCall,
-  Wifi,
-  WifiOff,
-  ShoppingBag,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Handshake,
-  Tag,
-  Send,
-  Star,
-  Loader2,
-} from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { PhoneCall } from "lucide-react";
 import MessageBubble from "@/components/MessageBubble";
 import MessageInput from "@/components/MessageInput";
 import ChatListSimple from "@/components/ChatListSimple";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/authStore";
-import { useDealStore } from "@/store/dealStore";
 import {
   useChats,
   useChatMessages,
   sendMessage,
-  updateDealStatus,
-  proposePrice,
   type ChatData,
   type MessageData,
 } from "@/hooks/useApi";
 import { useSocket, type SocketMessage } from "@/hooks/useSocket";
 import { useOnlineStore } from "@/store/onlineStore";
-import { formatLastSeen } from "@/lib/formatTime";
+import { chatDayKey, formatChatDateDivider, formatLastSeen } from "@/lib/formatTime";
 
 export default function ChatPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const chatIdFromUrl = searchParams.get("chatId");
   const { user } = useAuthStore();
@@ -56,6 +38,9 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const unreadDividerRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  // Floating date pill (WhatsApp style) — tracks the day dividers we've scrolled past
+  const [stickyDateLabel, setStickyDateLabel] = useState<string | null>(null);
+  const dateDividerRefs = useRef(new Map<string, HTMLDivElement>());
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasScrolledOnOpen = useRef(false);
   const isUserScrolledUp = useRef(false);
@@ -102,6 +87,19 @@ export default function ChatPage() {
 
   const hasUnread = unreadDividerIndex >= 0;
 
+  // The date pill shows the day of the last divider scrolled above the top edge,
+  // and hides while that divider itself is still visible in the flow.
+  const updateStickyDate = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const scrollTop = container.scrollTop;
+    let label: string | null = null;
+    dateDividerRefs.current.forEach((el) => {
+      if (el.offsetTop <= scrollTop + 2) label = el.textContent;
+    });
+    setStickyDateLabel(label);
+  }, []);
+
   // Track if user scrolled up
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -109,7 +107,8 @@ export default function ChatPage() {
     const isAtBottom =
       container.scrollHeight - container.scrollTop - container.clientHeight < 50;
     isUserScrolledUp.current = !isAtBottom;
-  }, []);
+    updateStickyDate();
+  }, [updateStickyDate]);
 
   // ── Native back handling ──
   // When entering a chat, push state so native back goes to chatlist
@@ -185,7 +184,6 @@ export default function ChatPage() {
   const {
     isConnected,
     sendMessage: sendSocketMessage,
-    emitDealStatusChanged,
     startTyping,
     stopTyping,
   } = useSocket({
@@ -218,6 +216,12 @@ export default function ChatPage() {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [allMessages, hasUnread]);
+
+  // Keep the floating date pill in sync after auto-scrolls and new messages
+  useEffect(() => {
+    const t = setTimeout(updateStickyDate, 60);
+    return () => clearTimeout(t);
+  }, [allMessages, activeChat?.id, updateStickyDate]);
 
   // Mark messages as read when chat is opened
   useEffect(() => {
@@ -325,6 +329,7 @@ export default function ChatPage() {
     }
 
     if (isConnected) {
+      const recipientId = activeChat.otherParticipant?.id;
       sendSocketMessage({
         chatId: activeChat.id,
         senderId: user.id,
@@ -332,6 +337,7 @@ export default function ChatPage() {
         senderRole: "customer",
         content,
         type: type || "text",
+        ...(recipientId ? { recipientId } : {}),
       });
     }
 
@@ -428,135 +434,6 @@ export default function ChatPage() {
     enterChat(chat);
   };
 
-  // ── Counter-offer state ──
-  const [counterPriceInput, setCounterPriceInput] = useState("");
-  const [proposing, setProposing] = useState(false);
-
-  // Review state
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewComment, setReviewComment] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [hasReviewed, setHasReviewed] = useState(false);
-
-  // Check if user has already reviewed this deal
-  useEffect(() => {
-    if (!activeChat?.id || !user?.id || activeChat.dealInfo?.status !== "completed") return;
-    setHasReviewed(false);
-    setReviewRating(0);
-    setReviewComment("");
-    fetch(`/api/reviews?shopId=${activeChat.otherParticipant?.shopId || activeChat.otherParticipant?.id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        const existing = (data.reviews || []).find(
-          (r: { dealId: string; customerId: string }) => r.dealId === activeChat.id && r.customerId === user.id
-        );
-        if (existing) setHasReviewed(true);
-      })
-      .catch(() => {});
-  }, [activeChat?.id, activeChat?.dealInfo?.status, user?.id]);
-
-  // ── Deal status actions ──
-  const handleDealAction = async (status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled") => {
-    if (!activeChat || !user) return;
-    try {
-      const result = await updateDealStatus(activeChat.id, status, user.id);
-      setActiveChat((prev) =>
-        prev ? { ...prev, dealInfo: prev.dealInfo ? { ...prev.dealInfo, status } : undefined }
-          : prev
-      );
-      refetchMessages();
-
-      // Use exact count from API if available, otherwise decrement
-      if (result && typeof result.totalDeals === "number") {
-        useDealStore.getState().setDealCount(result.totalDeals);
-      } else if (status === "completed" || status === "cancelled") {
-        useDealStore.getState().decrementDealCount();
-      }
-
-      // Notify other participants via socket
-      const participantIds = activeChat.participants?.map((p) => p.id) || [];
-      emitDealStatusChanged(status, participantIds);
-    } catch (e) {
-      console.error("Failed to update deal status:", e);
-    }
-  };
-
-  const handleProposePrice = async () => {
-    if (!activeChat || !user || !counterPriceInput) return;
-    const price = parseFloat(counterPriceInput);
-    if (isNaN(price) || price <= 0) return;
-
-    setProposing(true);
-    try {
-      const currentPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.initialPrice;
-      await proposePrice(
-        activeChat.id,
-        user.id,
-        "customer",
-        price,
-        currentPrice
-      );
-      setActiveChat((prev) =>
-        prev?.dealInfo
-          ? {
-              ...prev,
-              dealInfo: {
-                ...prev.dealInfo,
-                counterPrice: price,
-                lastOfferBy: user.id,
-                // Customer editing price while pending stays pending; only shop owner's counter triggers negotiating
-                status: prev.dealInfo.status,
-              },
-            }
-          : prev
-      );
-      setCounterPriceInput("");
-      refetchMessages();
-    } catch (e) {
-      console.error("Failed to propose price:", e);
-    } finally {
-      setProposing(false);
-    }
-  };
-
-  // ── Submit review after deal completion ──
-  const handleSubmitReview = async () => {
-    if (!activeChat || !user || reviewRating === 0) return;
-    setSubmittingReview(true);
-    try {
-      const shopId = activeChat.otherParticipant?.shopId || activeChat.otherParticipant?.id;
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: user.id,
-          shopId,
-          productId: activeChat.dealInfo?.productId,
-          dealId: activeChat.id,
-          rating: reviewRating,
-          comment: reviewComment,
-        }),
-      });
-      if (res.ok) {
-        setHasReviewed(true);
-        setReviewRating(0);
-        setReviewComment("");
-      }
-    } catch (e) {
-      console.error("Failed to submit review:", e);
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const dealStatusConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-    pending: { label: "Pending", color: "text-amber-400 bg-amber-400/10 border-amber-400/20", icon: Clock },
-    negotiating: { label: "Negotiating", color: "text-blue-400 bg-blue-400/10 border-blue-400/20", icon: Handshake },
-    confirmed: { label: "Confirmed", color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: CheckCircle2 },
-    completed: { label: "Completed", color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20", icon: CheckCircle2 },
-    cancelled: { label: "Cancelled", color: "text-red-400 bg-red-400/10 border-red-400/20", icon: XCircle },
-  };
-
   // Show chat skeleton when navigating directly to a chat via URL
   if (chatIdFromUrl && !activeChat && chats.length === 0) {
     return (
@@ -601,13 +478,23 @@ export default function ChatPage() {
           userId={user?.id || ""}
           onChatSelect={handleChatSelect}
           onNewChat={() => {}}
-          onBack={() => router.push("/customer")}
+          onBack={() => window.history.back()}
         />
       </div>
     );
   }
 
   const otherName = activeChat?.otherParticipant?.name || "Shop Owner";
+  const otherId = activeChat?.otherParticipant?.id;
+  const profileHref = otherId ? `/customer/profile/${otherId}` : null;
+  // Normalise before handing to the dialer so "+254 712 345 678" still works.
+  const otherPhone = (activeChat?.otherParticipant?.phone || "").replace(/[^\d+]/g, "");
+  const phoneHref = otherPhone ? `tel:${otherPhone}` : null;
+  const otherOnline =
+    !!otherId && useOnlineStore.getState().onlineUserIds.has(otherId);
+  const presenceLabel = otherOnline
+    ? "Online"
+    : formatLastSeen(activeChat?.otherParticipant?.lastActiveAt) || "Offline";
 
   return (
     <>
@@ -616,10 +503,16 @@ export default function ChatPage() {
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={activeChat?.otherParticipant?.avatar} alt={otherName} />
-                <AvatarFallback className="bg-primary/10 text-brand text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
-              </Avatar>
+              <a
+                href={profileHref ?? undefined}
+                aria-label={`Open ${otherName}'s profile`}
+                className="block"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={activeChat?.otherParticipant?.avatar} alt={otherName} />
+                  <AvatarFallback className="bg-primary/10 text-brand text-xs">{otherName?.charAt(0) || "?"}</AvatarFallback>
+                </Avatar>
+              </a>
               {activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id) && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-background rounded-full" />
               )}
@@ -629,227 +522,60 @@ export default function ChatPage() {
               <p className="text-[10px] text-muted-foreground">
                 {typingUser
                   ? <span className="text-emerald-500">typing...</span>
-                  : activeChat?.otherParticipant?.id && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id)
+                  : otherOnline
                     ? <span className="text-emerald-500">Online</span>
-                    : activeChat?.type === "deal"
-                      ? (activeChat?.dealInfo?.productName || "Deal")
-                      : "Chat"}
+                    : presenceLabel}
               </p>
             </div>
           </div>
-          <a
-            href="#"
-            className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-            onClick={async (e) => {
-              e.preventDefault();
-              if (!activeChat?.otherParticipant?.id) return;
-              // Fetch user profile to get phone number
-              try {
-                const res = await fetch(`/api/user/profile?userId=${activeChat.otherParticipant.id}`);
-                const data = await res.json();
-                const phone = data.user?.phone;
-                if (phone) {
-                  window.location.href = `tel:${phone}`;
-                } else {
-                  // No phone — go to profile instead
-                  router.push(`/customer/profile/${activeChat.otherParticipant.id}`);
-                }
-              } catch {
-                router.push(`/customer/profile/${activeChat.otherParticipant?.id}`);
-              }
-            }}
-          >
-            <PhoneCall className="h-4 w-4" />
-          </a>
+          <div className="flex items-center gap-1 shrink-0">
+            {phoneHref && (
+              <a
+                href={phoneHref}
+                aria-label={`Call ${otherName}`}
+                className="h-8 w-8 inline-flex items-center justify-center rounded-md text-brand hover:bg-muted transition-colors"
+              >
+                <PhoneCall className="h-4 w-4" />
+              </a>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* ── Pinned Deal Banner ── */}
-      {activeChat?.type === "deal" && activeChat?.dealInfo && (
-        <div className="sticky top-14 z-50 border-b border-border bg-background/90 backdrop-blur-lg">
-          <div className="px-3 py-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
-                  <ShoppingBag className="h-3.5 w-3.5 text-brand" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold truncate">{activeChat.dealInfo.productName}</p>
-                  <div className="flex items-center gap-1.5">
-                    {activeChat.dealInfo.initialPrice && (
-                      <span className="text-[10px] text-brand font-bold">K{activeChat.dealInfo.initialPrice.toLocaleString()}</span>
-                    )}
-                    {activeChat.dealInfo.finalPrice && activeChat.dealInfo.finalPrice !== activeChat.dealInfo.initialPrice && (
-                      <>
-                        <span className="text-[10px] text-muted-foreground">→</span>
-                        <span className="text-[10px] text-emerald-400 font-bold">K{activeChat.dealInfo.finalPrice.toLocaleString()}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {(() => {
-                const cfg = dealStatusConfig[activeChat.dealInfo.status] || dealStatusConfig.pending;
-                const StatusIcon = cfg.icon;
-                return (
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.color}`}>
-                    <StatusIcon className="h-3 w-3" />
-                    {cfg.label}
-                  </span>
-                );
-              })()}
-            </div>
-
-            {/* ── Deal action buttons — role-aware ── */}
-            {(() => {
-              const dealStatus = activeChat.dealInfo.status;
-
-              // ── PENDING: Customer can edit their offer price while waiting ──
-              if (dealStatus === "pending") {
-                const currentPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.initialPrice;
-                return (
-                  <div className="mt-2 space-y-2">
-                    {currentPrice && (
-                      <div className="flex items-center gap-1.5">
-                        <Tag className="h-3 w-3 text-brand" />
-                        <span className="text-[10px] text-muted-foreground">Your offer:</span>
-                        <span className="text-[10px] font-bold text-brand">K{currentPrice.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-1.5">
-                      <div className="relative flex-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">K</span>
-                        <input
-                          type="number"
-                          value={counterPriceInput}
-                          onChange={(e) => setCounterPriceInput(e.target.value)}
-                          placeholder={currentPrice ? `Change price (current: K${currentPrice.toLocaleString()})` : "Your price"}
-                          className="w-full pl-5 pr-2 py-1.5 bg-muted border border-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-primary"
-                          onKeyDown={(e) => e.key === "Enter" && handleProposePrice()}
-                        />
-                      </div>
-                      <Button size="sm" className="h-7 px-2 bg-primary text-primary-foreground" onClick={handleProposePrice} disabled={proposing || !counterPriceInput}>
-                        <Send className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">You can change your price while waiting for the shop owner</p>
-                  </div>
-                );
-              }
-
-              // ── NEGOTIATING: Shop owner sent a counter-offer. Customer can accept or counter back ──
-              if (dealStatus === "negotiating") {
-                const lastOfferPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.initialPrice;
-                const isMyOffer = activeChat.dealInfo?.lastOfferBy === user?.id;
-                return (
-                  <div className="mt-2 space-y-2">
-                    {lastOfferPrice && (
-                      <div className="flex items-center gap-1.5">
-                        <Tag className="h-3 w-3 text-brand" />
-                        <span className="text-[10px] text-muted-foreground">
-                          {isMyOffer ? "You offered:" : "Shop owner offered:"}
-                        </span>
-                        <span className="text-[10px] font-bold text-brand">K{lastOfferPrice.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {!isMyOffer && (
-                      <p className="text-[10px] text-muted-foreground">The shop owner will accept or decline this deal</p>
-                    )}
-                    <div className="flex gap-1.5">
-                      <div className="relative flex-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">K</span>
-                        <input
-                          type="number"
-                          value={counterPriceInput}
-                          onChange={(e) => setCounterPriceInput(e.target.value)}
-                          placeholder={lastOfferPrice ? `Counter (current: K${lastOfferPrice.toLocaleString()})` : "Your price"}
-                          className="w-full pl-5 pr-2 py-1.5 bg-muted border border-border rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-primary"
-                          onKeyDown={(e) => e.key === "Enter" && handleProposePrice()}
-                        />
-                      </div>
-                      <Button size="sm" className="h-7 px-2 bg-primary text-primary-foreground" onClick={handleProposePrice} disabled={proposing || !counterPriceInput}>
-                        <Send className="h-3 w-3" />
-                      </Button>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">Counter with a different price or accept their offer</p>
-                  </div>
-                );
-              }
-
-              // ── CONFIRMED: Deal agreed, waiting for fulfillment ──
-              if (dealStatus === "confirmed") {
-                const agreedPrice = activeChat.dealInfo?.counterPrice || activeChat.dealInfo?.finalPrice || activeChat.dealInfo?.initialPrice;
-                return (
-                  <div className="mt-2 space-y-2">
-                    {agreedPrice && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        <span className="text-[10px] text-emerald-400 font-semibold">Agreed price: K{agreedPrice.toLocaleString()}</span>
-                      </div>
-                    )}
-                    <p className="text-[10px] text-muted-foreground">Deal confirmed! The shop owner will mark it complete when fulfilled.</p>
-                  </div>
-                );
-              }
-
-              // Completed → show review prompt
-              if (dealStatus === "completed" && !hasReviewed) {
-                return (
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                      <span className="text-[10px] text-emerald-400 font-semibold">Deal completed!</span>
-                    </div>
-                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-2.5 space-y-2">
-                      <p className="text-[10px] font-medium">Rate your experience with {otherName}</p>
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button key={star} onClick={() => setReviewRating(star)} className="transition-colors">
-                            <Star className={`h-5 w-5 ${star <= reviewRating ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground"}`} />
-                          </button>
-                        ))}
-                      </div>
-                      <textarea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        placeholder="Add a comment (optional)"
-                        className="w-full text-[11px] p-2 bg-muted border border-border rounded resize-none"
-                        rows={2}
-                      />
-                      <Button size="sm" className="h-7 text-[10px] w-full bg-primary text-primary-foreground" onClick={handleSubmitReview} disabled={submittingReview || reviewRating === 0}>
-                        {submittingReview ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Star className="h-3 w-3 mr-1" />}
-                        Submit Review
-                      </Button>
-                    </div>
-                  </div>
-                );
-              }
-
-              return null;
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* ── No deal banner for general chats ── */}
-      {activeChat?.type === "general" && (
-        <div className="sticky top-14 z-50 border-b border-border bg-background/90 backdrop-blur-lg">
-          <div className="px-3 py-2 flex items-center gap-2">
-            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="text-[10px] text-muted-foreground">No deal — just chatting</p>
-          </div>
-        </div>
-      )}
-
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto flex flex-col p-3 pb-[90px] sm:pb-[60px]"
+        className="relative flex-1 overflow-y-auto flex flex-col p-3 pb-[60px] lg:px-8"
         onScroll={handleScroll}
       >
+        {/* Floating date pill — pinned just below the header while scrolling */}
+        <div className="sticky top-0 z-20 h-0 flex justify-center pointer-events-none">
+          {stickyDateLabel && (
+            <span className="mt-1 rounded-full bg-muted/95 backdrop-blur px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
+              {stickyDateLabel}
+            </span>
+          )}
+        </div>
         {/* Spacer pushes messages to the bottom — they grow upward from here */}
         <div className="flex-1" />
-        {allMessages.map((message, idx) => (
+        {allMessages.map((message, idx) => {
+          const showDateDivider =
+            idx === 0 || chatDayKey(allMessages[idx - 1].timestamp) !== chatDayKey(message.timestamp);
+          return (
           <div key={message.id} className="mb-3">
+            {showDateDivider && (
+              <div
+                className="flex justify-center py-2"
+                ref={(el) => {
+                  const key = chatDayKey(message.timestamp);
+                  if (el) dateDividerRefs.current.set(key, el);
+                  else dateDividerRefs.current.delete(key);
+                }}
+              >
+                <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm">
+                  {formatChatDateDivider(message.timestamp)}
+                </span>
+              </div>
+            )}
             {idx === unreadDividerIndex && (
               <div ref={unreadDividerRef} className="flex items-center gap-2 my-4">
                 <div className="flex-1 h-px bg-primary/30" />
@@ -878,7 +604,8 @@ export default function ChatPage() {
               isDelivered={message.senderId === user?.id && !message.id.startsWith("pending-") && activeChat?.otherParticipant?.id != null && useOnlineStore.getState().onlineUserIds.has(activeChat.otherParticipant.id)}
             />
           </div>
-        ))}
+          );
+        })}
         {typingUser && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
             <div className="flex gap-1">
@@ -903,7 +630,7 @@ export default function ChatPage() {
     </div>
 
     {/* Input — truly fixed, never moves */}
-    <div className="fixed left-0 right-0 bottom-14 sm:bottom-0 z-40 bg-background border-t border-border safe-area-bottom">
+    <div className="fixed left-0 right-0 bottom-14 sm:bottom-0 z-40 bg-background border-t border-border safe-area-bottom lg:left-64">
       <MessageInput
         onSendMessage={handleSendMessage}
         onSendImage={handleSendImage}

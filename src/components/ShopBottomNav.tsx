@@ -6,7 +6,9 @@ import Link from "next/link";
 import { Home, Package, ShoppingBag, Store, MessageSquare } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 import { cn } from "@/lib/utils";
+import { normalizeOrderStatus } from "@/lib/orderStatus";
 
 const POLL_INTERVAL = 30_000;
 
@@ -24,6 +26,7 @@ export default function ShopBottomNav() {
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
   const [chatUnread, setChatUnread] = useState(0);
   const [orderCount, setOrderCount] = useState(0);
+  const navVisible = useNavScrollVisibility();
 
   // Poll for all counts
   useEffect(() => {
@@ -40,7 +43,9 @@ export default function ShopBottomNav() {
         if (chatRes) {
           setChatUnread(chatRes.totalUnread || 0);
         }
-        if (ordersRes) setOrderCount(ordersRes.orders?.length || 0);
+        if (ordersRes?.orders) {
+          setOrderCount(ordersRes.orders.filter((o: { status: string }) => !["delivered", "completed", "cancelled"].includes(normalizeOrderStatus(o.status))).length);
+        }
       } catch { /* ignore */ }
     };
 
@@ -89,7 +94,10 @@ export default function ShopBottomNav() {
   const activeId = getActiveId();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden">
+    <nav className={cn(
+      "fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border safe-area-bottom sm:hidden transition-transform duration-300",
+      navVisible ? "translate-y-0" : "translate-y-full"
+    )}>
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {shopNavItems.map((item) => {
           const isActive = activeId === item.id;

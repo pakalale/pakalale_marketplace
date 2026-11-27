@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Store, Heart, MapPin, Package, Info, Bell, Trash2, Sparkles, TrendingUp, ShoppingBag } from "lucide-react";
+import { MessageSquare, Store, Heart, MapPin, Package, Info, Bell, Trash2, Sparkles, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,18 +10,21 @@ import { useAuthStore } from "@/store/authStore";
 import { useNotifications, markNotificationsRead, type NotificationData } from "@/hooks/useApi";
 import { formatTimeAgo } from "@/lib/formatTime";
 import { useNotificationStore } from "@/store/notificationStore";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 const iconMap: Record<string, React.ElementType> = {
-  deal: MessageSquare,
   message: MessageSquare,
+  like: Heart,
+  comment: MessageSquare,
   shop: Store,
   review: Heart,
   order: Package,
   system: Info,
 };
 const colorMap: Record<string, string> = {
-  deal: "text-brand bg-primary/10",
   message: "text-teal-500 bg-teal-500/10",
+  like: "text-rose-400 bg-rose-400/10",
+  comment: "text-teal-500 bg-teal-500/10",
   shop: "text-amber-400 bg-amber-400/10",
   review: "text-rose-400 bg-rose-400/10",
   order: "text-blue-400 bg-blue-400/10",
@@ -33,8 +36,10 @@ export default function NotificationsPage() {
   const { user } = useAuthStore();
   const { data, loading, refetch } = useNotifications(user?.id || null);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const navVisible = useNavScrollVisibility();
 
-  const notifications = data?.notifications || [];
+  // Deals were removed from the app; hide any deal notifications left in old accounts.
+  const notifications = (data?.notifications || []).filter((n) => n.type !== "deal");
 
   // Sync unread count to global store
   useEffect(() => {
@@ -70,35 +75,27 @@ export default function NotificationsPage() {
     }
   }, [notifications, data?.unreadCount, refetch, setUnreadCount]);
 
-  const dealCount = notifications.filter((n) => n.type === "deal").length;
   const messageCount = notifications.filter((n) => n.type === "message").length;
   const shopCount = notifications.filter((n) => n.type === "shop").length;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-16" />
-          <h1 className="text-sm font-bold">Notifications</h1>
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 lg:px-6">
+          <div className="hidden w-16 lg:block" />
+          <h1 className="text-sm font-bold lg:text-base">Notifications</h1>
           <Button variant="ghost" size="sm" onClick={() => refetch()}><Bell className="h-4 w-4" /></Button>
         </div>
       </header>
 
-      <div className="px-4 py-4 space-y-4 max-w-2xl mx-auto">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:py-6">
         {/* Summary cards */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Card className="bg-gradient-to-br from-teal-500/10 to-primary/10 border-teal-500/20 cursor-pointer" onClick={() => router.push("/customer/chat")}>
             <CardContent className="p-3 text-center">
               <MessageSquare className="h-5 w-5 text-teal-500 mx-auto mb-1" />
               <p className="text-lg font-bold">{messageCount}</p>
               <p className="text-[10px] text-muted-foreground">Messages</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-primary/10 to-amber-500/10 border-primary/20 cursor-pointer" onClick={() => router.push("/customer/deals")}>
-            <CardContent className="p-3 text-center">
-              <ShoppingBag className="h-5 w-5 text-brand mx-auto mb-1" />
-              <p className="text-lg font-bold">{dealCount}</p>
-              <p className="text-[10px] text-muted-foreground">Deals</p>
             </CardContent>
           </Card>
           <Card className="bg-gradient-to-br from-amber-400/10 to-rose-400/10 border-amber-400/20 cursor-pointer" onClick={() => router.push("/customer/locations")}>
@@ -133,7 +130,7 @@ export default function NotificationsPage() {
               <div>
                 <h3 className="font-semibold text-sm">No notifications yet</h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
-                  You&apos;ll see alerts for new messages, deal updates, shop responses, and more here.
+                  You&apos;ll see alerts for new messages, order updates, shop responses, and more here.
                 </p>
               </div>
               <div className="flex flex-col gap-2 max-w-xs mx-auto">
@@ -165,10 +162,10 @@ export default function NotificationsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-sm font-medium truncate">{n.title}</h4>
+                            <h4 className="text-sm font-medium break-words">{n.title}</h4>
                             <span className="text-[10px] text-muted-foreground shrink-0">{formatTimeAgo(n.createdAt)}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 break-words whitespace-pre-line">{n.message}</p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           {!n.isRead && <div className="w-2 h-2 bg-primary rounded-full" />}

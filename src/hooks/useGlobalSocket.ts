@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useNotificationStore } from "@/store/notificationStore";
-import { useDealStore } from "@/store/dealStore";
 import { useOnlineStore } from "@/store/onlineStore";
 import { useTypingStore } from "@/store/typingStore";
 
@@ -11,15 +10,12 @@ const SOCKET_URL = typeof window !== "undefined" ? window.location.origin : "";
 
 /**
  * Global socket connection that runs in the dashboard layout.
- * Listens for new messages, notifications, and deal updates
+ * Listens for new messages and notifications
  * and pushes counts to zustand stores in real-time.
  */
 export function useGlobalSocket(userId?: string) {
   const socketRef = useRef<Socket | null>(null);
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
-  const incrementDealCount = useDealStore((s) => s.incrementDealCount);
-  const decrementDealCount = useDealStore((s) => s.decrementDealCount);
-  const setDealCount = useDealStore((s) => s.setDealCount);
   const setOnlineUsers = useOnlineStore((s) => s.setOnlineUsers);
   const addOnlineUser = useOnlineStore((s) => s.addUser);
   const removeOnlineUser = useOnlineStore((s) => s.removeUser);
@@ -96,24 +92,6 @@ export function useGlobalSocket(userId?: string) {
       clearTyping(data.chatId, data.userId);
     });
 
-    // ── Real-time deal count ──
-    socket.on("new_deal", (data: { userId: string }) => {
-      if (data.userId === userId) {
-        incrementDealCount();
-      }
-    });
-
-    // ── Real-time deal status changes ──
-    // Always refetch accurate count from API to avoid drift.
-    socket.on("deal_status_changed", (data: { dealStatus: string; chatId: string }) => {
-      fetch(`/api/chat?userId=${userId}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          if (d?.totalDeals !== undefined) setDealCount(d.totalDeals);
-        })
-        .catch(() => {});
-    });
-
     // ── Broadcast message received ──
     // The server broadcasts "new_message" to all users in the chat room.
     // If the user is NOT in that chat, they need their unread count bumped.
@@ -123,20 +101,6 @@ export function useGlobalSocket(userId?: string) {
         window.dispatchEvent(new CustomEvent("chat-unread-increment"));
       }
     });
-
-    // ── Forward deal-status-changed custom events to the socket server ──
-    // Shop pages that don't have useSocket dispatch a CustomEvent; we relay it.
-    const handleDealStatusChanged = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.chatId && detail?.dealStatus && detail?.participantIds) {
-        socket.emit("deal_status_changed", {
-          chatId: detail.chatId,
-          dealStatus: detail.dealStatus,
-          participantIds: detail.participantIds,
-        });
-      }
-    };
-    window.addEventListener("deal-status-changed", handleDealStatusChanged);
 
     // ── Heartbeat: update lastActiveAt every 60s ──
     const heartbeatInterval = setInterval(() => {
@@ -156,9 +120,8 @@ export function useGlobalSocket(userId?: string) {
 
     return () => {
       clearInterval(heartbeatInterval);
-      window.removeEventListener("deal-status-changed", handleDealStatusChanged);
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [userId, setUnreadCount, incrementDealCount, decrementDealCount, setDealCount, setOnlineUsers, addOnlineUser, removeOnlineUser]);
+  }, [userId, setUnreadCount, setOnlineUsers, addOnlineUser, removeOnlineUser, setTyping, clearTyping]);
 }

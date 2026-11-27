@@ -27,6 +27,13 @@ function setCachedData(key: string, data: unknown): void {
   clientCache.set(key, { data, timestamp: Date.now() });
 }
 
+/** Drop cached responses whose URL starts with `prefix` (client-side only). */
+export function invalidateClientCache(prefix?: string): void {
+  for (const key of clientCache.keys()) {
+    if (!prefix || key.startsWith(prefix)) clientCache.delete(key);
+  }
+}
+
 function isStale(key: string): boolean {
   const entry = clientCache.get(key);
   if (!entry) return true;
@@ -291,6 +298,16 @@ export interface ShopData {
   previewProducts?: ProductData[];
   createdAt: string;
   updatedAt: string;
+  /** Verification fields returned by /api/admin/shops and /api/shops when populated. */
+  verificationDocuments?: {
+    businessLicense?: string;
+    taxCertificate?: string;
+    nationalId?: string;
+    other?: string[];
+  };
+  verificationNotes?: string;
+  rejectedReason?: string;
+  verifiedAt?: string;
 }
 
 export async function updateShop(id: string, data: Record<string, unknown>) {
@@ -299,7 +316,10 @@ export async function updateShop(id: string, data: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, ...data }),
   });
-  return res.json();
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(result?.error || "Could not update the shop");
+  invalidateClientCache("/api/shops");
+  return result;
 }
 
 // ── Orders ──
@@ -324,7 +344,14 @@ export interface OrderData {
     quantity: number;
     price: number;
   }>;
-  status: "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+  status:
+    | "order_placed"
+    | "approved"
+    | "agent_assigned"
+    | "delivery_in_progress"
+    | "delivered"
+    | "completed"
+    | "cancelled";
   total: number;
   paymentMethod?: string;
   notes?: string;
@@ -368,6 +395,8 @@ export function useInfiniteFeed(params?: {
   locationId?: string;
   authorId?: string;
   mode?: "ranked" | "chronological";
+  /** Viewer id so the feed can show which posts they already liked. */
+  userId?: string;
 }) {
   const [posts, setPosts] = useState<FeedPostData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -388,11 +417,12 @@ export function useInfiniteFeed(params?: {
     if (params?.filter && params.filter !== "all") sp.set("filter", params.filter);
     if (params?.locationId) sp.set("locationId", params.locationId);
     if (params?.authorId) sp.set("authorId", params.authorId);
+    if (params?.userId) sp.set("userId", params.userId);
     sp.set("mode", params?.mode || "ranked");
     sp.set("limit", "20");
     if (cursor) sp.set("cursor", cursor);
     return `/api/feed?${sp.toString()}`;
-  }, [params?.filter, params?.locationId, params?.authorId, params?.mode]);
+  }, [params?.filter, params?.locationId, params?.authorId, params?.mode, params?.userId]);
 
   // Initial load
   useEffect(() => {
@@ -567,7 +597,11 @@ export async function createFeedPost(data: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  return res.json();
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(result?.error || "Failed to create post");
+  // Shop profile and location pages read the feed through this cache.
+  invalidateClientCache("/api/feed");
+  return result;
 }
 
 export async function likeFeedPost(postId: string, userId: string) {
@@ -588,9 +622,119 @@ export async function commentFeedPost(postId: string, userId: string, authorName
   return res.json();
 }
 
+// ── Post detail (comments, replies, reactions, shares) ──
+export interface FeedCommentData {
+  id: string;
+  authorId?: string;
+  authorName: string;
+  authorAvatar?: string;
+  content: string;
+  createdAt: string;
+  parentId?: string | null;
+  likes: string[];
+  dislikes: string[];
+}
+
+export interface FeedPersonData {
+  id: string;
+  name: string;
+  avatar?: string;
+  role: string;
+  isShopVerified?: boolean;
+}
+
+export interface FeedPostDetailData {
+  id: string;
+  content: string;
+  images?: string[];
+  authorId: string;
+  author?: { id: string; name: string; avatar?: string; role: string; isShopVerified?: boolean } | null;
+  locationId?: string;
+  likes: number;
+  likedBy: string[];
+  likers: FeedPersonData[];
+  shares: number;
+  sharedBy: FeedPersonData[];
+  comments: FeedCommentData[];
+  commentsCount: number;
+  isPromotion: boolean;
+  postType?: string;
+  product?: FeedPostData["product"];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Full post with comments, reactions and share records for the post page. */
+export function useFeedPostDetail(postId: string | null) {
+  const url = postId ? `/api/feed/${encodeURIComponent(postId)}` : null;
+  const [post, setPost] = useState<FeedPostDetailData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!url) return;
+    let cancelled = false;
+
+    fetch(url)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to load post");
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setPost(data.post || null);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load post");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedUrl(url);
+      });
+
+    return () => { cancelled = true; };
+  }, [url]);
+
+  const loading = Boolean(url) && loadedUrl !== url;
+  return { post, setPost, loading, error };
+}
+
+export async function addFeedComment(
+  postId: string,
+  userId: string,
+  content: string,
+  parentId?: string | null,
+) {
+  const res = await fetch("/api/feed", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: postId, action: "comment", userId, comment: { content, parentId: parentId || null } }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Failed to post comment");
+  return data as { commentsCount: number; comment: FeedCommentData | null };
+}
+
+export async function reactToFeedComment(
+  postId: string,
+  commentId: string,
+  userId: string,
+  reaction: "like" | "dislike",
+) {
+  const res = await fetch("/api/feed", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: postId, action: "comment_reaction", userId, commentId, reaction }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Failed to react to comment");
+  return data as { likes: number; dislikes: number; liked: boolean; disliked: boolean };
+}
+
 // ── Chat ──
 export function useChats(userId: string | null) {
-  return useFetch<{ chats: ChatData[]; totalUnread: number; totalDeals: number }>(userId ? `/api/chat?userId=${userId}` : null, [userId]);
+  return useFetch<{ chats: ChatData[]; totalUnread: number }>(userId ? `/api/chat?userId=${userId}` : null, [userId]);
 }
 
 export function useChatMessages(chatId: string | null) {
@@ -599,22 +743,12 @@ export function useChatMessages(chatId: string | null) {
 
 export interface ChatData {
   id: string;
-  type: "deal" | "general";
+  type: "general";
   participants: Array<{ id: string; name: string; avatar?: string; role: string }>;
-  otherParticipant?: { id: string; name: string; avatar?: string; role: string; shopId?: string } | null;
+  otherParticipant?: { id: string; name: string; avatar?: string; role: string; shopId?: string; phone?: string; lastActiveAt?: string | null } | null;
   lastMessage?: { id: string; content: string; senderId: string; type?: string; isRead?: boolean; readBy?: string[]; timestamp: string } | null;
   lastMessageTime: string;
   unreadCount?: number;
-  dealInfo?: {
-    productName?: string;
-    productId?: string;
-    initialPrice?: number;
-    counterPrice?: number;
-    finalPrice?: number;
-    lastOfferBy?: string;
-    quantity?: number;
-    status: "pending" | "negotiating" | "confirmed" | "completed" | "cancelled";
-  };
   isActive: boolean;
   createdAt: string;
 }
@@ -626,7 +760,7 @@ export interface MessageData {
   senderName: string;
   senderRole: "customer" | "shop_owner";
   content: string;
-  type: "text" | "image" | "file" | "voice" | "deal_update" | "system";
+  type: "text" | "image" | "file" | "voice" | "system";
   isRead: boolean;
   readBy: string[];
   replyTo?: { messageId: string; content: string; senderName: string };
@@ -657,7 +791,6 @@ export async function sendMessage(data: {
 export async function createChat(data: {
   type?: string;
   participants: string[];
-  dealInfo?: Record<string, unknown>;
 }) {
   const res = await fetch("/api/chat", {
     method: "POST",
@@ -668,24 +801,6 @@ export async function createChat(data: {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `Failed to create chat (${res.status})`);
   }
-  return res.json();
-}
-
-export async function updateDealStatus(chatId: string, dealStatus: string, senderId: string) {
-  const res = await fetch("/api/chat", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "updateDealStatus", chatId, dealStatus, senderId }),
-  });
-  return res.json();
-}
-
-export async function proposePrice(chatId: string, senderId: string, senderRole: "customer" | "shop_owner", price: number, previousPrice?: number) {
-  const res = await fetch("/api/chat", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "proposePrice", chatId, senderId, senderRole, price, previousPrice }),
-  });
   return res.json();
 }
 
@@ -742,7 +857,7 @@ export function useNotifications(userId: string | null) {
 export interface NotificationData {
   id: string;
   userId: string;
-  type: "deal" | "message" | "review" | "shop" | "order" | "system";
+  type: "deal" | "message" | "like" | "comment" | "review" | "shop" | "order" | "system";
   title: string;
   message: string;
   isRead: boolean;
@@ -798,6 +913,43 @@ export interface AnalyticsData {
     rating: number;
     reviews: number;
   }>;
+  /** Completed orders, newest first: what sold, for how much, when, and to whom. */
+  recentSales: Array<{
+    id: string;
+    customer: string;
+    items: Array<{ name: string; quantity: number; price: number }>;
+    units: number;
+    total: number;
+    createdAt: string;
+  }>;
+  salesSummary: {
+    today: { count: number; revenue: number };
+    week: { count: number; revenue: number };
+  };
+  topSellingProducts: Array<{
+    id: string;
+    name: string;
+    sold: number;
+    price: number;
+  }>;
+  /** Last six months, oldest first. */
+  salesTrend: Array<{
+    month: string;
+    label: string;
+    revenue: number;
+    count: number;
+  }>;
+  salesByCategory: Array<{
+    category: string;
+    revenue: number;
+    units: number;
+  }>;
+  customers: {
+    total: number;
+    repeat: number;
+    newThisMonth: number;
+    avgSpend: number;
+  };
 }
 
 // ── Auth helpers ──

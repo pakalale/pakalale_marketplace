@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import { useGlobalSocket } from "@/hooks/useGlobalSocket";
 import BottomNav from "@/components/BottomNav";
+import AccountSidebar from "@/components/dashboard/AccountSidebar";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -82,11 +84,18 @@ export default function DashboardLayout({
     );
   }
 
+  // Customers and shop owners share the desktop sidebar; below lg they keep
+  // their existing top bars and bottom tab navigation.
+  const hasSidebar = isCustomer || isShop;
+
   return (
     <div className="min-h-screen bg-background">
-      <main className={isCustomer ? "pb-16 sm:pb-0" : ""}>
-        {children}
-      </main>
+      {hasSidebar && <AccountSidebar variant={isShop ? "shop" : "customer"} />}
+      <div className={cn("min-h-screen", hasSidebar && "lg:pl-64")}>
+        <main className={isCustomer ? "pb-16 sm:pb-0" : ""}>
+          {children}
+        </main>
+      </div>
       {isCustomer && <BottomNav />}
     </div>
   );

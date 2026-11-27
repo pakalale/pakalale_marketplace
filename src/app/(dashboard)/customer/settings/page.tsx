@@ -14,12 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useNavScrollVisibility } from "@/hooks/useNavScrollVisibility";
 
 export default function SettingsPage() {
   const router = useRouter();
   const { user, logout, updateUser } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const navVisible = useNavScrollVisibility();
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar || null);
   const { upload: uploadAvatar, uploading: avatarUploading, progress: avatarProgress } = useUpload({ folder: "pakalale/avatars", type: "image" });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,15 +99,15 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="w-16" />
-          <h1 className="text-sm font-bold">Settings</h1>
+      <header className={`sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border transition-transform duration-300 ${navVisible ? "translate-y-0" : "-translate-y-full"}`}>
+        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4 lg:px-6">
+          <div className="hidden w-16 lg:block" />
+          <h1 className="text-sm font-bold lg:text-base">Settings</h1>
           <div className="w-16" />
         </div>
       </header>
 
-      <div className="px-4 py-4 max-w-2xl mx-auto space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:py-6">
         <Card className="bg-card border-border">
           <CardContent className="p-4 space-y-3">
             <div>
@@ -261,7 +263,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between py-2">
                   <div>
                     <span className="text-sm font-medium">Push Notifications</span>
-                    <p className="text-[10px] text-muted-foreground">Get notified about deals, messages, and updates</p>
+                    <p className="text-[10px] text-muted-foreground">Get notified about messages, orders, and updates</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -283,7 +285,7 @@ export default function SettingsPage() {
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notificationsEnabled ? "translate-x-5" : ""}`} />
                   </button>
                 </div>
-                {["Deal Updates", "New Messages", "Order Status", "Promotions"].map((item) => (
+                {["New Messages", "Order Status", "Promotions"].map((item) => (
                   <div key={item} className="flex items-center justify-between py-2 pl-4 border-l-2 border-border">
                     <span className="text-sm">{item}</span>
                     <input type="checkbox" defaultChecked disabled={!notificationsEnabled} className="accent-primary rounded" />

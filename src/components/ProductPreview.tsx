@@ -92,7 +92,7 @@ export default function ProductPreviewStrip({
     <div className={cn(
       layout === "grid"
         ? "grid w-full grid-cols-2 gap-2"
-        : "flex w-full gap-2 overflow-x-auto pb-2 [scrollbar-width:thin]",
+        : "flex w-full items-stretch gap-2 overflow-x-auto pb-2 [scrollbar-width:thin]",
       className
     )}>
       {visible.map((product) => (

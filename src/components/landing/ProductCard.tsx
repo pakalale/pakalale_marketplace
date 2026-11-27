@@ -2,6 +2,7 @@
 
 import { createElement, useState } from "react";
 import { Heart, Play, ShoppingCart, Star } from "lucide-react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { formatKwacha, isProductVideo, productDiscount, productImages, productShopName, productVideos } from "@/lib/product";
 import { productPlaceholder } from "@/lib/placeholders";
@@ -39,7 +40,10 @@ function compactCount(count: number) {
 
 export default function ProductCard({ product, onOpen, onAddToCart, className, compact = false, imageOverride }: ProductCardProps) {
   const [failedImageCount, setFailedImageCount] = useState(0);
-  const saved = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
+  const hydrated = useHydrated();
+  const savedInStore = useWishlistStore((state) => state.items.some((item) => item.id === product.id));
+  // Persisted wishlist is only readable after hydration; avoid a blank flash of unsaved hearts.
+  const saved = hydrated && savedInStore;
   const toggleSaved = useWishlistStore((state) => state.toggle);
 
   const photos = productImages(product);
@@ -170,21 +174,25 @@ export default function ProductCard({ product, onOpen, onAddToCart, className, c
           )}
         </div>}
 
-        <button
-          type="button"
-          disabled={outOfStock}
-          onClick={(event) => {
-            event.stopPropagation();
-            onAddToCart(product);
-          }}
-          className={cn(
-            "mt-auto flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
-            compact ? "h-8 text-[10px]" : "mt-3 h-10 gap-2 text-sm"
-          )}
-        >
-          {!outOfStock && <ShoppingCart className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />}
-          {outOfStock ? "Out of Stock" : "Add to Cart"}
-        </button>
+        {/* mt-auto pins the button to the card bottom, so buttons line up across a
+            row even when product names wrap to different heights. */}
+        <div className={cn("mt-auto", compact ? "pt-1.5" : "pt-3")}>
+          <button
+            type="button"
+            disabled={outOfStock}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAddToCart(product);
+            }}
+            className={cn(
+              "flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground",
+              compact ? "h-8 text-[10px]" : "h-10 gap-2 text-sm"
+            )}
+          >
+            {!outOfStock && <ShoppingCart className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />}
+            {outOfStock ? "Out of Stock" : "Add to Cart"}
+          </button>
+        </div>
       </div>
     </article>
   );

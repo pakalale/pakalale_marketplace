@@ -4,7 +4,6 @@
  * Older duplicate chats are folded into the most recently active chat:
  *   - every message is re-pointed at the kept chat (nothing is lost)
  *   - the kept chat's last message/time is recalculated
- *   - an active deal from a duplicate is preserved if the kept chat has none
  *   - the duplicate chat documents are deleted
  *
  * Run a preview first:
@@ -24,7 +23,6 @@ type ChatDoc = {
   _id: mongoose.Types.ObjectId;
   type?: string;
   participants: mongoose.Types.ObjectId[];
-  dealInfo?: Record<string, unknown> & { status?: string };
   lastMessage?: mongoose.Types.ObjectId;
   lastMessageTime?: Date;
   createdAt?: Date;
@@ -43,13 +41,6 @@ function timestamp(chat: ChatDoc): number {
   return value ? new Date(value).getTime() : 0;
 }
 
-function isActiveDeal(chat: ChatDoc): boolean {
-  return (
-    !!chat.dealInfo &&
-    chat.dealInfo.status !== "completed" &&
-    chat.dealInfo.status !== "cancelled"
-  );
-}
 
 async function main() {
   if (!MONGODB_URI) {
@@ -118,19 +109,6 @@ async function main() {
     if (latestMessage) {
       update.lastMessage = latestMessage._id;
       update.lastMessageTime = latestMessage.timestamp;
-    }
-
-    // Keep the newest active deal if the kept chat has none (or only a finished one).
-    if (!isActiveDeal(keeper)) {
-      const activeDealSource = list.find(isActiveDeal);
-      if (activeDealSource?.dealInfo) {
-        update.dealInfo = activeDealSource.dealInfo;
-        update.type = "deal";
-      } else if (keeper.dealInfo) {
-        update.type = "deal";
-      }
-    } else {
-      update.type = "deal";
     }
 
     if (!DRY_RUN) {

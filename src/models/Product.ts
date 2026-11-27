@@ -20,6 +20,8 @@ export interface IProduct extends Document {
   color?: string;
   attributes?: Record<string, string>;
   demandScore?: number;
+  /** Units sold through completed orders. */
+  soldCount?: number;
   lastSoldAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +47,7 @@ const ProductSchema = new Schema<IProduct>(
     color: { type: String },
     attributes: { type: Schema.Types.Mixed },
     demandScore: { type: Number, default: 0 },
+    soldCount: { type: Number, default: 0, min: 0 },
     lastSoldAt: { type: Date },
   },
   { timestamps: true }

@@ -4,7 +4,8 @@ import { connectToDatabase } from "@/lib/mongodb";
 import Review from "@/models/Review";
 import Shop from "@/models/Shop";
 import Product from "@/models/Product";
-import { Chat } from "@/models/Message";
+import Order from "@/models/Order";
+import { normalizeOrderStatus } from "@/lib/orderStatus";
 import { invalidateCache } from "@/lib/cache";
 import { createNotification } from "@/lib/notifications";
 
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
           customerAvatar: customer?.avatar,
           shopId: toStr(r.shopId),
           productId: r.productId ? toStr(r.productId) : null,
-          dealId: toStr(r.dealId),
+          orderId: toStr(r.orderId),
           rating: r.rating,
           comment: r.comment,
           createdAt: r.createdAt,
@@ -89,36 +90,36 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Submit a review after deal completion
+// POST: Submit a review after order completion
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { customerId, shopId, productId, dealId, rating, comment } = body;
+    const { customerId, shopId, productId, orderId, rating, comment } = body;
 
-    if (!customerId || !shopId || !dealId || !rating) {
+    if (!customerId || !shopId || !orderId || !rating) {
       return NextResponse.json(
-        { error: "customerId, shopId, dealId, and rating are required" },
+        { error: "customerId, shopId, orderId, and rating are required" },
         { status: 400 }
       );
     }
 
-    // Verify the deal exists and is completed
-    const deal = await Chat.findById(dealId).lean();
-    if (!deal || deal.dealInfo?.status !== "completed") {
+    // Verify the order belongs to this customer and shop, and is completed
+    const order = await Order.findById(orderId).select("customerId shopId status").lean();
+    if (!order || toStr(order.customerId) !== toStr(customerId) || toStr(order.shopId) !== toStr(shopId)) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (normalizeOrderStatus(order.status) !== "completed") {
       return NextResponse.json(
-        { error: "Can only review completed deals" },
+        { error: "You can review an order once it is completed" },
         { status: 400 }
       );
     }
 
-    // Check for existing review
-    const existing = await Review.findOne({ dealId }).lean();
-    if (existing) {
-      return NextResponse.json(
-        { error: "You have already reviewed this deal" },
-        { status: 409 }
-      );
+    // Ensure orderId is a valid ObjectId before using it
+    let orderIdObj: mongoose.Types.ObjectId | undefined;
+    if (orderId && mongoose.isValidObjectId(orderId)) {
+      orderIdObj = new mongoose.Types.ObjectId(orderId);
     }
 
     // Create the review
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
       customerId: new mongoose.Types.ObjectId(customerId),
       shopId: new mongoose.Types.ObjectId(shopId),
       productId: productId ? new mongoose.Types.ObjectId(productId) : undefined,
-      dealId: new mongoose.Types.ObjectId(dealId),
+      orderId: orderIdObj,
       rating: Math.min(5, Math.max(1, rating)),
       comment: comment || "",
     });
@@ -192,9 +193,6 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error) {
     console.error("Reviews POST error:", error);
-    if ((error as Record<string, unknown>).code === 11000) {
-      return NextResponse.json({ error: "You have already reviewed this deal" }, { status: 409 });
-    }
     return NextResponse.json({ error: "Failed to submit review" }, { status: 500 });
   }
 }

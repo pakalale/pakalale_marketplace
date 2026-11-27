@@ -22,6 +22,10 @@ export interface IShop extends Document {
   rating?: number;
   totalReviews: number;
   totalViews: number;
+  /** Completed orders, i.e. recorded sales. */
+  totalSales?: number;
+  /** Revenue from completed orders, in Kwacha. */
+  totalRevenue?: number;
   coordinates?: { lat: number; lng: number };
   searchableCategories?: string[];
   responseRate?: number;
@@ -60,6 +64,8 @@ const ShopSchema = new Schema<IShop>(
     rating: { type: Number, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
     totalViews: { type: Number, default: 0 },
+    totalSales: { type: Number, default: 0, min: 0 },
+    totalRevenue: { type: Number, default: 0, min: 0 },
     coordinates: {
       lat: { type: Number },
       lng: { type: Number },

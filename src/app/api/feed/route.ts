@@ -16,6 +16,20 @@ function toStr(val: unknown): string {
   return String(val);
 }
 
+/** Display name and avatar for whoever is liking or commenting. */
+async function actorInfo(userId: string): Promise<{ name: string; avatar?: string }> {
+  const user = await User.findById(userId).select("firstName lastName avatar role").lean();
+  if (!user) return { name: "Someone" };
+
+  if (user.role === "shop_owner") {
+    const shop = await Shop.findOne({ ownerId: userId }).select("name profileImage").lean();
+    if (shop?.name) return { name: String(shop.name), avatar: shop.profileImage || user.avatar };
+  }
+
+  const name = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+  return { name: name || "Pakalale user", avatar: user.avatar || undefined };
+}
+
 function computeRankScore(post: Record<string, unknown>): number {
   const now = Date.now();
   const created = new Date(post.createdAt as string).getTime();
@@ -58,6 +72,12 @@ export async function GET(request: NextRequest) {
     const authorId = searchParams.get("authorId");
     if (authorId) query.authorId = authorId;
 
+    // Lets the feed show a filled heart for posts this person already liked.
+    const viewerId = searchParams.get("userId");
+    const viewerObjectId = viewerId && mongoose.isValidObjectId(viewerId)
+      ? new mongoose.Types.ObjectId(viewerId)
+      : null;
+
     // Cursor-based pagination: cursor is the ISO date of the last post
     const cursor = searchParams.get("cursor");
     const limit = parseInt(searchParams.get("limit") || "20");
@@ -68,14 +88,14 @@ export async function GET(request: NextRequest) {
       query.createdAt = { $lt: cursorDate };
     }
 
-    const cacheKey = `feed:${JSON.stringify({ filter, locationId, authorId, cursor, limit, mode })}`;
+    const cacheKey = `feed:${JSON.stringify({ filter, locationId, authorId, cursor, limit, mode, viewerId })}`;
     const cached = getCached(cacheKey);
     if (cached) return NextResponse.json(cached);
 
     // For ranked mode, fetch a larger pool to score and rank
     const fetchLimit = mode === "ranked" ? Math.min(limit * 3, 60) : limit;
 
-    let posts: (Record<string, unknown> & { _rankScore?: number; _likesCount?: number; _commentsCount?: number })[] = await FeedPost.find(query)
+    let posts: (Record<string, unknown> & { _rankScore?: number; _likesCount?: number; _commentsCount?: number; _likedByMe?: boolean })[] = await FeedPost.find(query)
       .sort({ createdAt: -1 })
       .limit(fetchLimit)
       .select("content images authorId locationId shares isPromotion product postType relatedProductId relatedShopId createdAt updatedAt")
@@ -88,14 +108,22 @@ export async function GET(request: NextRequest) {
       { $project: {
         likesCount: { $size: { $ifNull: ["$likes", []] } },
         commentsCount: { $size: { $ifNull: ["$comments", []] } },
+        likedByMe: viewerObjectId
+          ? { $in: [viewerObjectId, { $ifNull: ["$likes", []] }] }
+          : false,
       }},
     ]) : [];
-    const countsMap = new Map<string, { likesCount: number; commentsCount: number }>();
-    countsAgg.forEach((c) => countsMap.set(c._id.toString(), { likesCount: c.likesCount, commentsCount: c.commentsCount }));
+    const countsMap = new Map<string, { likesCount: number; commentsCount: number; likedByMe: boolean }>();
+    countsAgg.forEach((c) => countsMap.set(c._id.toString(), {
+      likesCount: c.likesCount,
+      commentsCount: c.commentsCount,
+      likedByMe: Boolean(c.likedByMe),
+    }));
     posts.forEach((p) => {
       const counts = countsMap.get(String(p._id));
       p._likesCount = counts?.likesCount || 0;
       p._commentsCount = counts?.commentsCount || 0;
+      p._likedByMe = counts?.likedByMe || false;
     });
 
     // For ranked mode: compute scores, sort by score, take top N
@@ -176,7 +204,7 @@ export async function GET(request: NextRequest) {
             : null,
           locationId: p.locationId,
           likes: p._likesCount || 0,
-          likedBy: [],
+          likedBy: p._likedByMe && viewerId ? [viewerId] : [],
           comments: [],
           commentsCount: p._commentsCount || 0,
           shares: p.shares,
@@ -211,9 +239,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
     await connectToDatabase();
     const body = await request.json();
-    const post = await FeedPost.create(body);
+    const actorId = typeof body.authorId === "string" && body.authorId ? body.authorId : session.id;
+    const post = await FeedPost.create({ ...body, authorId: actorId });
     invalidateCache("feed:");
     return NextResponse.json(
       {
@@ -231,7 +262,7 @@ export async function PUT(request: NextRequest) {
   try {
     await connectToDatabase();
     const body = await request.json();
-    const { id, action, userId, comment } = body;
+    const { id, action, userId, comment, commentId, reaction } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
@@ -255,24 +286,22 @@ export async function PUT(request: NextRequest) {
           likesCount: post?.likes?.length || 0,
         });
       } else {
-        // Fetch user's name for notification
-        const userDoc = await User.findById(userId).select("firstName lastName").lean();
-        const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}`.trim() || "a user" : "a user";
+        const actor = await actorInfo(userId);
 
         await FeedPost.findByIdAndUpdate(id, { $push: { likes: userIdObj } });
         const post = await FeedPost.findById(id).select("likes authorId").lean();
         invalidateCache("feed:");
 
-        // Notify post author (not self)
+        // Notify post author (not self) with a link to everyone who reacted.
         if (post && toStr(post.authorId) !== userId) {
           const { createNotification } = await import("@/lib/notifications");
           await createNotification({
             userId: toStr(post.authorId),
-            type: "review",
-            title: `Your post was liked by ${userName} ❤️`,
-            message: `Your post was liked by a user.`,
-            actionUrl: "/customer/profile/${userId}",
-            relatedId: userId,
+            type: "like",
+            title: `${actor.name} liked your post`,
+            message: "Tap to see everyone who reacted.",
+            actionUrl: `/post/${id}/likes`,
+            relatedId: id,
           });
         }
 
@@ -284,34 +313,142 @@ export async function PUT(request: NextRequest) {
     }
 
     if (action === "comment") {
-      await FeedPost.findByIdAndUpdate(id, {
-        $push: {
-          comments: {
-            authorId: new mongoose.Types.ObjectId(userId),
-            authorName: comment.authorName,
-            content: comment.content,
-            createdAt: new Date(),
+      if (!mongoose.isValidObjectId(userId)) {
+        return NextResponse.json({ error: "Sign in to comment" }, { status: 401 });
+      }
+
+      const content = String(comment?.content || "").trim();
+      if (!content) {
+        return NextResponse.json({ error: "Comment is required" }, { status: 400 });
+      }
+      if (content.length > 1000) {
+        return NextResponse.json({ error: "Comments can be up to 1000 characters" }, { status: 400 });
+      }
+
+      const parentId = comment?.parentId ? String(comment.parentId) : null;
+      const existing = await FeedPost.findById(id).select("comments authorId").lean();
+      if (!existing) {
+        return NextResponse.json({ error: "Post not found" }, { status: 404 });
+      }
+
+      const parent = parentId ? (existing.comments || []).find((c) => toStr(c._id) === parentId) : undefined;
+      if (parentId && !parent) {
+        return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+      }
+
+      const actor = await actorInfo(userId);
+      const updated = await FeedPost.findByIdAndUpdate(
+        id,
+        {
+          $push: {
+            comments: {
+              authorId: new mongoose.Types.ObjectId(userId),
+              authorName: actor.name,
+              content,
+              createdAt: new Date(),
+              parentId: parent ? new mongoose.Types.ObjectId(parentId as string) : null,
+              likes: [],
+              dislikes: [],
+            },
           },
         },
-      });
-      const post = await FeedPost.findById(id).select("comments authorId").lean();
+        { new: true }
+      ).select("comments authorId").lean();
       invalidateCache("feed:");
 
-      // Notify post author (not self)
-      if (post && toStr(post.authorId) !== userId) {
+      const created = updated?.comments?.[(updated.comments?.length || 1) - 1];
+      // Replies go to the comment author, top-level comments to the post author.
+      const notifyUserId = parent ? toStr(parent.authorId) : toStr(updated?.authorId);
+      if (created && notifyUserId && notifyUserId !== userId) {
         const { createNotification } = await import("@/lib/notifications");
         await createNotification({
-          userId: toStr(post.authorId),
-          type: "message",
-          title: `New comment by ${comment.authorName}`,
-          message: comment.content.length > 80 ? comment.content.slice(0, 80) + "..." : comment.content,
-          actionUrl: "/customer",
+          userId: notifyUserId,
+          type: "comment",
+          title: parent ? `${actor.name} replied to your comment` : `${actor.name} commented on your post`,
+          message: content.length > 80 ? content.slice(0, 80) + "..." : content,
+          // Deep link straight to the new comment/reply.
+          actionUrl: `/post/${id}?comment=${toStr(created._id)}`,
+          relatedId: id,
         });
       }
 
       return NextResponse.json({
-        commentsCount: post?.comments?.length || 0,
-        comment: post?.comments?.[post.comments.length - 1] || null,
+        commentsCount: updated?.comments?.length || 0,
+        comment: created
+          ? {
+              id: toStr(created._id),
+              authorId: userId,
+              authorName: actor.name,
+              authorAvatar: actor.avatar,
+              content,
+              createdAt: created.createdAt,
+              parentId: parentId,
+              likes: [],
+              dislikes: [],
+            }
+          : null,
+      });
+    }
+
+    if (action === "comment_reaction") {
+      if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(commentId)) {
+        return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
+      }
+      if (reaction !== "like" && reaction !== "dislike") {
+        return NextResponse.json({ error: "Invalid reaction" }, { status: 400 });
+      }
+
+      const post = await FeedPost.findOne({ _id: id, "comments._id": commentId })
+        .select("comments.$ authorId")
+        .lean();
+      const current = post?.comments?.[0];
+      if (!current) {
+        return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+      }
+
+      const liked = (current.likes || []).some((likeId) => toStr(likeId) === userId);
+      const disliked = (current.dislikes || []).some((dislikeId) => toStr(dislikeId) === userId);
+      const keepOthers = (ids: mongoose.Types.ObjectId[] | undefined) =>
+        (ids || []).filter((reactionId) => toStr(reactionId) !== userId);
+
+      const nextLikes = reaction === "like"
+        ? liked
+          ? keepOthers(current.likes)
+          : [...keepOthers(current.likes), new mongoose.Types.ObjectId(userId)]
+        : keepOthers(current.likes);
+      const nextDislikes = reaction === "dislike"
+        ? disliked
+          ? keepOthers(current.dislikes)
+          : [...keepOthers(current.dislikes), new mongoose.Types.ObjectId(userId)]
+        : keepOthers(current.dislikes);
+
+      await FeedPost.updateOne(
+        { _id: id },
+        { $set: { "comments.$[target].likes": nextLikes, "comments.$[target].dislikes": nextDislikes } },
+        { arrayFilters: [{ "target._id": new mongoose.Types.ObjectId(commentId) }] }
+      );
+      invalidateCache("feed:");
+
+      const nowLiked = nextLikes.some((likeId) => toStr(likeId) === userId);
+      const commentAuthorId = toStr(current.authorId);
+      if (nowLiked && !liked && commentAuthorId && commentAuthorId !== userId) {
+        const actor = await actorInfo(userId);
+        const { createNotification } = await import("@/lib/notifications");
+        await createNotification({
+          userId: commentAuthorId,
+          type: "like",
+          title: `${actor.name} liked your comment`,
+          message: current.content.length > 80 ? current.content.slice(0, 80) + "..." : current.content,
+          actionUrl: `/post/${id}?comment=${commentId}`,
+          relatedId: id,
+        });
+      }
+
+      return NextResponse.json({
+        likes: nextLikes.length,
+        dislikes: nextDislikes.length,
+        liked: nowLiked,
+        disliked: nextDislikes.some((dislikeId) => toStr(dislikeId) === userId),
       });
     }
 

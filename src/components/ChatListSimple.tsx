@@ -24,7 +24,6 @@ function formatLastMessage(content?: string, type?: string): string {
     return "📷 Photo";
   }
   if (type === "voice") return "🎤 Voice message";
-  if (type === "deal_update") return content;
   if (type === "file") return "📎 File";
   if (content.startsWith("http://") || content.startsWith("https://")) {
     return "📎 Attachment";
@@ -232,28 +231,6 @@ export default function ChatListSimple({
                             {chat.lastMessageTime ? formatTimeShort(chat.lastMessageTime) : ""}
                           </span>
                         </div>
-
-                        {chat.type === "deal" && chat.dealInfo && (
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <Badge variant="secondary" className="text-[9px] h-4 bg-primary/10 text-brand">
-                              {chat.dealInfo.productName}
-                            </Badge>
-                            {(() => {
-                              const statusColors: Record<string, string> = {
-                                pending: "bg-amber-400/10 text-amber-400",
-                                negotiating: "bg-blue-400/10 text-blue-400",
-                                confirmed: "bg-emerald-400/10 text-emerald-400",
-                                completed: "bg-emerald-500/10 text-emerald-500",
-                                cancelled: "bg-red-400/10 text-red-400",
-                              };
-                              return (
-                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${statusColors[chat.dealInfo!.status] || "bg-muted text-muted-foreground"}`}>
-                                  {chat.dealInfo!.status}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        )}
 
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-1 min-w-0 flex-1">

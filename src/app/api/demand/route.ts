@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import DemandRecord from "@/models/DemandRecord";
-import Shop from "@/models/Shop";
 
 function toStr(val: unknown): string {
   if (!val) return "";
@@ -143,12 +142,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await import("@/lib/session").then((m) => m.getSessionUser(request));
+    if (!session) return NextResponse.json({ error: "Please sign in" }, { status: 401 });
     await connectToDatabase();
     const body = await request.json();
     const { customerId, query: searchQuery, locationId, coordinates } = body;
 
     if (!customerId || !searchQuery) {
       return NextResponse.json({ error: "customerId and query are required" }, { status: 400 });
+    }
+    if (customerId !== session.id) {
+      return NextResponse.json({ error: "You can only create demands for your own account" }, { status: 403 });
     }
 
     const parsedIntent = parseIntent(searchQuery);
@@ -165,10 +169,7 @@ export async function POST(request: NextRequest) {
     const { createBulkNotifications } = await import("@/lib/notifications");
     const ShopModel = (await import("@/models/Shop")).default;
     // Try location-specific first, fall back to all shops
-    let shopQuery: Record<string, unknown> = {};
-    if (locationId) {
-      shopQuery = { locationId };
-    }
+    const shopQuery: Record<string, unknown> = locationId ? { locationId } : {};
     const shops = await ShopModel.find(shopQuery).select("ownerId").lean();
     const ownerIds = [...new Set(shops.map((s) => toStr(s.ownerId)).filter((oid) => oid !== customerId))];      if (ownerIds.length > 0) {
         await createBulkNotifications(ownerIds, {

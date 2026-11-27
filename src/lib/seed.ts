@@ -109,7 +109,7 @@ const ChatMessageSchema = new mongoose.Schema({
   senderName: { type: String, required: true },
   senderRole: { type: String, enum: ["customer", "shop_owner"], required: true },
   content: { type: String, required: true },
-  type: { type: String, enum: ["text", "image", "file", "voice", "deal_update", "system"], default: "text" },
+  type: { type: String, enum: ["text", "image", "file", "voice", "system"], default: "text" },
   isRead: { type: Boolean, default: false },
   readBy: [{ type: mongoose.Schema.Types.ObjectId }],
   replyTo: { messageId: { type: mongoose.Schema.Types.ObjectId }, content: { type: String }, senderName: { type: String } },
@@ -117,9 +117,8 @@ const ChatMessageSchema = new mongoose.Schema({
 }, { timestamps: false });
 
 const ChatSchema = new mongoose.Schema({
-  type: { type: String, enum: ["deal", "general"], default: "general" },
+  type: { type: String, enum: ["general"], default: "general" },
   participants: [{ type: mongoose.Schema.Types.ObjectId, required: true }],
-  dealInfo: { productName: { type: String }, initialPrice: { type: Number }, finalPrice: { type: Number }, status: { type: String, enum: ["pending", "negotiating", "confirmed", "completed", "cancelled"], default: "pending" } },
   lastMessage: { type: mongoose.Schema.Types.ObjectId },
   lastMessageTime: { type: Date, default: Date.now },
   isActive: { type: Boolean, default: true },
@@ -127,7 +126,7 @@ const ChatSchema = new mongoose.Schema({
 
 const NotificationSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  type: { type: String, enum: ["deal", "message", "review", "shop", "order", "system", "demand", "search_alert"], required: true },
+  type: { type: String, enum: ["message", "review", "shop", "order", "system", "demand", "search_alert"], required: true },
   title: { type: String, required: true }, message: { type: String, required: true },
   isRead: { type: Boolean, default: false }, actionUrl: { type: String }, relatedId: { type: mongoose.Schema.Types.ObjectId },
 }, { timestamps: true });
@@ -552,15 +551,15 @@ async function seed() {
     // 11. Chats & Messages
     console.log("💬 Creating chats...");
     const chatPairs = [
-      { ci: 0, si: 0, type: "deal", product: "iPhone 15 Pro Max" },
-      { ci: 1, si: 1, type: "general", product: null },
-      { ci: 2, si: 4, type: "deal", product: "PlayStation 5 Console" },
-      { ci: 3, si: 6, type: "general", product: null },
-      { ci: 0, si: 5, type: "general", product: null },
+      { ci: 0, si: 0, product: "iPhone 15 Pro Max" },
+      { ci: 1, si: 1, product: null },
+      { ci: 2, si: 4, product: "PlayStation 5 Console" },
+      { ci: 3, si: 6, product: null },
+      { ci: 0, si: 5, product: null },
     ];
     for (const cp of chatPairs) {
       const cust = customers[cp.ci], owner = shopOwners[cp.si];
-      const chat = await Chat.create({ type: cp.type, participants: [cust._id, owner._id], dealInfo: cp.product ? { productName: cp.product, initialPrice: cp.product === "iPhone 15 Pro Max" ? 18500 : 9500, finalPrice: cp.product === "iPhone 15 Pro Max" ? 17500 : 9000, status: "negotiating" } : undefined, lastMessageTime: new Date(), isActive: true });
+      const chat = await Chat.create({ participants: [cust._id, owner._id], lastMessageTime: new Date(), isActive: true });
       const msgs = [
         { chatId: chat._id, senderId: cust._id, senderName: `${cust.firstName} ${cust.lastName}`, senderRole: "customer", content: `Hello! Is ${cp.product || "the product"} still available?`, timestamp: new Date(Date.now() - 3600000 * 2), isRead: true, readBy: [] as mongoose.Types.ObjectId[] },
         { chatId: chat._id, senderId: owner._id, senderName: `${owner.firstName} ${owner.lastName}`, senderRole: "shop_owner", content: "Yes! Come visit us.", timestamp: new Date(Date.now() - 3600000), isRead: true, readBy: [] as mongoose.Types.ObjectId[] },
@@ -574,12 +573,12 @@ async function seed() {
     const notifDocs = [
       { userId: customers[0]._id, type: "system", title: "Welcome to Pakalale! 🎉", message: "Discover local shops and deals!", actionUrl: "/customer" },
       { userId: customers[0]._id, type: "shop", title: "New Shop Nearby", message: "Urban Sole has 7 new sneaker styles!", actionUrl: "/customer/locations" },
-      { userId: customers[0]._id, type: "deal", title: "Flash Sale Alert! 🔥", message: "TechHub: Samsung phones up to 25% off!", actionUrl: "/customer/deals" },
-      { userId: customers[0]._id, type: "demand", title: "Your Request Has Views 👀", message: "3 shops saw your Nike AF1 request.", actionUrl: "/customer/deals" },
-      { userId: customers[0]._id, type: "order", title: "Order Confirmed ✅", message: "FreshBasket order confirmed.", actionUrl: "/customer/deals" },
+      { userId: customers[0]._id, type: "shop", title: "Flash Sale Alert! 🔥", message: "TechHub: Samsung phones up to 25% off!", actionUrl: "/customer/search" },
+      { userId: customers[0]._id, type: "demand", title: "Your Request Has Views 👀", message: "3 shops saw your Nike AF1 request.", actionUrl: "/customer/search" },
+      { userId: customers[0]._id, type: "order", title: "Order Confirmed ✅", message: "FreshBasket order confirmed.", actionUrl: "/customer/orders" },
       { userId: customers[0]._id, type: "message", title: "New Message 💬", message: "TechHub replied about iPhone 15.", actionUrl: "/customer/chat" },
       { userId: customers[0]._id, type: "search_alert", title: "Price Drop 📉", message: "Nike Air Max 270 now K2,200!", actionUrl: "/customer/locations" },
-      { userId: customers[0]._id, type: "review", title: "Rate Your Purchase ⭐", message: "How was TechHub? Leave a review!", actionUrl: "/customer/deals" },
+      { userId: customers[0]._id, type: "review", title: "Rate Your Purchase ⭐", message: "How was TechHub? Leave a review!", actionUrl: "/customer/orders" },
       ...Array.from({ length: 4 }, (_, i) => ({ userId: customers[i + 1]._id, type: "system" as const, title: "Welcome to Pakalale! 🎉", message: "Explore local shops!", actionUrl: "/customer" })),
     ];
     await Notification.insertMany(notifDocs);

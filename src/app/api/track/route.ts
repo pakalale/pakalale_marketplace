@@ -90,26 +90,18 @@ export async function POST(request: NextRequest) {
       }
 
       case "feed_share": {
-        // Increment share count on the post
-        await FeedPost.findByIdAndUpdate(targetId, { $inc: { shares: 1 } });
+        // Increment share count and remember signed-in sharers for the shares list.
+        await FeedPost.findByIdAndUpdate(targetId, {
+          $inc: { shares: 1 },
+          ...(userId && mongoose.isValidObjectId(userId)
+            ? { $addToSet: { sharedBy: new mongoose.Types.ObjectId(userId) } }
+            : {}),
+        });
         if (userId) {
           await FeedEvent.create({
             userId,
             postId: targetId,
             eventType: "share",
-            timestamp: new Date(),
-          });
-        }
-        break;
-      }
-
-      case "feed_deal": {
-        if (userId) {
-          await FeedEvent.create({
-            userId,
-            postId: targetId,
-            eventType: "deal",
-            metadata: body.metadata || {},
             timestamp: new Date(),
           });
         }
